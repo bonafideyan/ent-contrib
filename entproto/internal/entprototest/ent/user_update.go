@@ -4,14 +4,18 @@ package ent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"entgo.io/contrib/entproto/internal/entprototest/ent/blogpost"
+	"entgo.io/contrib/entproto/internal/entprototest/ent/image"
 	"entgo.io/contrib/entproto/internal/entprototest/ent/predicate"
+	"entgo.io/contrib/entproto/internal/entprototest/ent/skipedgeexample"
 	"entgo.io/contrib/entproto/internal/entprototest/ent/user"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/google/uuid"
 )
 
 // UserUpdate is the builder for updating User entities.
@@ -21,9 +25,9 @@ type UserUpdate struct {
 	mutation *UserMutation
 }
 
-// Where adds a new predicate for the UserUpdate builder.
+// Where appends a list predicates to the UserUpdate builder.
 func (uu *UserUpdate) Where(ps ...predicate.User) *UserUpdate {
-	uu.mutation.predicates = append(uu.mutation.predicates, ps...)
+	uu.mutation.Where(ps...)
 	return uu
 }
 
@@ -36,6 +40,26 @@ func (uu *UserUpdate) SetUserName(s string) *UserUpdate {
 // SetStatus sets the "status" field.
 func (uu *UserUpdate) SetStatus(u user.Status) *UserUpdate {
 	uu.mutation.SetStatus(u)
+	return uu
+}
+
+// SetUnnecessary sets the "unnecessary" field.
+func (uu *UserUpdate) SetUnnecessary(s string) *UserUpdate {
+	uu.mutation.SetUnnecessary(s)
+	return uu
+}
+
+// SetNillableUnnecessary sets the "unnecessary" field if the given value is not nil.
+func (uu *UserUpdate) SetNillableUnnecessary(s *string) *UserUpdate {
+	if s != nil {
+		uu.SetUnnecessary(*s)
+	}
+	return uu
+}
+
+// ClearUnnecessary clears the value of the "unnecessary" field.
+func (uu *UserUpdate) ClearUnnecessary() *UserUpdate {
+	uu.mutation.ClearUnnecessary()
 	return uu
 }
 
@@ -52,6 +76,44 @@ func (uu *UserUpdate) AddBlogPosts(b ...*BlogPost) *UserUpdate {
 		ids[i] = b[i].ID
 	}
 	return uu.AddBlogPostIDs(ids...)
+}
+
+// SetProfilePicID sets the "profile_pic" edge to the Image entity by ID.
+func (uu *UserUpdate) SetProfilePicID(id uuid.UUID) *UserUpdate {
+	uu.mutation.SetProfilePicID(id)
+	return uu
+}
+
+// SetNillableProfilePicID sets the "profile_pic" edge to the Image entity by ID if the given value is not nil.
+func (uu *UserUpdate) SetNillableProfilePicID(id *uuid.UUID) *UserUpdate {
+	if id != nil {
+		uu = uu.SetProfilePicID(*id)
+	}
+	return uu
+}
+
+// SetProfilePic sets the "profile_pic" edge to the Image entity.
+func (uu *UserUpdate) SetProfilePic(i *Image) *UserUpdate {
+	return uu.SetProfilePicID(i.ID)
+}
+
+// SetSkipEdgeID sets the "skip_edge" edge to the SkipEdgeExample entity by ID.
+func (uu *UserUpdate) SetSkipEdgeID(id int) *UserUpdate {
+	uu.mutation.SetSkipEdgeID(id)
+	return uu
+}
+
+// SetNillableSkipEdgeID sets the "skip_edge" edge to the SkipEdgeExample entity by ID if the given value is not nil.
+func (uu *UserUpdate) SetNillableSkipEdgeID(id *int) *UserUpdate {
+	if id != nil {
+		uu = uu.SetSkipEdgeID(*id)
+	}
+	return uu
+}
+
+// SetSkipEdge sets the "skip_edge" edge to the SkipEdgeExample entity.
+func (uu *UserUpdate) SetSkipEdge(s *SkipEdgeExample) *UserUpdate {
+	return uu.SetSkipEdgeID(s.ID)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -80,6 +142,18 @@ func (uu *UserUpdate) RemoveBlogPosts(b ...*BlogPost) *UserUpdate {
 	return uu.RemoveBlogPostIDs(ids...)
 }
 
+// ClearProfilePic clears the "profile_pic" edge to the Image entity.
+func (uu *UserUpdate) ClearProfilePic() *UserUpdate {
+	uu.mutation.ClearProfilePic()
+	return uu
+}
+
+// ClearSkipEdge clears the "skip_edge" edge to the SkipEdgeExample entity.
+func (uu *UserUpdate) ClearSkipEdge() *UserUpdate {
+	uu.mutation.ClearSkipEdge()
+	return uu
+}
+
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (uu *UserUpdate) Save(ctx context.Context) (int, error) {
 	var (
@@ -106,6 +180,9 @@ func (uu *UserUpdate) Save(ctx context.Context) (int, error) {
 			return affected, err
 		})
 		for i := len(uu.hooks) - 1; i >= 0; i-- {
+			if uu.hooks[i] == nil {
+				return 0, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
+			}
 			mut = uu.hooks[i](mut)
 		}
 		if _, err := mut.Mutate(ctx, uu.mutation); err != nil {
@@ -141,7 +218,7 @@ func (uu *UserUpdate) ExecX(ctx context.Context) {
 func (uu *UserUpdate) check() error {
 	if v, ok := uu.mutation.Status(); ok {
 		if err := user.StatusValidator(v); err != nil {
-			return &ValidationError{Name: "status", err: fmt.Errorf("ent: validator failed for field \"status\": %w", err)}
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "User.status": %w`, err)}
 		}
 	}
 	return nil
@@ -177,6 +254,19 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Type:   field.TypeEnum,
 			Value:  value,
 			Column: user.FieldStatus,
+		})
+	}
+	if value, ok := uu.mutation.Unnecessary(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: user.FieldUnnecessary,
+		})
+	}
+	if uu.mutation.UnnecessaryCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: user.FieldUnnecessary,
 		})
 	}
 	if uu.mutation.BlogPostsCleared() {
@@ -233,11 +323,81 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if uu.mutation.ProfilePicCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   user.ProfilePicTable,
+			Columns: []string{user.ProfilePicColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: image.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.ProfilePicIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   user.ProfilePicTable,
+			Columns: []string{user.ProfilePicColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: image.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if uu.mutation.SkipEdgeCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.SkipEdgeTable,
+			Columns: []string{user.SkipEdgeColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: skipedgeexample.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.SkipEdgeIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.SkipEdgeTable,
+			Columns: []string{user.SkipEdgeColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: skipedgeexample.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, uu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{user.Label}
-		} else if cerr, ok := isSQLConstraintError(err); ok {
-			err = cerr
+		} else if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{err.Error(), err}
 		}
 		return 0, err
 	}
@@ -247,6 +407,7 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 // UserUpdateOne is the builder for updating a single User entity.
 type UserUpdateOne struct {
 	config
+	fields   []string
 	hooks    []Hook
 	mutation *UserMutation
 }
@@ -263,6 +424,26 @@ func (uuo *UserUpdateOne) SetStatus(u user.Status) *UserUpdateOne {
 	return uuo
 }
 
+// SetUnnecessary sets the "unnecessary" field.
+func (uuo *UserUpdateOne) SetUnnecessary(s string) *UserUpdateOne {
+	uuo.mutation.SetUnnecessary(s)
+	return uuo
+}
+
+// SetNillableUnnecessary sets the "unnecessary" field if the given value is not nil.
+func (uuo *UserUpdateOne) SetNillableUnnecessary(s *string) *UserUpdateOne {
+	if s != nil {
+		uuo.SetUnnecessary(*s)
+	}
+	return uuo
+}
+
+// ClearUnnecessary clears the value of the "unnecessary" field.
+func (uuo *UserUpdateOne) ClearUnnecessary() *UserUpdateOne {
+	uuo.mutation.ClearUnnecessary()
+	return uuo
+}
+
 // AddBlogPostIDs adds the "blog_posts" edge to the BlogPost entity by IDs.
 func (uuo *UserUpdateOne) AddBlogPostIDs(ids ...int) *UserUpdateOne {
 	uuo.mutation.AddBlogPostIDs(ids...)
@@ -276,6 +457,44 @@ func (uuo *UserUpdateOne) AddBlogPosts(b ...*BlogPost) *UserUpdateOne {
 		ids[i] = b[i].ID
 	}
 	return uuo.AddBlogPostIDs(ids...)
+}
+
+// SetProfilePicID sets the "profile_pic" edge to the Image entity by ID.
+func (uuo *UserUpdateOne) SetProfilePicID(id uuid.UUID) *UserUpdateOne {
+	uuo.mutation.SetProfilePicID(id)
+	return uuo
+}
+
+// SetNillableProfilePicID sets the "profile_pic" edge to the Image entity by ID if the given value is not nil.
+func (uuo *UserUpdateOne) SetNillableProfilePicID(id *uuid.UUID) *UserUpdateOne {
+	if id != nil {
+		uuo = uuo.SetProfilePicID(*id)
+	}
+	return uuo
+}
+
+// SetProfilePic sets the "profile_pic" edge to the Image entity.
+func (uuo *UserUpdateOne) SetProfilePic(i *Image) *UserUpdateOne {
+	return uuo.SetProfilePicID(i.ID)
+}
+
+// SetSkipEdgeID sets the "skip_edge" edge to the SkipEdgeExample entity by ID.
+func (uuo *UserUpdateOne) SetSkipEdgeID(id int) *UserUpdateOne {
+	uuo.mutation.SetSkipEdgeID(id)
+	return uuo
+}
+
+// SetNillableSkipEdgeID sets the "skip_edge" edge to the SkipEdgeExample entity by ID if the given value is not nil.
+func (uuo *UserUpdateOne) SetNillableSkipEdgeID(id *int) *UserUpdateOne {
+	if id != nil {
+		uuo = uuo.SetSkipEdgeID(*id)
+	}
+	return uuo
+}
+
+// SetSkipEdge sets the "skip_edge" edge to the SkipEdgeExample entity.
+func (uuo *UserUpdateOne) SetSkipEdge(s *SkipEdgeExample) *UserUpdateOne {
+	return uuo.SetSkipEdgeID(s.ID)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -304,6 +523,25 @@ func (uuo *UserUpdateOne) RemoveBlogPosts(b ...*BlogPost) *UserUpdateOne {
 	return uuo.RemoveBlogPostIDs(ids...)
 }
 
+// ClearProfilePic clears the "profile_pic" edge to the Image entity.
+func (uuo *UserUpdateOne) ClearProfilePic() *UserUpdateOne {
+	uuo.mutation.ClearProfilePic()
+	return uuo
+}
+
+// ClearSkipEdge clears the "skip_edge" edge to the SkipEdgeExample entity.
+func (uuo *UserUpdateOne) ClearSkipEdge() *UserUpdateOne {
+	uuo.mutation.ClearSkipEdge()
+	return uuo
+}
+
+// Select allows selecting one or more fields (columns) of the returned entity.
+// The default is selecting all fields defined in the entity schema.
+func (uuo *UserUpdateOne) Select(field string, fields ...string) *UserUpdateOne {
+	uuo.fields = append([]string{field}, fields...)
+	return uuo
+}
+
 // Save executes the query and returns the updated User entity.
 func (uuo *UserUpdateOne) Save(ctx context.Context) (*User, error) {
 	var (
@@ -330,11 +568,20 @@ func (uuo *UserUpdateOne) Save(ctx context.Context) (*User, error) {
 			return node, err
 		})
 		for i := len(uuo.hooks) - 1; i >= 0; i-- {
+			if uuo.hooks[i] == nil {
+				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
+			}
 			mut = uuo.hooks[i](mut)
 		}
-		if _, err := mut.Mutate(ctx, uuo.mutation); err != nil {
+		v, err := mut.Mutate(ctx, uuo.mutation)
+		if err != nil {
 			return nil, err
 		}
+		nv, ok := v.(*User)
+		if !ok {
+			return nil, fmt.Errorf("unexpected node type %T returned from UserMutation", v)
+		}
+		node = nv
 	}
 	return node, err
 }
@@ -365,7 +612,7 @@ func (uuo *UserUpdateOne) ExecX(ctx context.Context) {
 func (uuo *UserUpdateOne) check() error {
 	if v, ok := uuo.mutation.Status(); ok {
 		if err := user.StatusValidator(v); err != nil {
-			return &ValidationError{Name: "status", err: fmt.Errorf("ent: validator failed for field \"status\": %w", err)}
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "User.status": %w`, err)}
 		}
 	}
 	return nil
@@ -384,9 +631,21 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 	}
 	id, ok := uuo.mutation.ID()
 	if !ok {
-		return nil, &ValidationError{Name: "ID", err: fmt.Errorf("missing User.ID for update")}
+		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "User.id" for update`)}
 	}
 	_spec.Node.ID.Value = id
+	if fields := uuo.fields; len(fields) > 0 {
+		_spec.Node.Columns = make([]string, 0, len(fields))
+		_spec.Node.Columns = append(_spec.Node.Columns, user.FieldID)
+		for _, f := range fields {
+			if !user.ValidColumn(f) {
+				return nil, &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
+			}
+			if f != user.FieldID {
+				_spec.Node.Columns = append(_spec.Node.Columns, f)
+			}
+		}
+	}
 	if ps := uuo.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -406,6 +665,19 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 			Type:   field.TypeEnum,
 			Value:  value,
 			Column: user.FieldStatus,
+		})
+	}
+	if value, ok := uuo.mutation.Unnecessary(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: user.FieldUnnecessary,
+		})
+	}
+	if uuo.mutation.UnnecessaryCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: user.FieldUnnecessary,
 		})
 	}
 	if uuo.mutation.BlogPostsCleared() {
@@ -462,14 +734,84 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if uuo.mutation.ProfilePicCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   user.ProfilePicTable,
+			Columns: []string{user.ProfilePicColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: image.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.ProfilePicIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   user.ProfilePicTable,
+			Columns: []string{user.ProfilePicColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: image.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if uuo.mutation.SkipEdgeCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.SkipEdgeTable,
+			Columns: []string{user.SkipEdgeColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: skipedgeexample.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.SkipEdgeIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.SkipEdgeTable,
+			Columns: []string{user.SkipEdgeColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: skipedgeexample.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	_node = &User{config: uuo.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
 	if err = sqlgraph.UpdateNode(ctx, uuo.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{user.Label}
-		} else if cerr, ok := isSQLConstraintError(err); ok {
-			err = cerr
+		} else if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{err.Error(), err}
 		}
 		return nil, err
 	}

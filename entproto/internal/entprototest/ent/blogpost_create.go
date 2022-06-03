@@ -99,16 +99,28 @@ func (bpc *BlogPostCreate) Save(ctx context.Context) (*BlogPost, error) {
 				return nil, err
 			}
 			bpc.mutation = mutation
-			node, err = bpc.sqlSave(ctx)
+			if node, err = bpc.sqlSave(ctx); err != nil {
+				return nil, err
+			}
+			mutation.id = &node.ID
 			mutation.done = true
 			return node, err
 		})
 		for i := len(bpc.hooks) - 1; i >= 0; i-- {
+			if bpc.hooks[i] == nil {
+				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
+			}
 			mut = bpc.hooks[i](mut)
 		}
-		if _, err := mut.Mutate(ctx, bpc.mutation); err != nil {
+		v, err := mut.Mutate(ctx, bpc.mutation)
+		if err != nil {
 			return nil, err
 		}
+		nv, ok := v.(*BlogPost)
+		if !ok {
+			return nil, fmt.Errorf("unexpected node type %T returned from BlogPostMutation", v)
+		}
+		node = nv
 	}
 	return node, err
 }
@@ -122,16 +134,29 @@ func (bpc *BlogPostCreate) SaveX(ctx context.Context) *BlogPost {
 	return v
 }
 
+// Exec executes the query.
+func (bpc *BlogPostCreate) Exec(ctx context.Context) error {
+	_, err := bpc.Save(ctx)
+	return err
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (bpc *BlogPostCreate) ExecX(ctx context.Context) {
+	if err := bpc.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
 // check runs all checks and user-defined validators on the builder.
 func (bpc *BlogPostCreate) check() error {
 	if _, ok := bpc.mutation.Title(); !ok {
-		return &ValidationError{Name: "title", err: errors.New("ent: missing required field \"title\"")}
+		return &ValidationError{Name: "title", err: errors.New(`ent: missing required field "BlogPost.title"`)}
 	}
 	if _, ok := bpc.mutation.Body(); !ok {
-		return &ValidationError{Name: "body", err: errors.New("ent: missing required field \"body\"")}
+		return &ValidationError{Name: "body", err: errors.New(`ent: missing required field "BlogPost.body"`)}
 	}
 	if _, ok := bpc.mutation.ExternalID(); !ok {
-		return &ValidationError{Name: "external_id", err: errors.New("ent: missing required field \"external_id\"")}
+		return &ValidationError{Name: "external_id", err: errors.New(`ent: missing required field "BlogPost.external_id"`)}
 	}
 	return nil
 }
@@ -139,8 +164,8 @@ func (bpc *BlogPostCreate) check() error {
 func (bpc *BlogPostCreate) sqlSave(ctx context.Context) (*BlogPost, error) {
 	_node, _spec := bpc.createSpec()
 	if err := sqlgraph.CreateNode(ctx, bpc.driver, _spec); err != nil {
-		if cerr, ok := isSQLConstraintError(err); ok {
-			err = cerr
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{err.Error(), err}
 		}
 		return nil, err
 	}
@@ -254,19 +279,23 @@ func (bpcb *BlogPostCreateBulk) Save(ctx context.Context) ([]*BlogPost, error) {
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, bpcb.builders[i+1].mutation)
 				} else {
+					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
 					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, bpcb.driver, &sqlgraph.BatchCreateSpec{Nodes: specs}); err != nil {
-						if cerr, ok := isSQLConstraintError(err); ok {
-							err = cerr
+					if err = sqlgraph.BatchCreate(ctx, bpcb.driver, spec); err != nil {
+						if sqlgraph.IsConstraintError(err) {
+							err = &ConstraintError{err.Error(), err}
 						}
 					}
 				}
-				mutation.done = true
 				if err != nil {
 					return nil, err
 				}
-				id := specs[i].ID.Value.(int64)
-				nodes[i].ID = int(id)
+				mutation.id = &nodes[i].ID
+				if specs[i].ID.Value != nil {
+					id := specs[i].ID.Value.(int64)
+					nodes[i].ID = int(id)
+				}
+				mutation.done = true
 				return nodes[i], nil
 			})
 			for i := len(builder.hooks) - 1; i >= 0; i-- {
@@ -290,4 +319,17 @@ func (bpcb *BlogPostCreateBulk) SaveX(ctx context.Context) []*BlogPost {
 		panic(err)
 	}
 	return v
+}
+
+// Exec executes the query.
+func (bpcb *BlogPostCreateBulk) Exec(ctx context.Context) error {
+	_, err := bpcb.Save(ctx)
+	return err
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (bpcb *BlogPostCreateBulk) ExecX(ctx context.Context) {
+	if err := bpcb.Exec(ctx); err != nil {
+		panic(err)
+	}
 }

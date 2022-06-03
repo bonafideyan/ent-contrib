@@ -21,7 +21,9 @@ import (
 	"strings"
 	"time"
 
+	"entgo.io/contrib/entgql/internal/todouuid/ent/category"
 	"entgo.io/contrib/entgql/internal/todouuid/ent/todo"
+	"entgo.io/contrib/entgql/internal/todouuid/ent/verysecret"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
 )
@@ -39,10 +41,15 @@ type Todo struct {
 	Priority int `json:"priority,omitempty"`
 	// Text holds the value of the "text" field.
 	Text string `json:"text,omitempty"`
+	// Blob holds the value of the "blob" field.
+	Blob []byte `json:"blob,omitempty"`
+	// CategoryID holds the value of the "category_id" field.
+	CategoryID uuid.UUID `json:"category_id,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the TodoQuery when eager-loading is set.
 	Edges         TodoEdges `json:"edges"`
 	todo_children *uuid.UUID
+	todo_secret   *uuid.UUID
 }
 
 // TodoEdges holds the relations/edges for other nodes in the graph.
@@ -51,9 +58,15 @@ type TodoEdges struct {
 	Parent *Todo `json:"parent,omitempty"`
 	// Children holds the value of the children edge.
 	Children []*Todo `json:"children,omitempty"`
+	// Category holds the value of the category edge.
+	Category *Category `json:"category,omitempty"`
+	// Secret holds the value of the secret edge.
+	Secret *VerySecret `json:"secret,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [4]bool
+	// totalCount holds the count of the edges above.
+	totalCount [3]*int
 }
 
 // ParentOrErr returns the Parent value or an error if the edge
@@ -79,21 +92,53 @@ func (e TodoEdges) ChildrenOrErr() ([]*Todo, error) {
 	return nil, &NotLoadedError{edge: "children"}
 }
 
+// CategoryOrErr returns the Category value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e TodoEdges) CategoryOrErr() (*Category, error) {
+	if e.loadedTypes[2] {
+		if e.Category == nil {
+			// The edge category was loaded in eager-loading,
+			// but was not found.
+			return nil, &NotFoundError{label: category.Label}
+		}
+		return e.Category, nil
+	}
+	return nil, &NotLoadedError{edge: "category"}
+}
+
+// SecretOrErr returns the Secret value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e TodoEdges) SecretOrErr() (*VerySecret, error) {
+	if e.loadedTypes[3] {
+		if e.Secret == nil {
+			// The edge secret was loaded in eager-loading,
+			// but was not found.
+			return nil, &NotFoundError{label: verysecret.Label}
+		}
+		return e.Secret, nil
+	}
+	return nil, &NotLoadedError{edge: "secret"}
+}
+
 // scanValues returns the types for scanning values from sql.Rows.
 func (*Todo) scanValues(columns []string) ([]interface{}, error) {
 	values := make([]interface{}, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case todo.FieldBlob:
+			values[i] = new([]byte)
 		case todo.FieldPriority:
-			values[i] = &sql.NullInt64{}
+			values[i] = new(sql.NullInt64)
 		case todo.FieldStatus, todo.FieldText:
-			values[i] = &sql.NullString{}
+			values[i] = new(sql.NullString)
 		case todo.FieldCreatedAt:
-			values[i] = &sql.NullTime{}
-		case todo.FieldID:
-			values[i] = &uuid.UUID{}
+			values[i] = new(sql.NullTime)
+		case todo.FieldID, todo.FieldCategoryID:
+			values[i] = new(uuid.UUID)
 		case todo.ForeignKeys[0]: // todo_children
-			values[i] = &uuid.UUID{}
+			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
+		case todo.ForeignKeys[1]: // todo_secret
+			values[i] = &sql.NullScanner{S: new(uuid.UUID)}
 		default:
 			return nil, fmt.Errorf("unexpected column %q for type Todo", columns[i])
 		}
@@ -139,11 +184,31 @@ func (t *Todo) assignValues(columns []string, values []interface{}) error {
 			} else if value.Valid {
 				t.Text = value.String
 			}
-		case todo.ForeignKeys[0]:
-			if value, ok := values[i].(*uuid.UUID); !ok {
-				return fmt.Errorf("unexpected type %T for field todo_children", values[i])
+		case todo.FieldBlob:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field blob", values[i])
 			} else if value != nil {
-				t.todo_children = value
+				t.Blob = *value
+			}
+		case todo.FieldCategoryID:
+			if value, ok := values[i].(*uuid.UUID); !ok {
+				return fmt.Errorf("unexpected type %T for field category_id", values[i])
+			} else if value != nil {
+				t.CategoryID = *value
+			}
+		case todo.ForeignKeys[0]:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field todo_children", values[i])
+			} else if value.Valid {
+				t.todo_children = new(uuid.UUID)
+				*t.todo_children = *value.S.(*uuid.UUID)
+			}
+		case todo.ForeignKeys[1]:
+			if value, ok := values[i].(*sql.NullScanner); !ok {
+				return fmt.Errorf("unexpected type %T for field todo_secret", values[i])
+			} else if value.Valid {
+				t.todo_secret = new(uuid.UUID)
+				*t.todo_secret = *value.S.(*uuid.UUID)
 			}
 		}
 	}
@@ -158,6 +223,16 @@ func (t *Todo) QueryParent() *TodoQuery {
 // QueryChildren queries the "children" edge of the Todo entity.
 func (t *Todo) QueryChildren() *TodoQuery {
 	return (&TodoClient{config: t.config}).QueryChildren(t)
+}
+
+// QueryCategory queries the "category" edge of the Todo entity.
+func (t *Todo) QueryCategory() *CategoryQuery {
+	return (&TodoClient{config: t.config}).QueryCategory(t)
+}
+
+// QuerySecret queries the "secret" edge of the Todo entity.
+func (t *Todo) QuerySecret() *VerySecretQuery {
+	return (&TodoClient{config: t.config}).QuerySecret(t)
 }
 
 // Update returns a builder for updating this Todo.
@@ -182,15 +257,24 @@ func (t *Todo) Unwrap() *Todo {
 func (t *Todo) String() string {
 	var builder strings.Builder
 	builder.WriteString("Todo(")
-	builder.WriteString(fmt.Sprintf("id=%v", t.ID))
-	builder.WriteString(", created_at=")
+	builder.WriteString(fmt.Sprintf("id=%v, ", t.ID))
+	builder.WriteString("created_at=")
 	builder.WriteString(t.CreatedAt.Format(time.ANSIC))
-	builder.WriteString(", status=")
+	builder.WriteString(", ")
+	builder.WriteString("status=")
 	builder.WriteString(fmt.Sprintf("%v", t.Status))
-	builder.WriteString(", priority=")
+	builder.WriteString(", ")
+	builder.WriteString("priority=")
 	builder.WriteString(fmt.Sprintf("%v", t.Priority))
-	builder.WriteString(", text=")
+	builder.WriteString(", ")
+	builder.WriteString("text=")
 	builder.WriteString(t.Text)
+	builder.WriteString(", ")
+	builder.WriteString("blob=")
+	builder.WriteString(fmt.Sprintf("%v", t.Blob))
+	builder.WriteString(", ")
+	builder.WriteString("category_id=")
+	builder.WriteString(fmt.Sprintf("%v", t.CategoryID))
 	builder.WriteByte(')')
 	return builder.String()
 }

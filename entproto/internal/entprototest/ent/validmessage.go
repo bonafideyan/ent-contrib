@@ -9,6 +9,7 @@ import (
 
 	"entgo.io/contrib/entproto/internal/entprototest/ent/validmessage"
 	"entgo.io/ent/dialect/sql"
+	"github.com/google/uuid"
 )
 
 // ValidMessage is the model entity for the ValidMessage schema.
@@ -20,6 +21,12 @@ type ValidMessage struct {
 	Name string `json:"name,omitempty"`
 	// Ts holds the value of the "ts" field.
 	Ts time.Time `json:"ts,omitempty"`
+	// UUID holds the value of the "uuid" field.
+	UUID uuid.UUID `json:"uuid,omitempty"`
+	// U8 holds the value of the "u8" field.
+	U8 uint8 `json:"u8,omitempty"`
+	// Opti8 holds the value of the "opti8" field.
+	Opti8 *int8 `json:"opti8,omitempty"`
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -27,12 +34,14 @@ func (*ValidMessage) scanValues(columns []string) ([]interface{}, error) {
 	values := make([]interface{}, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case validmessage.FieldID:
-			values[i] = &sql.NullInt64{}
+		case validmessage.FieldID, validmessage.FieldU8, validmessage.FieldOpti8:
+			values[i] = new(sql.NullInt64)
 		case validmessage.FieldName:
-			values[i] = &sql.NullString{}
+			values[i] = new(sql.NullString)
 		case validmessage.FieldTs:
-			values[i] = &sql.NullTime{}
+			values[i] = new(sql.NullTime)
+		case validmessage.FieldUUID:
+			values[i] = new(uuid.UUID)
 		default:
 			return nil, fmt.Errorf("unexpected column %q for type ValidMessage", columns[i])
 		}
@@ -66,6 +75,25 @@ func (vm *ValidMessage) assignValues(columns []string, values []interface{}) err
 			} else if value.Valid {
 				vm.Ts = value.Time
 			}
+		case validmessage.FieldUUID:
+			if value, ok := values[i].(*uuid.UUID); !ok {
+				return fmt.Errorf("unexpected type %T for field uuid", values[i])
+			} else if value != nil {
+				vm.UUID = *value
+			}
+		case validmessage.FieldU8:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field u8", values[i])
+			} else if value.Valid {
+				vm.U8 = uint8(value.Int64)
+			}
+		case validmessage.FieldOpti8:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field opti8", values[i])
+			} else if value.Valid {
+				vm.Opti8 = new(int8)
+				*vm.Opti8 = int8(value.Int64)
+			}
 		}
 	}
 	return nil
@@ -93,11 +121,23 @@ func (vm *ValidMessage) Unwrap() *ValidMessage {
 func (vm *ValidMessage) String() string {
 	var builder strings.Builder
 	builder.WriteString("ValidMessage(")
-	builder.WriteString(fmt.Sprintf("id=%v", vm.ID))
-	builder.WriteString(", name=")
+	builder.WriteString(fmt.Sprintf("id=%v, ", vm.ID))
+	builder.WriteString("name=")
 	builder.WriteString(vm.Name)
-	builder.WriteString(", ts=")
+	builder.WriteString(", ")
+	builder.WriteString("ts=")
 	builder.WriteString(vm.Ts.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("uuid=")
+	builder.WriteString(fmt.Sprintf("%v", vm.UUID))
+	builder.WriteString(", ")
+	builder.WriteString("u8=")
+	builder.WriteString(fmt.Sprintf("%v", vm.U8))
+	builder.WriteString(", ")
+	if v := vm.Opti8; v != nil {
+		builder.WriteString("opti8=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteByte(')')
 	return builder.String()
 }

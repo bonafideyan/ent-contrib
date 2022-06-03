@@ -27,9 +27,9 @@ func (*DuplicateNumberMessage) scanValues(columns []string) ([]interface{}, erro
 	for i := range columns {
 		switch columns[i] {
 		case duplicatenumbermessage.FieldID:
-			values[i] = &sql.NullInt64{}
+			values[i] = new(sql.NullInt64)
 		case duplicatenumbermessage.FieldHello, duplicatenumbermessage.FieldWorld:
-			values[i] = &sql.NullString{}
+			values[i] = new(sql.NullString)
 		default:
 			return nil, fmt.Errorf("unexpected column %q for type DuplicateNumberMessage", columns[i])
 		}
@@ -90,10 +90,11 @@ func (dnm *DuplicateNumberMessage) Unwrap() *DuplicateNumberMessage {
 func (dnm *DuplicateNumberMessage) String() string {
 	var builder strings.Builder
 	builder.WriteString("DuplicateNumberMessage(")
-	builder.WriteString(fmt.Sprintf("id=%v", dnm.ID))
-	builder.WriteString(", hello=")
+	builder.WriteString(fmt.Sprintf("id=%v, ", dnm.ID))
+	builder.WriteString("hello=")
 	builder.WriteString(dnm.Hello)
-	builder.WriteString(", world=")
+	builder.WriteString(", ")
+	builder.WriteString("world=")
 	builder.WriteString(dnm.World)
 	builder.WriteByte(')')
 	return builder.String()

@@ -3,29 +3,30 @@
 # license that can be found in the LICENSE file.
 
 name: Continuous Integration
-on: [ push, pull_request]
+on:
+  pull_request:
+  push:
+    branches:
+      - master
 
 jobs:
   lint:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        goversion: [1.15, 1.16]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3      
       - uses: actions/setup-go@v2
         with:
-          go-version: ${{ matrix.goversion }}
+          go-version: 1.17
       - name: Run linters
-        uses: golangci/golangci-lint-action@v2
+        uses: golangci/golangci-lint-action@v3.1.0
         with:
-          version: v1.33
+          version: v1.45.2
           args: --timeout 3m
   test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        goversion: [1.15, 1.16]
+        goversion: [1.18, 1.17]
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
@@ -46,6 +47,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-go@v2
+        with:
+          go-version: '1.18'
       - uses: actions/cache@v2
         with:
           path: ~/go/pkg/mod
@@ -54,17 +57,22 @@ jobs:
             ${{ runner.os }}-go-
       - uses: arduino/setup-protoc@v1
         with:
-          version: v3.15.5
+          version: v3.19.4
       - name: Install protoc plugins
         run: |
-          go get google.golang.org/protobuf/cmd/protoc-gen-go
-          go get google.golang.org/grpc/cmd/protoc-gen-go-grpc
-          go get entgo.io/contrib/entproto/cmd/protoc-gen-entgrpc
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28.0
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2.0
+      - name: Install protoc-gen-entgrpc
+        working-directory: entproto/cmd/protoc-gen-entgrpc
+        run: go install
+      - name: Install protoc-gen-ent
+        working-directory: entproto/cmd/protoc-gen-ent
+        run: go install
       - name: Run go generate
         run: go generate ./...
       - name: Check generated files
         run: |
-          status=$(git status --porcelain)
+          status=$(git status --porcelain | grep -v "go.\(sum\|mod\)" | cat)
           if [ -n "$status" ]; then
             echo "you need to run 'go generate ./...' and commit the changes"
             echo "$status"

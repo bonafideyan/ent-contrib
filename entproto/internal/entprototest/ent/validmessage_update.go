@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/google/uuid"
 )
 
 // ValidMessageUpdate is the builder for updating ValidMessage entities.
@@ -21,9 +23,9 @@ type ValidMessageUpdate struct {
 	mutation *ValidMessageMutation
 }
 
-// Where adds a new predicate for the ValidMessageUpdate builder.
+// Where appends a list predicates to the ValidMessageUpdate builder.
 func (vmu *ValidMessageUpdate) Where(ps ...predicate.ValidMessage) *ValidMessageUpdate {
-	vmu.mutation.predicates = append(vmu.mutation.predicates, ps...)
+	vmu.mutation.Where(ps...)
 	return vmu
 }
 
@@ -36,6 +38,52 @@ func (vmu *ValidMessageUpdate) SetName(s string) *ValidMessageUpdate {
 // SetTs sets the "ts" field.
 func (vmu *ValidMessageUpdate) SetTs(t time.Time) *ValidMessageUpdate {
 	vmu.mutation.SetTs(t)
+	return vmu
+}
+
+// SetUUID sets the "uuid" field.
+func (vmu *ValidMessageUpdate) SetUUID(u uuid.UUID) *ValidMessageUpdate {
+	vmu.mutation.SetUUID(u)
+	return vmu
+}
+
+// SetU8 sets the "u8" field.
+func (vmu *ValidMessageUpdate) SetU8(u uint8) *ValidMessageUpdate {
+	vmu.mutation.ResetU8()
+	vmu.mutation.SetU8(u)
+	return vmu
+}
+
+// AddU8 adds u to the "u8" field.
+func (vmu *ValidMessageUpdate) AddU8(u int8) *ValidMessageUpdate {
+	vmu.mutation.AddU8(u)
+	return vmu
+}
+
+// SetOpti8 sets the "opti8" field.
+func (vmu *ValidMessageUpdate) SetOpti8(i int8) *ValidMessageUpdate {
+	vmu.mutation.ResetOpti8()
+	vmu.mutation.SetOpti8(i)
+	return vmu
+}
+
+// SetNillableOpti8 sets the "opti8" field if the given value is not nil.
+func (vmu *ValidMessageUpdate) SetNillableOpti8(i *int8) *ValidMessageUpdate {
+	if i != nil {
+		vmu.SetOpti8(*i)
+	}
+	return vmu
+}
+
+// AddOpti8 adds i to the "opti8" field.
+func (vmu *ValidMessageUpdate) AddOpti8(i int8) *ValidMessageUpdate {
+	vmu.mutation.AddOpti8(i)
+	return vmu
+}
+
+// ClearOpti8 clears the value of the "opti8" field.
+func (vmu *ValidMessageUpdate) ClearOpti8() *ValidMessageUpdate {
+	vmu.mutation.ClearOpti8()
 	return vmu
 }
 
@@ -64,6 +112,9 @@ func (vmu *ValidMessageUpdate) Save(ctx context.Context) (int, error) {
 			return affected, err
 		})
 		for i := len(vmu.hooks) - 1; i >= 0; i-- {
+			if vmu.hooks[i] == nil {
+				return 0, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
+			}
 			mut = vmu.hooks[i](mut)
 		}
 		if _, err := mut.Mutate(ctx, vmu.mutation); err != nil {
@@ -127,11 +178,52 @@ func (vmu *ValidMessageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: validmessage.FieldTs,
 		})
 	}
+	if value, ok := vmu.mutation.UUID(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeUUID,
+			Value:  value,
+			Column: validmessage.FieldUUID,
+		})
+	}
+	if value, ok := vmu.mutation.U8(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeUint8,
+			Value:  value,
+			Column: validmessage.FieldU8,
+		})
+	}
+	if value, ok := vmu.mutation.AddedU8(); ok {
+		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
+			Type:   field.TypeUint8,
+			Value:  value,
+			Column: validmessage.FieldU8,
+		})
+	}
+	if value, ok := vmu.mutation.Opti8(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt8,
+			Value:  value,
+			Column: validmessage.FieldOpti8,
+		})
+	}
+	if value, ok := vmu.mutation.AddedOpti8(); ok {
+		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt8,
+			Value:  value,
+			Column: validmessage.FieldOpti8,
+		})
+	}
+	if vmu.mutation.Opti8Cleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt8,
+			Column: validmessage.FieldOpti8,
+		})
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, vmu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{validmessage.Label}
-		} else if cerr, ok := isSQLConstraintError(err); ok {
-			err = cerr
+		} else if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{err.Error(), err}
 		}
 		return 0, err
 	}
@@ -141,6 +233,7 @@ func (vmu *ValidMessageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 // ValidMessageUpdateOne is the builder for updating a single ValidMessage entity.
 type ValidMessageUpdateOne struct {
 	config
+	fields   []string
 	hooks    []Hook
 	mutation *ValidMessageMutation
 }
@@ -157,9 +250,62 @@ func (vmuo *ValidMessageUpdateOne) SetTs(t time.Time) *ValidMessageUpdateOne {
 	return vmuo
 }
 
+// SetUUID sets the "uuid" field.
+func (vmuo *ValidMessageUpdateOne) SetUUID(u uuid.UUID) *ValidMessageUpdateOne {
+	vmuo.mutation.SetUUID(u)
+	return vmuo
+}
+
+// SetU8 sets the "u8" field.
+func (vmuo *ValidMessageUpdateOne) SetU8(u uint8) *ValidMessageUpdateOne {
+	vmuo.mutation.ResetU8()
+	vmuo.mutation.SetU8(u)
+	return vmuo
+}
+
+// AddU8 adds u to the "u8" field.
+func (vmuo *ValidMessageUpdateOne) AddU8(u int8) *ValidMessageUpdateOne {
+	vmuo.mutation.AddU8(u)
+	return vmuo
+}
+
+// SetOpti8 sets the "opti8" field.
+func (vmuo *ValidMessageUpdateOne) SetOpti8(i int8) *ValidMessageUpdateOne {
+	vmuo.mutation.ResetOpti8()
+	vmuo.mutation.SetOpti8(i)
+	return vmuo
+}
+
+// SetNillableOpti8 sets the "opti8" field if the given value is not nil.
+func (vmuo *ValidMessageUpdateOne) SetNillableOpti8(i *int8) *ValidMessageUpdateOne {
+	if i != nil {
+		vmuo.SetOpti8(*i)
+	}
+	return vmuo
+}
+
+// AddOpti8 adds i to the "opti8" field.
+func (vmuo *ValidMessageUpdateOne) AddOpti8(i int8) *ValidMessageUpdateOne {
+	vmuo.mutation.AddOpti8(i)
+	return vmuo
+}
+
+// ClearOpti8 clears the value of the "opti8" field.
+func (vmuo *ValidMessageUpdateOne) ClearOpti8() *ValidMessageUpdateOne {
+	vmuo.mutation.ClearOpti8()
+	return vmuo
+}
+
 // Mutation returns the ValidMessageMutation object of the builder.
 func (vmuo *ValidMessageUpdateOne) Mutation() *ValidMessageMutation {
 	return vmuo.mutation
+}
+
+// Select allows selecting one or more fields (columns) of the returned entity.
+// The default is selecting all fields defined in the entity schema.
+func (vmuo *ValidMessageUpdateOne) Select(field string, fields ...string) *ValidMessageUpdateOne {
+	vmuo.fields = append([]string{field}, fields...)
+	return vmuo
 }
 
 // Save executes the query and returns the updated ValidMessage entity.
@@ -182,11 +328,20 @@ func (vmuo *ValidMessageUpdateOne) Save(ctx context.Context) (*ValidMessage, err
 			return node, err
 		})
 		for i := len(vmuo.hooks) - 1; i >= 0; i-- {
+			if vmuo.hooks[i] == nil {
+				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
+			}
 			mut = vmuo.hooks[i](mut)
 		}
-		if _, err := mut.Mutate(ctx, vmuo.mutation); err != nil {
+		v, err := mut.Mutate(ctx, vmuo.mutation)
+		if err != nil {
 			return nil, err
 		}
+		nv, ok := v.(*ValidMessage)
+		if !ok {
+			return nil, fmt.Errorf("unexpected node type %T returned from ValidMessageMutation", v)
+		}
+		node = nv
 	}
 	return node, err
 }
@@ -226,9 +381,21 @@ func (vmuo *ValidMessageUpdateOne) sqlSave(ctx context.Context) (_node *ValidMes
 	}
 	id, ok := vmuo.mutation.ID()
 	if !ok {
-		return nil, &ValidationError{Name: "ID", err: fmt.Errorf("missing ValidMessage.ID for update")}
+		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "ValidMessage.id" for update`)}
 	}
 	_spec.Node.ID.Value = id
+	if fields := vmuo.fields; len(fields) > 0 {
+		_spec.Node.Columns = make([]string, 0, len(fields))
+		_spec.Node.Columns = append(_spec.Node.Columns, validmessage.FieldID)
+		for _, f := range fields {
+			if !validmessage.ValidColumn(f) {
+				return nil, &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
+			}
+			if f != validmessage.FieldID {
+				_spec.Node.Columns = append(_spec.Node.Columns, f)
+			}
+		}
+	}
 	if ps := vmuo.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -250,14 +417,55 @@ func (vmuo *ValidMessageUpdateOne) sqlSave(ctx context.Context) (_node *ValidMes
 			Column: validmessage.FieldTs,
 		})
 	}
+	if value, ok := vmuo.mutation.UUID(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeUUID,
+			Value:  value,
+			Column: validmessage.FieldUUID,
+		})
+	}
+	if value, ok := vmuo.mutation.U8(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeUint8,
+			Value:  value,
+			Column: validmessage.FieldU8,
+		})
+	}
+	if value, ok := vmuo.mutation.AddedU8(); ok {
+		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
+			Type:   field.TypeUint8,
+			Value:  value,
+			Column: validmessage.FieldU8,
+		})
+	}
+	if value, ok := vmuo.mutation.Opti8(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt8,
+			Value:  value,
+			Column: validmessage.FieldOpti8,
+		})
+	}
+	if value, ok := vmuo.mutation.AddedOpti8(); ok {
+		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt8,
+			Value:  value,
+			Column: validmessage.FieldOpti8,
+		})
+	}
+	if vmuo.mutation.Opti8Cleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt8,
+			Column: validmessage.FieldOpti8,
+		})
+	}
 	_node = &ValidMessage{config: vmuo.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
 	if err = sqlgraph.UpdateNode(ctx, vmuo.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{validmessage.Label}
-		} else if cerr, ok := isSQLConstraintError(err); ok {
-			err = cerr
+		} else if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{err.Error(), err}
 		}
 		return nil, err
 	}

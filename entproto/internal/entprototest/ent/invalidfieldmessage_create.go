@@ -8,9 +8,9 @@ import (
 	"fmt"
 
 	"entgo.io/contrib/entproto/internal/entprototest/ent/invalidfieldmessage"
+	"entgo.io/contrib/entproto/internal/entprototest/ent/schema"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/google/uuid"
 )
 
 // InvalidFieldMessageCreate is the builder for creating a InvalidFieldMessage entity.
@@ -20,9 +20,9 @@ type InvalidFieldMessageCreate struct {
 	hooks    []Hook
 }
 
-// SetHello sets the "hello" field.
-func (ifmc *InvalidFieldMessageCreate) SetHello(u uuid.UUID) *InvalidFieldMessageCreate {
-	ifmc.mutation.SetHello(u)
+// SetJSON sets the "json" field.
+func (ifmc *InvalidFieldMessageCreate) SetJSON(sj *schema.SomeJSON) *InvalidFieldMessageCreate {
+	ifmc.mutation.SetJSON(sj)
 	return ifmc
 }
 
@@ -52,16 +52,28 @@ func (ifmc *InvalidFieldMessageCreate) Save(ctx context.Context) (*InvalidFieldM
 				return nil, err
 			}
 			ifmc.mutation = mutation
-			node, err = ifmc.sqlSave(ctx)
+			if node, err = ifmc.sqlSave(ctx); err != nil {
+				return nil, err
+			}
+			mutation.id = &node.ID
 			mutation.done = true
 			return node, err
 		})
 		for i := len(ifmc.hooks) - 1; i >= 0; i-- {
+			if ifmc.hooks[i] == nil {
+				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
+			}
 			mut = ifmc.hooks[i](mut)
 		}
-		if _, err := mut.Mutate(ctx, ifmc.mutation); err != nil {
+		v, err := mut.Mutate(ctx, ifmc.mutation)
+		if err != nil {
 			return nil, err
 		}
+		nv, ok := v.(*InvalidFieldMessage)
+		if !ok {
+			return nil, fmt.Errorf("unexpected node type %T returned from InvalidFieldMessageMutation", v)
+		}
+		node = nv
 	}
 	return node, err
 }
@@ -75,10 +87,23 @@ func (ifmc *InvalidFieldMessageCreate) SaveX(ctx context.Context) *InvalidFieldM
 	return v
 }
 
+// Exec executes the query.
+func (ifmc *InvalidFieldMessageCreate) Exec(ctx context.Context) error {
+	_, err := ifmc.Save(ctx)
+	return err
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (ifmc *InvalidFieldMessageCreate) ExecX(ctx context.Context) {
+	if err := ifmc.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
 // check runs all checks and user-defined validators on the builder.
 func (ifmc *InvalidFieldMessageCreate) check() error {
-	if _, ok := ifmc.mutation.Hello(); !ok {
-		return &ValidationError{Name: "hello", err: errors.New("ent: missing required field \"hello\"")}
+	if _, ok := ifmc.mutation.JSON(); !ok {
+		return &ValidationError{Name: "json", err: errors.New(`ent: missing required field "InvalidFieldMessage.json"`)}
 	}
 	return nil
 }
@@ -86,8 +111,8 @@ func (ifmc *InvalidFieldMessageCreate) check() error {
 func (ifmc *InvalidFieldMessageCreate) sqlSave(ctx context.Context) (*InvalidFieldMessage, error) {
 	_node, _spec := ifmc.createSpec()
 	if err := sqlgraph.CreateNode(ctx, ifmc.driver, _spec); err != nil {
-		if cerr, ok := isSQLConstraintError(err); ok {
-			err = cerr
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{err.Error(), err}
 		}
 		return nil, err
 	}
@@ -107,13 +132,13 @@ func (ifmc *InvalidFieldMessageCreate) createSpec() (*InvalidFieldMessage, *sqlg
 			},
 		}
 	)
-	if value, ok := ifmc.mutation.Hello(); ok {
+	if value, ok := ifmc.mutation.JSON(); ok {
 		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeUUID,
+			Type:   field.TypeJSON,
 			Value:  value,
-			Column: invalidfieldmessage.FieldHello,
+			Column: invalidfieldmessage.FieldJSON,
 		})
-		_node.Hello = value
+		_node.JSON = value
 	}
 	return _node, _spec
 }
@@ -146,19 +171,23 @@ func (ifmcb *InvalidFieldMessageCreateBulk) Save(ctx context.Context) ([]*Invali
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, ifmcb.builders[i+1].mutation)
 				} else {
+					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
 					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, ifmcb.driver, &sqlgraph.BatchCreateSpec{Nodes: specs}); err != nil {
-						if cerr, ok := isSQLConstraintError(err); ok {
-							err = cerr
+					if err = sqlgraph.BatchCreate(ctx, ifmcb.driver, spec); err != nil {
+						if sqlgraph.IsConstraintError(err) {
+							err = &ConstraintError{err.Error(), err}
 						}
 					}
 				}
-				mutation.done = true
 				if err != nil {
 					return nil, err
 				}
-				id := specs[i].ID.Value.(int64)
-				nodes[i].ID = int(id)
+				mutation.id = &nodes[i].ID
+				if specs[i].ID.Value != nil {
+					id := specs[i].ID.Value.(int64)
+					nodes[i].ID = int(id)
+				}
+				mutation.done = true
 				return nodes[i], nil
 			})
 			for i := len(builder.hooks) - 1; i >= 0; i-- {
@@ -182,4 +211,17 @@ func (ifmcb *InvalidFieldMessageCreateBulk) SaveX(ctx context.Context) []*Invali
 		panic(err)
 	}
 	return v
+}
+
+// Exec executes the query.
+func (ifmcb *InvalidFieldMessageCreateBulk) Exec(ctx context.Context) error {
+	_, err := ifmcb.Save(ctx)
+	return err
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (ifmcb *InvalidFieldMessageCreateBulk) ExecX(ctx context.Context) {
+	if err := ifmcb.Exec(ctx); err != nil {
+		panic(err)
+	}
 }

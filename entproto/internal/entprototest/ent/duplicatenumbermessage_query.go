@@ -4,7 +4,6 @@ package ent
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 
@@ -20,6 +19,7 @@ type DuplicateNumberMessageQuery struct {
 	config
 	limit      *int
 	offset     *int
+	unique     *bool
 	order      []OrderFunc
 	fields     []string
 	predicates []predicate.DuplicateNumberMessage
@@ -43,6 +43,13 @@ func (dnmq *DuplicateNumberMessageQuery) Limit(limit int) *DuplicateNumberMessag
 // Offset adds an offset step to the query.
 func (dnmq *DuplicateNumberMessageQuery) Offset(offset int) *DuplicateNumberMessageQuery {
 	dnmq.offset = &offset
+	return dnmq
+}
+
+// Unique configures the query builder to filter duplicate records on query.
+// By default, unique is set to true, and can be disabled using this method.
+func (dnmq *DuplicateNumberMessageQuery) Unique(unique bool) *DuplicateNumberMessageQuery {
+	dnmq.unique = &unique
 	return dnmq
 }
 
@@ -98,7 +105,7 @@ func (dnmq *DuplicateNumberMessageQuery) FirstIDX(ctx context.Context) int {
 }
 
 // Only returns a single DuplicateNumberMessage entity found by the query, ensuring it only returns one.
-// Returns a *NotSingularError when exactly one DuplicateNumberMessage entity is not found.
+// Returns a *NotSingularError when more than one DuplicateNumberMessage entity is found.
 // Returns a *NotFoundError when no DuplicateNumberMessage entities are found.
 func (dnmq *DuplicateNumberMessageQuery) Only(ctx context.Context) (*DuplicateNumberMessage, error) {
 	nodes, err := dnmq.Limit(2).All(ctx)
@@ -125,7 +132,7 @@ func (dnmq *DuplicateNumberMessageQuery) OnlyX(ctx context.Context) *DuplicateNu
 }
 
 // OnlyID is like Only, but returns the only DuplicateNumberMessage ID in the query.
-// Returns a *NotSingularError when exactly one DuplicateNumberMessage ID is not found.
+// Returns a *NotSingularError when more than one DuplicateNumberMessage ID is found.
 // Returns a *NotFoundError when no entities are found.
 func (dnmq *DuplicateNumberMessageQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
@@ -234,8 +241,9 @@ func (dnmq *DuplicateNumberMessageQuery) Clone() *DuplicateNumberMessageQuery {
 		order:      append([]OrderFunc{}, dnmq.order...),
 		predicates: append([]predicate.DuplicateNumberMessage{}, dnmq.predicates...),
 		// clone intermediate query.
-		sql:  dnmq.sql.Clone(),
-		path: dnmq.path,
+		sql:    dnmq.sql.Clone(),
+		path:   dnmq.path,
+		unique: dnmq.unique,
 	}
 }
 
@@ -255,15 +263,17 @@ func (dnmq *DuplicateNumberMessageQuery) Clone() *DuplicateNumberMessageQuery {
 //		Scan(ctx, &v)
 //
 func (dnmq *DuplicateNumberMessageQuery) GroupBy(field string, fields ...string) *DuplicateNumberMessageGroupBy {
-	group := &DuplicateNumberMessageGroupBy{config: dnmq.config}
-	group.fields = append([]string{field}, fields...)
-	group.path = func(ctx context.Context) (prev *sql.Selector, err error) {
+	grbuild := &DuplicateNumberMessageGroupBy{config: dnmq.config}
+	grbuild.fields = append([]string{field}, fields...)
+	grbuild.path = func(ctx context.Context) (prev *sql.Selector, err error) {
 		if err := dnmq.prepareQuery(ctx); err != nil {
 			return nil, err
 		}
 		return dnmq.sqlQuery(ctx), nil
 	}
-	return group
+	grbuild.label = duplicatenumbermessage.Label
+	grbuild.flds, grbuild.scan = &grbuild.fields, grbuild.Scan
+	return grbuild
 }
 
 // Select allows the selection one or more fields/columns for the given query,
@@ -279,9 +289,12 @@ func (dnmq *DuplicateNumberMessageQuery) GroupBy(field string, fields ...string)
 //		Select(duplicatenumbermessage.FieldHello).
 //		Scan(ctx, &v)
 //
-func (dnmq *DuplicateNumberMessageQuery) Select(field string, fields ...string) *DuplicateNumberMessageSelect {
-	dnmq.fields = append([]string{field}, fields...)
-	return &DuplicateNumberMessageSelect{DuplicateNumberMessageQuery: dnmq}
+func (dnmq *DuplicateNumberMessageQuery) Select(fields ...string) *DuplicateNumberMessageSelect {
+	dnmq.fields = append(dnmq.fields, fields...)
+	selbuild := &DuplicateNumberMessageSelect{DuplicateNumberMessageQuery: dnmq}
+	selbuild.label = duplicatenumbermessage.Label
+	selbuild.flds, selbuild.scan = &dnmq.fields, selbuild.Scan
+	return selbuild
 }
 
 func (dnmq *DuplicateNumberMessageQuery) prepareQuery(ctx context.Context) error {
@@ -300,22 +313,21 @@ func (dnmq *DuplicateNumberMessageQuery) prepareQuery(ctx context.Context) error
 	return nil
 }
 
-func (dnmq *DuplicateNumberMessageQuery) sqlAll(ctx context.Context) ([]*DuplicateNumberMessage, error) {
+func (dnmq *DuplicateNumberMessageQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*DuplicateNumberMessage, error) {
 	var (
 		nodes = []*DuplicateNumberMessage{}
 		_spec = dnmq.querySpec()
 	)
 	_spec.ScanValues = func(columns []string) ([]interface{}, error) {
-		node := &DuplicateNumberMessage{config: dnmq.config}
-		nodes = append(nodes, node)
-		return node.scanValues(columns)
+		return (*DuplicateNumberMessage).scanValues(nil, columns)
 	}
 	_spec.Assign = func(columns []string, values []interface{}) error {
-		if len(nodes) == 0 {
-			return fmt.Errorf("ent: Assign called without calling ScanValues")
-		}
-		node := nodes[len(nodes)-1]
+		node := &DuplicateNumberMessage{config: dnmq.config}
+		nodes = append(nodes, node)
 		return node.assignValues(columns, values)
+	}
+	for i := range hooks {
+		hooks[i](ctx, _spec)
 	}
 	if err := sqlgraph.QueryNodes(ctx, dnmq.driver, _spec); err != nil {
 		return nil, err
@@ -328,6 +340,10 @@ func (dnmq *DuplicateNumberMessageQuery) sqlAll(ctx context.Context) ([]*Duplica
 
 func (dnmq *DuplicateNumberMessageQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := dnmq.querySpec()
+	_spec.Node.Columns = dnmq.fields
+	if len(dnmq.fields) > 0 {
+		_spec.Unique = dnmq.unique != nil && *dnmq.unique
+	}
 	return sqlgraph.CountNodes(ctx, dnmq.driver, _spec)
 }
 
@@ -351,6 +367,9 @@ func (dnmq *DuplicateNumberMessageQuery) querySpec() *sqlgraph.QuerySpec {
 		},
 		From:   dnmq.sql,
 		Unique: true,
+	}
+	if unique := dnmq.unique; unique != nil {
+		_spec.Unique = *unique
 	}
 	if fields := dnmq.fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
@@ -377,7 +396,7 @@ func (dnmq *DuplicateNumberMessageQuery) querySpec() *sqlgraph.QuerySpec {
 	if ps := dnmq.order; len(ps) > 0 {
 		_spec.Order = func(selector *sql.Selector) {
 			for i := range ps {
-				ps[i](selector, duplicatenumbermessage.ValidColumn)
+				ps[i](selector)
 			}
 		}
 	}
@@ -387,16 +406,23 @@ func (dnmq *DuplicateNumberMessageQuery) querySpec() *sqlgraph.QuerySpec {
 func (dnmq *DuplicateNumberMessageQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(dnmq.driver.Dialect())
 	t1 := builder.Table(duplicatenumbermessage.Table)
-	selector := builder.Select(t1.Columns(duplicatenumbermessage.Columns...)...).From(t1)
+	columns := dnmq.fields
+	if len(columns) == 0 {
+		columns = duplicatenumbermessage.Columns
+	}
+	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if dnmq.sql != nil {
 		selector = dnmq.sql
-		selector.Select(selector.Columns(duplicatenumbermessage.Columns...)...)
+		selector.Select(selector.Columns(columns...)...)
+	}
+	if dnmq.unique != nil && *dnmq.unique {
+		selector.Distinct()
 	}
 	for _, p := range dnmq.predicates {
 		p(selector)
 	}
 	for _, p := range dnmq.order {
-		p(selector, duplicatenumbermessage.ValidColumn)
+		p(selector)
 	}
 	if offset := dnmq.offset; offset != nil {
 		// limit is mandatory for offset clause. We start
@@ -412,6 +438,7 @@ func (dnmq *DuplicateNumberMessageQuery) sqlQuery(ctx context.Context) *sql.Sele
 // DuplicateNumberMessageGroupBy is the group-by builder for DuplicateNumberMessage entities.
 type DuplicateNumberMessageGroupBy struct {
 	config
+	selector
 	fields []string
 	fns    []AggregateFunc
 	// intermediate query (i.e. traversal path).
@@ -435,209 +462,6 @@ func (dnmgb *DuplicateNumberMessageGroupBy) Scan(ctx context.Context, v interfac
 	return dnmgb.sqlScan(ctx, v)
 }
 
-// ScanX is like Scan, but panics if an error occurs.
-func (dnmgb *DuplicateNumberMessageGroupBy) ScanX(ctx context.Context, v interface{}) {
-	if err := dnmgb.Scan(ctx, v); err != nil {
-		panic(err)
-	}
-}
-
-// Strings returns list of strings from group-by.
-// It is only allowed when executing a group-by query with one field.
-func (dnmgb *DuplicateNumberMessageGroupBy) Strings(ctx context.Context) ([]string, error) {
-	if len(dnmgb.fields) > 1 {
-		return nil, errors.New("ent: DuplicateNumberMessageGroupBy.Strings is not achievable when grouping more than 1 field")
-	}
-	var v []string
-	if err := dnmgb.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// StringsX is like Strings, but panics if an error occurs.
-func (dnmgb *DuplicateNumberMessageGroupBy) StringsX(ctx context.Context) []string {
-	v, err := dnmgb.Strings(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// String returns a single string from a group-by query.
-// It is only allowed when executing a group-by query with one field.
-func (dnmgb *DuplicateNumberMessageGroupBy) String(ctx context.Context) (_ string, err error) {
-	var v []string
-	if v, err = dnmgb.Strings(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{duplicatenumbermessage.Label}
-	default:
-		err = fmt.Errorf("ent: DuplicateNumberMessageGroupBy.Strings returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// StringX is like String, but panics if an error occurs.
-func (dnmgb *DuplicateNumberMessageGroupBy) StringX(ctx context.Context) string {
-	v, err := dnmgb.String(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Ints returns list of ints from group-by.
-// It is only allowed when executing a group-by query with one field.
-func (dnmgb *DuplicateNumberMessageGroupBy) Ints(ctx context.Context) ([]int, error) {
-	if len(dnmgb.fields) > 1 {
-		return nil, errors.New("ent: DuplicateNumberMessageGroupBy.Ints is not achievable when grouping more than 1 field")
-	}
-	var v []int
-	if err := dnmgb.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// IntsX is like Ints, but panics if an error occurs.
-func (dnmgb *DuplicateNumberMessageGroupBy) IntsX(ctx context.Context) []int {
-	v, err := dnmgb.Ints(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Int returns a single int from a group-by query.
-// It is only allowed when executing a group-by query with one field.
-func (dnmgb *DuplicateNumberMessageGroupBy) Int(ctx context.Context) (_ int, err error) {
-	var v []int
-	if v, err = dnmgb.Ints(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{duplicatenumbermessage.Label}
-	default:
-		err = fmt.Errorf("ent: DuplicateNumberMessageGroupBy.Ints returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// IntX is like Int, but panics if an error occurs.
-func (dnmgb *DuplicateNumberMessageGroupBy) IntX(ctx context.Context) int {
-	v, err := dnmgb.Int(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Float64s returns list of float64s from group-by.
-// It is only allowed when executing a group-by query with one field.
-func (dnmgb *DuplicateNumberMessageGroupBy) Float64s(ctx context.Context) ([]float64, error) {
-	if len(dnmgb.fields) > 1 {
-		return nil, errors.New("ent: DuplicateNumberMessageGroupBy.Float64s is not achievable when grouping more than 1 field")
-	}
-	var v []float64
-	if err := dnmgb.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// Float64sX is like Float64s, but panics if an error occurs.
-func (dnmgb *DuplicateNumberMessageGroupBy) Float64sX(ctx context.Context) []float64 {
-	v, err := dnmgb.Float64s(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Float64 returns a single float64 from a group-by query.
-// It is only allowed when executing a group-by query with one field.
-func (dnmgb *DuplicateNumberMessageGroupBy) Float64(ctx context.Context) (_ float64, err error) {
-	var v []float64
-	if v, err = dnmgb.Float64s(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{duplicatenumbermessage.Label}
-	default:
-		err = fmt.Errorf("ent: DuplicateNumberMessageGroupBy.Float64s returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// Float64X is like Float64, but panics if an error occurs.
-func (dnmgb *DuplicateNumberMessageGroupBy) Float64X(ctx context.Context) float64 {
-	v, err := dnmgb.Float64(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Bools returns list of bools from group-by.
-// It is only allowed when executing a group-by query with one field.
-func (dnmgb *DuplicateNumberMessageGroupBy) Bools(ctx context.Context) ([]bool, error) {
-	if len(dnmgb.fields) > 1 {
-		return nil, errors.New("ent: DuplicateNumberMessageGroupBy.Bools is not achievable when grouping more than 1 field")
-	}
-	var v []bool
-	if err := dnmgb.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// BoolsX is like Bools, but panics if an error occurs.
-func (dnmgb *DuplicateNumberMessageGroupBy) BoolsX(ctx context.Context) []bool {
-	v, err := dnmgb.Bools(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Bool returns a single bool from a group-by query.
-// It is only allowed when executing a group-by query with one field.
-func (dnmgb *DuplicateNumberMessageGroupBy) Bool(ctx context.Context) (_ bool, err error) {
-	var v []bool
-	if v, err = dnmgb.Bools(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{duplicatenumbermessage.Label}
-	default:
-		err = fmt.Errorf("ent: DuplicateNumberMessageGroupBy.Bools returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// BoolX is like Bool, but panics if an error occurs.
-func (dnmgb *DuplicateNumberMessageGroupBy) BoolX(ctx context.Context) bool {
-	v, err := dnmgb.Bool(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
 func (dnmgb *DuplicateNumberMessageGroupBy) sqlScan(ctx context.Context, v interface{}) error {
 	for _, f := range dnmgb.fields {
 		if !duplicatenumbermessage.ValidColumn(f) {
@@ -658,18 +482,28 @@ func (dnmgb *DuplicateNumberMessageGroupBy) sqlScan(ctx context.Context, v inter
 }
 
 func (dnmgb *DuplicateNumberMessageGroupBy) sqlQuery() *sql.Selector {
-	selector := dnmgb.sql
-	columns := make([]string, 0, len(dnmgb.fields)+len(dnmgb.fns))
-	columns = append(columns, dnmgb.fields...)
+	selector := dnmgb.sql.Select()
+	aggregation := make([]string, 0, len(dnmgb.fns))
 	for _, fn := range dnmgb.fns {
-		columns = append(columns, fn(selector, duplicatenumbermessage.ValidColumn))
+		aggregation = append(aggregation, fn(selector))
 	}
-	return selector.Select(columns...).GroupBy(dnmgb.fields...)
+	// If no columns were selected in a custom aggregation function, the default
+	// selection is the fields used for "group-by", and the aggregation functions.
+	if len(selector.SelectedColumns()) == 0 {
+		columns := make([]string, 0, len(dnmgb.fields)+len(dnmgb.fns))
+		for _, f := range dnmgb.fields {
+			columns = append(columns, selector.C(f))
+		}
+		columns = append(columns, aggregation...)
+		selector.Select(columns...)
+	}
+	return selector.GroupBy(selector.Columns(dnmgb.fields...)...)
 }
 
 // DuplicateNumberMessageSelect is the builder for selecting fields of DuplicateNumberMessage entities.
 type DuplicateNumberMessageSelect struct {
 	*DuplicateNumberMessageQuery
+	selector
 	// intermediate query (i.e. traversal path).
 	sql *sql.Selector
 }
@@ -683,213 +517,12 @@ func (dnms *DuplicateNumberMessageSelect) Scan(ctx context.Context, v interface{
 	return dnms.sqlScan(ctx, v)
 }
 
-// ScanX is like Scan, but panics if an error occurs.
-func (dnms *DuplicateNumberMessageSelect) ScanX(ctx context.Context, v interface{}) {
-	if err := dnms.Scan(ctx, v); err != nil {
-		panic(err)
-	}
-}
-
-// Strings returns list of strings from a selector. It is only allowed when selecting one field.
-func (dnms *DuplicateNumberMessageSelect) Strings(ctx context.Context) ([]string, error) {
-	if len(dnms.fields) > 1 {
-		return nil, errors.New("ent: DuplicateNumberMessageSelect.Strings is not achievable when selecting more than 1 field")
-	}
-	var v []string
-	if err := dnms.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// StringsX is like Strings, but panics if an error occurs.
-func (dnms *DuplicateNumberMessageSelect) StringsX(ctx context.Context) []string {
-	v, err := dnms.Strings(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// String returns a single string from a selector. It is only allowed when selecting one field.
-func (dnms *DuplicateNumberMessageSelect) String(ctx context.Context) (_ string, err error) {
-	var v []string
-	if v, err = dnms.Strings(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{duplicatenumbermessage.Label}
-	default:
-		err = fmt.Errorf("ent: DuplicateNumberMessageSelect.Strings returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// StringX is like String, but panics if an error occurs.
-func (dnms *DuplicateNumberMessageSelect) StringX(ctx context.Context) string {
-	v, err := dnms.String(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Ints returns list of ints from a selector. It is only allowed when selecting one field.
-func (dnms *DuplicateNumberMessageSelect) Ints(ctx context.Context) ([]int, error) {
-	if len(dnms.fields) > 1 {
-		return nil, errors.New("ent: DuplicateNumberMessageSelect.Ints is not achievable when selecting more than 1 field")
-	}
-	var v []int
-	if err := dnms.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// IntsX is like Ints, but panics if an error occurs.
-func (dnms *DuplicateNumberMessageSelect) IntsX(ctx context.Context) []int {
-	v, err := dnms.Ints(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Int returns a single int from a selector. It is only allowed when selecting one field.
-func (dnms *DuplicateNumberMessageSelect) Int(ctx context.Context) (_ int, err error) {
-	var v []int
-	if v, err = dnms.Ints(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{duplicatenumbermessage.Label}
-	default:
-		err = fmt.Errorf("ent: DuplicateNumberMessageSelect.Ints returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// IntX is like Int, but panics if an error occurs.
-func (dnms *DuplicateNumberMessageSelect) IntX(ctx context.Context) int {
-	v, err := dnms.Int(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Float64s returns list of float64s from a selector. It is only allowed when selecting one field.
-func (dnms *DuplicateNumberMessageSelect) Float64s(ctx context.Context) ([]float64, error) {
-	if len(dnms.fields) > 1 {
-		return nil, errors.New("ent: DuplicateNumberMessageSelect.Float64s is not achievable when selecting more than 1 field")
-	}
-	var v []float64
-	if err := dnms.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// Float64sX is like Float64s, but panics if an error occurs.
-func (dnms *DuplicateNumberMessageSelect) Float64sX(ctx context.Context) []float64 {
-	v, err := dnms.Float64s(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Float64 returns a single float64 from a selector. It is only allowed when selecting one field.
-func (dnms *DuplicateNumberMessageSelect) Float64(ctx context.Context) (_ float64, err error) {
-	var v []float64
-	if v, err = dnms.Float64s(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{duplicatenumbermessage.Label}
-	default:
-		err = fmt.Errorf("ent: DuplicateNumberMessageSelect.Float64s returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// Float64X is like Float64, but panics if an error occurs.
-func (dnms *DuplicateNumberMessageSelect) Float64X(ctx context.Context) float64 {
-	v, err := dnms.Float64(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Bools returns list of bools from a selector. It is only allowed when selecting one field.
-func (dnms *DuplicateNumberMessageSelect) Bools(ctx context.Context) ([]bool, error) {
-	if len(dnms.fields) > 1 {
-		return nil, errors.New("ent: DuplicateNumberMessageSelect.Bools is not achievable when selecting more than 1 field")
-	}
-	var v []bool
-	if err := dnms.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// BoolsX is like Bools, but panics if an error occurs.
-func (dnms *DuplicateNumberMessageSelect) BoolsX(ctx context.Context) []bool {
-	v, err := dnms.Bools(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Bool returns a single bool from a selector. It is only allowed when selecting one field.
-func (dnms *DuplicateNumberMessageSelect) Bool(ctx context.Context) (_ bool, err error) {
-	var v []bool
-	if v, err = dnms.Bools(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{duplicatenumbermessage.Label}
-	default:
-		err = fmt.Errorf("ent: DuplicateNumberMessageSelect.Bools returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// BoolX is like Bool, but panics if an error occurs.
-func (dnms *DuplicateNumberMessageSelect) BoolX(ctx context.Context) bool {
-	v, err := dnms.Bool(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
 func (dnms *DuplicateNumberMessageSelect) sqlScan(ctx context.Context, v interface{}) error {
 	rows := &sql.Rows{}
-	query, args := dnms.sqlQuery().Query()
+	query, args := dnms.sql.Query()
 	if err := dnms.driver.Query(ctx, query, args, rows); err != nil {
 		return err
 	}
 	defer rows.Close()
 	return sql.ScanSlice(rows, v)
-}
-
-func (dnms *DuplicateNumberMessageSelect) sqlQuery() sql.Querier {
-	selector := dnms.sql
-	selector.Select(selector.Columns(dnms.fields...)...)
-	return selector
 }

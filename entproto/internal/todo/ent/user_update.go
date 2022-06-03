@@ -4,15 +4,20 @@ package ent
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"time"
 
+	"entgo.io/contrib/entproto/internal/todo/ent/attachment"
 	"entgo.io/contrib/entproto/internal/todo/ent/group"
+	"entgo.io/contrib/entproto/internal/todo/ent/pet"
 	"entgo.io/contrib/entproto/internal/todo/ent/predicate"
+	"entgo.io/contrib/entproto/internal/todo/ent/schema"
+	"entgo.io/contrib/entproto/internal/todo/ent/skipedgeexample"
 	"entgo.io/contrib/entproto/internal/todo/ent/user"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/google/uuid"
 )
 
 // UserUpdate is the builder for updating User entities.
@@ -22,21 +27,15 @@ type UserUpdate struct {
 	mutation *UserMutation
 }
 
-// Where adds a new predicate for the UserUpdate builder.
+// Where appends a list predicates to the UserUpdate builder.
 func (uu *UserUpdate) Where(ps ...predicate.User) *UserUpdate {
-	uu.mutation.predicates = append(uu.mutation.predicates, ps...)
+	uu.mutation.Where(ps...)
 	return uu
 }
 
 // SetUserName sets the "user_name" field.
 func (uu *UserUpdate) SetUserName(s string) *UserUpdate {
 	uu.mutation.SetUserName(s)
-	return uu
-}
-
-// SetJoined sets the "joined" field.
-func (uu *UserUpdate) SetJoined(t time.Time) *UserUpdate {
-	uu.mutation.SetJoined(t)
 	return uu
 }
 
@@ -48,7 +47,7 @@ func (uu *UserUpdate) SetPoints(u uint) *UserUpdate {
 }
 
 // AddPoints adds u to the "points" field.
-func (uu *UserUpdate) AddPoints(u uint) *UserUpdate {
+func (uu *UserUpdate) AddPoints(u int) *UserUpdate {
 	uu.mutation.AddPoints(u)
 	return uu
 }
@@ -61,7 +60,7 @@ func (uu *UserUpdate) SetExp(u uint64) *UserUpdate {
 }
 
 // AddExp adds u to the "exp" field.
-func (uu *UserUpdate) AddExp(u uint64) *UserUpdate {
+func (uu *UserUpdate) AddExp(u int64) *UserUpdate {
 	uu.mutation.AddExp(u)
 	return uu
 }
@@ -85,6 +84,247 @@ func (uu *UserUpdate) AddExternalID(i int) *UserUpdate {
 	return uu
 }
 
+// SetCrmID sets the "crm_id" field.
+func (uu *UserUpdate) SetCrmID(u uuid.UUID) *UserUpdate {
+	uu.mutation.SetCrmID(u)
+	return uu
+}
+
+// SetBanned sets the "banned" field.
+func (uu *UserUpdate) SetBanned(b bool) *UserUpdate {
+	uu.mutation.SetBanned(b)
+	return uu
+}
+
+// SetNillableBanned sets the "banned" field if the given value is not nil.
+func (uu *UserUpdate) SetNillableBanned(b *bool) *UserUpdate {
+	if b != nil {
+		uu.SetBanned(*b)
+	}
+	return uu
+}
+
+// SetCustomPb sets the "custom_pb" field.
+func (uu *UserUpdate) SetCustomPb(u uint8) *UserUpdate {
+	uu.mutation.ResetCustomPb()
+	uu.mutation.SetCustomPb(u)
+	return uu
+}
+
+// AddCustomPb adds u to the "custom_pb" field.
+func (uu *UserUpdate) AddCustomPb(u int8) *UserUpdate {
+	uu.mutation.AddCustomPb(u)
+	return uu
+}
+
+// SetOptNum sets the "opt_num" field.
+func (uu *UserUpdate) SetOptNum(i int) *UserUpdate {
+	uu.mutation.ResetOptNum()
+	uu.mutation.SetOptNum(i)
+	return uu
+}
+
+// SetNillableOptNum sets the "opt_num" field if the given value is not nil.
+func (uu *UserUpdate) SetNillableOptNum(i *int) *UserUpdate {
+	if i != nil {
+		uu.SetOptNum(*i)
+	}
+	return uu
+}
+
+// AddOptNum adds i to the "opt_num" field.
+func (uu *UserUpdate) AddOptNum(i int) *UserUpdate {
+	uu.mutation.AddOptNum(i)
+	return uu
+}
+
+// ClearOptNum clears the value of the "opt_num" field.
+func (uu *UserUpdate) ClearOptNum() *UserUpdate {
+	uu.mutation.ClearOptNum()
+	return uu
+}
+
+// SetOptStr sets the "opt_str" field.
+func (uu *UserUpdate) SetOptStr(s string) *UserUpdate {
+	uu.mutation.SetOptStr(s)
+	return uu
+}
+
+// SetNillableOptStr sets the "opt_str" field if the given value is not nil.
+func (uu *UserUpdate) SetNillableOptStr(s *string) *UserUpdate {
+	if s != nil {
+		uu.SetOptStr(*s)
+	}
+	return uu
+}
+
+// ClearOptStr clears the value of the "opt_str" field.
+func (uu *UserUpdate) ClearOptStr() *UserUpdate {
+	uu.mutation.ClearOptStr()
+	return uu
+}
+
+// SetOptBool sets the "opt_bool" field.
+func (uu *UserUpdate) SetOptBool(b bool) *UserUpdate {
+	uu.mutation.SetOptBool(b)
+	return uu
+}
+
+// SetNillableOptBool sets the "opt_bool" field if the given value is not nil.
+func (uu *UserUpdate) SetNillableOptBool(b *bool) *UserUpdate {
+	if b != nil {
+		uu.SetOptBool(*b)
+	}
+	return uu
+}
+
+// ClearOptBool clears the value of the "opt_bool" field.
+func (uu *UserUpdate) ClearOptBool() *UserUpdate {
+	uu.mutation.ClearOptBool()
+	return uu
+}
+
+// SetBigInt sets the "big_int" field.
+func (uu *UserUpdate) SetBigInt(si schema.BigInt) *UserUpdate {
+	uu.mutation.SetBigInt(si)
+	return uu
+}
+
+// SetNillableBigInt sets the "big_int" field if the given value is not nil.
+func (uu *UserUpdate) SetNillableBigInt(si *schema.BigInt) *UserUpdate {
+	if si != nil {
+		uu.SetBigInt(*si)
+	}
+	return uu
+}
+
+// ClearBigInt clears the value of the "big_int" field.
+func (uu *UserUpdate) ClearBigInt() *UserUpdate {
+	uu.mutation.ClearBigInt()
+	return uu
+}
+
+// SetBUser1 sets the "b_user_1" field.
+func (uu *UserUpdate) SetBUser1(i int) *UserUpdate {
+	uu.mutation.ResetBUser1()
+	uu.mutation.SetBUser1(i)
+	return uu
+}
+
+// SetNillableBUser1 sets the "b_user_1" field if the given value is not nil.
+func (uu *UserUpdate) SetNillableBUser1(i *int) *UserUpdate {
+	if i != nil {
+		uu.SetBUser1(*i)
+	}
+	return uu
+}
+
+// AddBUser1 adds i to the "b_user_1" field.
+func (uu *UserUpdate) AddBUser1(i int) *UserUpdate {
+	uu.mutation.AddBUser1(i)
+	return uu
+}
+
+// ClearBUser1 clears the value of the "b_user_1" field.
+func (uu *UserUpdate) ClearBUser1() *UserUpdate {
+	uu.mutation.ClearBUser1()
+	return uu
+}
+
+// SetHeightInCm sets the "height_in_cm" field.
+func (uu *UserUpdate) SetHeightInCm(f float32) *UserUpdate {
+	uu.mutation.ResetHeightInCm()
+	uu.mutation.SetHeightInCm(f)
+	return uu
+}
+
+// SetNillableHeightInCm sets the "height_in_cm" field if the given value is not nil.
+func (uu *UserUpdate) SetNillableHeightInCm(f *float32) *UserUpdate {
+	if f != nil {
+		uu.SetHeightInCm(*f)
+	}
+	return uu
+}
+
+// AddHeightInCm adds f to the "height_in_cm" field.
+func (uu *UserUpdate) AddHeightInCm(f float32) *UserUpdate {
+	uu.mutation.AddHeightInCm(f)
+	return uu
+}
+
+// SetAccountBalance sets the "account_balance" field.
+func (uu *UserUpdate) SetAccountBalance(f float64) *UserUpdate {
+	uu.mutation.ResetAccountBalance()
+	uu.mutation.SetAccountBalance(f)
+	return uu
+}
+
+// SetNillableAccountBalance sets the "account_balance" field if the given value is not nil.
+func (uu *UserUpdate) SetNillableAccountBalance(f *float64) *UserUpdate {
+	if f != nil {
+		uu.SetAccountBalance(*f)
+	}
+	return uu
+}
+
+// AddAccountBalance adds f to the "account_balance" field.
+func (uu *UserUpdate) AddAccountBalance(f float64) *UserUpdate {
+	uu.mutation.AddAccountBalance(f)
+	return uu
+}
+
+// SetUnnecessary sets the "unnecessary" field.
+func (uu *UserUpdate) SetUnnecessary(s string) *UserUpdate {
+	uu.mutation.SetUnnecessary(s)
+	return uu
+}
+
+// SetNillableUnnecessary sets the "unnecessary" field if the given value is not nil.
+func (uu *UserUpdate) SetNillableUnnecessary(s *string) *UserUpdate {
+	if s != nil {
+		uu.SetUnnecessary(*s)
+	}
+	return uu
+}
+
+// ClearUnnecessary clears the value of the "unnecessary" field.
+func (uu *UserUpdate) ClearUnnecessary() *UserUpdate {
+	uu.mutation.ClearUnnecessary()
+	return uu
+}
+
+// SetType sets the "type" field.
+func (uu *UserUpdate) SetType(s string) *UserUpdate {
+	uu.mutation.SetType(s)
+	return uu
+}
+
+// SetNillableType sets the "type" field if the given value is not nil.
+func (uu *UserUpdate) SetNillableType(s *string) *UserUpdate {
+	if s != nil {
+		uu.SetType(*s)
+	}
+	return uu
+}
+
+// ClearType clears the value of the "type" field.
+func (uu *UserUpdate) ClearType() *UserUpdate {
+	uu.mutation.ClearType()
+	return uu
+}
+
+// SetLabels sets the "labels" field.
+func (uu *UserUpdate) SetLabels(s []string) *UserUpdate {
+	uu.mutation.SetLabels(s)
+	return uu
+}
+
+// ClearLabels clears the value of the "labels" field.
+func (uu *UserUpdate) ClearLabels() *UserUpdate {
+	uu.mutation.ClearLabels()
+	return uu
+}
+
 // SetGroupID sets the "group" edge to the Group entity by ID.
 func (uu *UserUpdate) SetGroupID(id int) *UserUpdate {
 	uu.mutation.SetGroupID(id)
@@ -104,6 +344,78 @@ func (uu *UserUpdate) SetGroup(g *Group) *UserUpdate {
 	return uu.SetGroupID(g.ID)
 }
 
+// SetAttachmentID sets the "attachment" edge to the Attachment entity by ID.
+func (uu *UserUpdate) SetAttachmentID(id uuid.UUID) *UserUpdate {
+	uu.mutation.SetAttachmentID(id)
+	return uu
+}
+
+// SetNillableAttachmentID sets the "attachment" edge to the Attachment entity by ID if the given value is not nil.
+func (uu *UserUpdate) SetNillableAttachmentID(id *uuid.UUID) *UserUpdate {
+	if id != nil {
+		uu = uu.SetAttachmentID(*id)
+	}
+	return uu
+}
+
+// SetAttachment sets the "attachment" edge to the Attachment entity.
+func (uu *UserUpdate) SetAttachment(a *Attachment) *UserUpdate {
+	return uu.SetAttachmentID(a.ID)
+}
+
+// AddReceived1IDs adds the "received_1" edge to the Attachment entity by IDs.
+func (uu *UserUpdate) AddReceived1IDs(ids ...uuid.UUID) *UserUpdate {
+	uu.mutation.AddReceived1IDs(ids...)
+	return uu
+}
+
+// AddReceived1 adds the "received_1" edges to the Attachment entity.
+func (uu *UserUpdate) AddReceived1(a ...*Attachment) *UserUpdate {
+	ids := make([]uuid.UUID, len(a))
+	for i := range a {
+		ids[i] = a[i].ID
+	}
+	return uu.AddReceived1IDs(ids...)
+}
+
+// SetPetID sets the "pet" edge to the Pet entity by ID.
+func (uu *UserUpdate) SetPetID(id int) *UserUpdate {
+	uu.mutation.SetPetID(id)
+	return uu
+}
+
+// SetNillablePetID sets the "pet" edge to the Pet entity by ID if the given value is not nil.
+func (uu *UserUpdate) SetNillablePetID(id *int) *UserUpdate {
+	if id != nil {
+		uu = uu.SetPetID(*id)
+	}
+	return uu
+}
+
+// SetPet sets the "pet" edge to the Pet entity.
+func (uu *UserUpdate) SetPet(p *Pet) *UserUpdate {
+	return uu.SetPetID(p.ID)
+}
+
+// SetSkipEdgeID sets the "skip_edge" edge to the SkipEdgeExample entity by ID.
+func (uu *UserUpdate) SetSkipEdgeID(id int) *UserUpdate {
+	uu.mutation.SetSkipEdgeID(id)
+	return uu
+}
+
+// SetNillableSkipEdgeID sets the "skip_edge" edge to the SkipEdgeExample entity by ID if the given value is not nil.
+func (uu *UserUpdate) SetNillableSkipEdgeID(id *int) *UserUpdate {
+	if id != nil {
+		uu = uu.SetSkipEdgeID(*id)
+	}
+	return uu
+}
+
+// SetSkipEdge sets the "skip_edge" edge to the SkipEdgeExample entity.
+func (uu *UserUpdate) SetSkipEdge(s *SkipEdgeExample) *UserUpdate {
+	return uu.SetSkipEdgeID(s.ID)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (uu *UserUpdate) Mutation() *UserMutation {
 	return uu.mutation
@@ -112,6 +424,45 @@ func (uu *UserUpdate) Mutation() *UserMutation {
 // ClearGroup clears the "group" edge to the Group entity.
 func (uu *UserUpdate) ClearGroup() *UserUpdate {
 	uu.mutation.ClearGroup()
+	return uu
+}
+
+// ClearAttachment clears the "attachment" edge to the Attachment entity.
+func (uu *UserUpdate) ClearAttachment() *UserUpdate {
+	uu.mutation.ClearAttachment()
+	return uu
+}
+
+// ClearReceived1 clears all "received_1" edges to the Attachment entity.
+func (uu *UserUpdate) ClearReceived1() *UserUpdate {
+	uu.mutation.ClearReceived1()
+	return uu
+}
+
+// RemoveReceived1IDs removes the "received_1" edge to Attachment entities by IDs.
+func (uu *UserUpdate) RemoveReceived1IDs(ids ...uuid.UUID) *UserUpdate {
+	uu.mutation.RemoveReceived1IDs(ids...)
+	return uu
+}
+
+// RemoveReceived1 removes "received_1" edges to Attachment entities.
+func (uu *UserUpdate) RemoveReceived1(a ...*Attachment) *UserUpdate {
+	ids := make([]uuid.UUID, len(a))
+	for i := range a {
+		ids[i] = a[i].ID
+	}
+	return uu.RemoveReceived1IDs(ids...)
+}
+
+// ClearPet clears the "pet" edge to the Pet entity.
+func (uu *UserUpdate) ClearPet() *UserUpdate {
+	uu.mutation.ClearPet()
+	return uu
+}
+
+// ClearSkipEdge clears the "skip_edge" edge to the SkipEdgeExample entity.
+func (uu *UserUpdate) ClearSkipEdge() *UserUpdate {
+	uu.mutation.ClearSkipEdge()
 	return uu
 }
 
@@ -141,6 +492,9 @@ func (uu *UserUpdate) Save(ctx context.Context) (int, error) {
 			return affected, err
 		})
 		for i := len(uu.hooks) - 1; i >= 0; i-- {
+			if uu.hooks[i] == nil {
+				return 0, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
+			}
 			mut = uu.hooks[i](mut)
 		}
 		if _, err := mut.Mutate(ctx, uu.mutation); err != nil {
@@ -176,7 +530,7 @@ func (uu *UserUpdate) ExecX(ctx context.Context) {
 func (uu *UserUpdate) check() error {
 	if v, ok := uu.mutation.Status(); ok {
 		if err := user.StatusValidator(v); err != nil {
-			return &ValidationError{Name: "status", err: fmt.Errorf("ent: validator failed for field \"status\": %w", err)}
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "User.status": %w`, err)}
 		}
 	}
 	return nil
@@ -205,13 +559,6 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Type:   field.TypeString,
 			Value:  value,
 			Column: user.FieldUserName,
-		})
-	}
-	if value, ok := uu.mutation.Joined(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeTime,
-			Value:  value,
-			Column: user.FieldJoined,
 		})
 	}
 	if value, ok := uu.mutation.Points(); ok {
@@ -263,6 +610,180 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Column: user.FieldExternalID,
 		})
 	}
+	if value, ok := uu.mutation.CrmID(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeUUID,
+			Value:  value,
+			Column: user.FieldCrmID,
+		})
+	}
+	if value, ok := uu.mutation.Banned(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeBool,
+			Value:  value,
+			Column: user.FieldBanned,
+		})
+	}
+	if value, ok := uu.mutation.CustomPb(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeUint8,
+			Value:  value,
+			Column: user.FieldCustomPb,
+		})
+	}
+	if value, ok := uu.mutation.AddedCustomPb(); ok {
+		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
+			Type:   field.TypeUint8,
+			Value:  value,
+			Column: user.FieldCustomPb,
+		})
+	}
+	if value, ok := uu.mutation.OptNum(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt,
+			Value:  value,
+			Column: user.FieldOptNum,
+		})
+	}
+	if value, ok := uu.mutation.AddedOptNum(); ok {
+		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt,
+			Value:  value,
+			Column: user.FieldOptNum,
+		})
+	}
+	if uu.mutation.OptNumCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt,
+			Column: user.FieldOptNum,
+		})
+	}
+	if value, ok := uu.mutation.OptStr(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: user.FieldOptStr,
+		})
+	}
+	if uu.mutation.OptStrCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: user.FieldOptStr,
+		})
+	}
+	if value, ok := uu.mutation.OptBool(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeBool,
+			Value:  value,
+			Column: user.FieldOptBool,
+		})
+	}
+	if uu.mutation.OptBoolCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeBool,
+			Column: user.FieldOptBool,
+		})
+	}
+	if value, ok := uu.mutation.BigInt(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt,
+			Value:  value,
+			Column: user.FieldBigInt,
+		})
+	}
+	if uu.mutation.BigIntCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt,
+			Column: user.FieldBigInt,
+		})
+	}
+	if value, ok := uu.mutation.BUser1(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt,
+			Value:  value,
+			Column: user.FieldBUser1,
+		})
+	}
+	if value, ok := uu.mutation.AddedBUser1(); ok {
+		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt,
+			Value:  value,
+			Column: user.FieldBUser1,
+		})
+	}
+	if uu.mutation.BUser1Cleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt,
+			Column: user.FieldBUser1,
+		})
+	}
+	if value, ok := uu.mutation.HeightInCm(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeFloat32,
+			Value:  value,
+			Column: user.FieldHeightInCm,
+		})
+	}
+	if value, ok := uu.mutation.AddedHeightInCm(); ok {
+		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
+			Type:   field.TypeFloat32,
+			Value:  value,
+			Column: user.FieldHeightInCm,
+		})
+	}
+	if value, ok := uu.mutation.AccountBalance(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeFloat64,
+			Value:  value,
+			Column: user.FieldAccountBalance,
+		})
+	}
+	if value, ok := uu.mutation.AddedAccountBalance(); ok {
+		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
+			Type:   field.TypeFloat64,
+			Value:  value,
+			Column: user.FieldAccountBalance,
+		})
+	}
+	if value, ok := uu.mutation.Unnecessary(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: user.FieldUnnecessary,
+		})
+	}
+	if uu.mutation.UnnecessaryCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: user.FieldUnnecessary,
+		})
+	}
+	if value, ok := uu.mutation.GetType(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: user.FieldType,
+		})
+	}
+	if uu.mutation.TypeCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: user.FieldType,
+		})
+	}
+	if value, ok := uu.mutation.Labels(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeJSON,
+			Value:  value,
+			Column: user.FieldLabels,
+		})
+	}
+	if uu.mutation.LabelsCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeJSON,
+			Column: user.FieldLabels,
+		})
+	}
 	if uu.mutation.GroupCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
@@ -298,11 +819,170 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if uu.mutation.AttachmentCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.AttachmentTable,
+			Columns: []string{user.AttachmentColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: attachment.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.AttachmentIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.AttachmentTable,
+			Columns: []string{user.AttachmentColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: attachment.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if uu.mutation.Received1Cleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   user.Received1Table,
+			Columns: user.Received1PrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: attachment.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.RemovedReceived1IDs(); len(nodes) > 0 && !uu.mutation.Received1Cleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   user.Received1Table,
+			Columns: user.Received1PrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: attachment.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.Received1IDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   user.Received1Table,
+			Columns: user.Received1PrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: attachment.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if uu.mutation.PetCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.PetTable,
+			Columns: []string{user.PetColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: pet.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.PetIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.PetTable,
+			Columns: []string{user.PetColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: pet.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if uu.mutation.SkipEdgeCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.SkipEdgeTable,
+			Columns: []string{user.SkipEdgeColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: skipedgeexample.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uu.mutation.SkipEdgeIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.SkipEdgeTable,
+			Columns: []string{user.SkipEdgeColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: skipedgeexample.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, uu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{user.Label}
-		} else if cerr, ok := isSQLConstraintError(err); ok {
-			err = cerr
+		} else if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{err.Error(), err}
 		}
 		return 0, err
 	}
@@ -312,6 +992,7 @@ func (uu *UserUpdate) sqlSave(ctx context.Context) (n int, err error) {
 // UserUpdateOne is the builder for updating a single User entity.
 type UserUpdateOne struct {
 	config
+	fields   []string
 	hooks    []Hook
 	mutation *UserMutation
 }
@@ -319,12 +1000,6 @@ type UserUpdateOne struct {
 // SetUserName sets the "user_name" field.
 func (uuo *UserUpdateOne) SetUserName(s string) *UserUpdateOne {
 	uuo.mutation.SetUserName(s)
-	return uuo
-}
-
-// SetJoined sets the "joined" field.
-func (uuo *UserUpdateOne) SetJoined(t time.Time) *UserUpdateOne {
-	uuo.mutation.SetJoined(t)
 	return uuo
 }
 
@@ -336,7 +1011,7 @@ func (uuo *UserUpdateOne) SetPoints(u uint) *UserUpdateOne {
 }
 
 // AddPoints adds u to the "points" field.
-func (uuo *UserUpdateOne) AddPoints(u uint) *UserUpdateOne {
+func (uuo *UserUpdateOne) AddPoints(u int) *UserUpdateOne {
 	uuo.mutation.AddPoints(u)
 	return uuo
 }
@@ -349,7 +1024,7 @@ func (uuo *UserUpdateOne) SetExp(u uint64) *UserUpdateOne {
 }
 
 // AddExp adds u to the "exp" field.
-func (uuo *UserUpdateOne) AddExp(u uint64) *UserUpdateOne {
+func (uuo *UserUpdateOne) AddExp(u int64) *UserUpdateOne {
 	uuo.mutation.AddExp(u)
 	return uuo
 }
@@ -373,6 +1048,247 @@ func (uuo *UserUpdateOne) AddExternalID(i int) *UserUpdateOne {
 	return uuo
 }
 
+// SetCrmID sets the "crm_id" field.
+func (uuo *UserUpdateOne) SetCrmID(u uuid.UUID) *UserUpdateOne {
+	uuo.mutation.SetCrmID(u)
+	return uuo
+}
+
+// SetBanned sets the "banned" field.
+func (uuo *UserUpdateOne) SetBanned(b bool) *UserUpdateOne {
+	uuo.mutation.SetBanned(b)
+	return uuo
+}
+
+// SetNillableBanned sets the "banned" field if the given value is not nil.
+func (uuo *UserUpdateOne) SetNillableBanned(b *bool) *UserUpdateOne {
+	if b != nil {
+		uuo.SetBanned(*b)
+	}
+	return uuo
+}
+
+// SetCustomPb sets the "custom_pb" field.
+func (uuo *UserUpdateOne) SetCustomPb(u uint8) *UserUpdateOne {
+	uuo.mutation.ResetCustomPb()
+	uuo.mutation.SetCustomPb(u)
+	return uuo
+}
+
+// AddCustomPb adds u to the "custom_pb" field.
+func (uuo *UserUpdateOne) AddCustomPb(u int8) *UserUpdateOne {
+	uuo.mutation.AddCustomPb(u)
+	return uuo
+}
+
+// SetOptNum sets the "opt_num" field.
+func (uuo *UserUpdateOne) SetOptNum(i int) *UserUpdateOne {
+	uuo.mutation.ResetOptNum()
+	uuo.mutation.SetOptNum(i)
+	return uuo
+}
+
+// SetNillableOptNum sets the "opt_num" field if the given value is not nil.
+func (uuo *UserUpdateOne) SetNillableOptNum(i *int) *UserUpdateOne {
+	if i != nil {
+		uuo.SetOptNum(*i)
+	}
+	return uuo
+}
+
+// AddOptNum adds i to the "opt_num" field.
+func (uuo *UserUpdateOne) AddOptNum(i int) *UserUpdateOne {
+	uuo.mutation.AddOptNum(i)
+	return uuo
+}
+
+// ClearOptNum clears the value of the "opt_num" field.
+func (uuo *UserUpdateOne) ClearOptNum() *UserUpdateOne {
+	uuo.mutation.ClearOptNum()
+	return uuo
+}
+
+// SetOptStr sets the "opt_str" field.
+func (uuo *UserUpdateOne) SetOptStr(s string) *UserUpdateOne {
+	uuo.mutation.SetOptStr(s)
+	return uuo
+}
+
+// SetNillableOptStr sets the "opt_str" field if the given value is not nil.
+func (uuo *UserUpdateOne) SetNillableOptStr(s *string) *UserUpdateOne {
+	if s != nil {
+		uuo.SetOptStr(*s)
+	}
+	return uuo
+}
+
+// ClearOptStr clears the value of the "opt_str" field.
+func (uuo *UserUpdateOne) ClearOptStr() *UserUpdateOne {
+	uuo.mutation.ClearOptStr()
+	return uuo
+}
+
+// SetOptBool sets the "opt_bool" field.
+func (uuo *UserUpdateOne) SetOptBool(b bool) *UserUpdateOne {
+	uuo.mutation.SetOptBool(b)
+	return uuo
+}
+
+// SetNillableOptBool sets the "opt_bool" field if the given value is not nil.
+func (uuo *UserUpdateOne) SetNillableOptBool(b *bool) *UserUpdateOne {
+	if b != nil {
+		uuo.SetOptBool(*b)
+	}
+	return uuo
+}
+
+// ClearOptBool clears the value of the "opt_bool" field.
+func (uuo *UserUpdateOne) ClearOptBool() *UserUpdateOne {
+	uuo.mutation.ClearOptBool()
+	return uuo
+}
+
+// SetBigInt sets the "big_int" field.
+func (uuo *UserUpdateOne) SetBigInt(si schema.BigInt) *UserUpdateOne {
+	uuo.mutation.SetBigInt(si)
+	return uuo
+}
+
+// SetNillableBigInt sets the "big_int" field if the given value is not nil.
+func (uuo *UserUpdateOne) SetNillableBigInt(si *schema.BigInt) *UserUpdateOne {
+	if si != nil {
+		uuo.SetBigInt(*si)
+	}
+	return uuo
+}
+
+// ClearBigInt clears the value of the "big_int" field.
+func (uuo *UserUpdateOne) ClearBigInt() *UserUpdateOne {
+	uuo.mutation.ClearBigInt()
+	return uuo
+}
+
+// SetBUser1 sets the "b_user_1" field.
+func (uuo *UserUpdateOne) SetBUser1(i int) *UserUpdateOne {
+	uuo.mutation.ResetBUser1()
+	uuo.mutation.SetBUser1(i)
+	return uuo
+}
+
+// SetNillableBUser1 sets the "b_user_1" field if the given value is not nil.
+func (uuo *UserUpdateOne) SetNillableBUser1(i *int) *UserUpdateOne {
+	if i != nil {
+		uuo.SetBUser1(*i)
+	}
+	return uuo
+}
+
+// AddBUser1 adds i to the "b_user_1" field.
+func (uuo *UserUpdateOne) AddBUser1(i int) *UserUpdateOne {
+	uuo.mutation.AddBUser1(i)
+	return uuo
+}
+
+// ClearBUser1 clears the value of the "b_user_1" field.
+func (uuo *UserUpdateOne) ClearBUser1() *UserUpdateOne {
+	uuo.mutation.ClearBUser1()
+	return uuo
+}
+
+// SetHeightInCm sets the "height_in_cm" field.
+func (uuo *UserUpdateOne) SetHeightInCm(f float32) *UserUpdateOne {
+	uuo.mutation.ResetHeightInCm()
+	uuo.mutation.SetHeightInCm(f)
+	return uuo
+}
+
+// SetNillableHeightInCm sets the "height_in_cm" field if the given value is not nil.
+func (uuo *UserUpdateOne) SetNillableHeightInCm(f *float32) *UserUpdateOne {
+	if f != nil {
+		uuo.SetHeightInCm(*f)
+	}
+	return uuo
+}
+
+// AddHeightInCm adds f to the "height_in_cm" field.
+func (uuo *UserUpdateOne) AddHeightInCm(f float32) *UserUpdateOne {
+	uuo.mutation.AddHeightInCm(f)
+	return uuo
+}
+
+// SetAccountBalance sets the "account_balance" field.
+func (uuo *UserUpdateOne) SetAccountBalance(f float64) *UserUpdateOne {
+	uuo.mutation.ResetAccountBalance()
+	uuo.mutation.SetAccountBalance(f)
+	return uuo
+}
+
+// SetNillableAccountBalance sets the "account_balance" field if the given value is not nil.
+func (uuo *UserUpdateOne) SetNillableAccountBalance(f *float64) *UserUpdateOne {
+	if f != nil {
+		uuo.SetAccountBalance(*f)
+	}
+	return uuo
+}
+
+// AddAccountBalance adds f to the "account_balance" field.
+func (uuo *UserUpdateOne) AddAccountBalance(f float64) *UserUpdateOne {
+	uuo.mutation.AddAccountBalance(f)
+	return uuo
+}
+
+// SetUnnecessary sets the "unnecessary" field.
+func (uuo *UserUpdateOne) SetUnnecessary(s string) *UserUpdateOne {
+	uuo.mutation.SetUnnecessary(s)
+	return uuo
+}
+
+// SetNillableUnnecessary sets the "unnecessary" field if the given value is not nil.
+func (uuo *UserUpdateOne) SetNillableUnnecessary(s *string) *UserUpdateOne {
+	if s != nil {
+		uuo.SetUnnecessary(*s)
+	}
+	return uuo
+}
+
+// ClearUnnecessary clears the value of the "unnecessary" field.
+func (uuo *UserUpdateOne) ClearUnnecessary() *UserUpdateOne {
+	uuo.mutation.ClearUnnecessary()
+	return uuo
+}
+
+// SetType sets the "type" field.
+func (uuo *UserUpdateOne) SetType(s string) *UserUpdateOne {
+	uuo.mutation.SetType(s)
+	return uuo
+}
+
+// SetNillableType sets the "type" field if the given value is not nil.
+func (uuo *UserUpdateOne) SetNillableType(s *string) *UserUpdateOne {
+	if s != nil {
+		uuo.SetType(*s)
+	}
+	return uuo
+}
+
+// ClearType clears the value of the "type" field.
+func (uuo *UserUpdateOne) ClearType() *UserUpdateOne {
+	uuo.mutation.ClearType()
+	return uuo
+}
+
+// SetLabels sets the "labels" field.
+func (uuo *UserUpdateOne) SetLabels(s []string) *UserUpdateOne {
+	uuo.mutation.SetLabels(s)
+	return uuo
+}
+
+// ClearLabels clears the value of the "labels" field.
+func (uuo *UserUpdateOne) ClearLabels() *UserUpdateOne {
+	uuo.mutation.ClearLabels()
+	return uuo
+}
+
 // SetGroupID sets the "group" edge to the Group entity by ID.
 func (uuo *UserUpdateOne) SetGroupID(id int) *UserUpdateOne {
 	uuo.mutation.SetGroupID(id)
@@ -392,6 +1308,78 @@ func (uuo *UserUpdateOne) SetGroup(g *Group) *UserUpdateOne {
 	return uuo.SetGroupID(g.ID)
 }
 
+// SetAttachmentID sets the "attachment" edge to the Attachment entity by ID.
+func (uuo *UserUpdateOne) SetAttachmentID(id uuid.UUID) *UserUpdateOne {
+	uuo.mutation.SetAttachmentID(id)
+	return uuo
+}
+
+// SetNillableAttachmentID sets the "attachment" edge to the Attachment entity by ID if the given value is not nil.
+func (uuo *UserUpdateOne) SetNillableAttachmentID(id *uuid.UUID) *UserUpdateOne {
+	if id != nil {
+		uuo = uuo.SetAttachmentID(*id)
+	}
+	return uuo
+}
+
+// SetAttachment sets the "attachment" edge to the Attachment entity.
+func (uuo *UserUpdateOne) SetAttachment(a *Attachment) *UserUpdateOne {
+	return uuo.SetAttachmentID(a.ID)
+}
+
+// AddReceived1IDs adds the "received_1" edge to the Attachment entity by IDs.
+func (uuo *UserUpdateOne) AddReceived1IDs(ids ...uuid.UUID) *UserUpdateOne {
+	uuo.mutation.AddReceived1IDs(ids...)
+	return uuo
+}
+
+// AddReceived1 adds the "received_1" edges to the Attachment entity.
+func (uuo *UserUpdateOne) AddReceived1(a ...*Attachment) *UserUpdateOne {
+	ids := make([]uuid.UUID, len(a))
+	for i := range a {
+		ids[i] = a[i].ID
+	}
+	return uuo.AddReceived1IDs(ids...)
+}
+
+// SetPetID sets the "pet" edge to the Pet entity by ID.
+func (uuo *UserUpdateOne) SetPetID(id int) *UserUpdateOne {
+	uuo.mutation.SetPetID(id)
+	return uuo
+}
+
+// SetNillablePetID sets the "pet" edge to the Pet entity by ID if the given value is not nil.
+func (uuo *UserUpdateOne) SetNillablePetID(id *int) *UserUpdateOne {
+	if id != nil {
+		uuo = uuo.SetPetID(*id)
+	}
+	return uuo
+}
+
+// SetPet sets the "pet" edge to the Pet entity.
+func (uuo *UserUpdateOne) SetPet(p *Pet) *UserUpdateOne {
+	return uuo.SetPetID(p.ID)
+}
+
+// SetSkipEdgeID sets the "skip_edge" edge to the SkipEdgeExample entity by ID.
+func (uuo *UserUpdateOne) SetSkipEdgeID(id int) *UserUpdateOne {
+	uuo.mutation.SetSkipEdgeID(id)
+	return uuo
+}
+
+// SetNillableSkipEdgeID sets the "skip_edge" edge to the SkipEdgeExample entity by ID if the given value is not nil.
+func (uuo *UserUpdateOne) SetNillableSkipEdgeID(id *int) *UserUpdateOne {
+	if id != nil {
+		uuo = uuo.SetSkipEdgeID(*id)
+	}
+	return uuo
+}
+
+// SetSkipEdge sets the "skip_edge" edge to the SkipEdgeExample entity.
+func (uuo *UserUpdateOne) SetSkipEdge(s *SkipEdgeExample) *UserUpdateOne {
+	return uuo.SetSkipEdgeID(s.ID)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (uuo *UserUpdateOne) Mutation() *UserMutation {
 	return uuo.mutation
@@ -400,6 +1388,52 @@ func (uuo *UserUpdateOne) Mutation() *UserMutation {
 // ClearGroup clears the "group" edge to the Group entity.
 func (uuo *UserUpdateOne) ClearGroup() *UserUpdateOne {
 	uuo.mutation.ClearGroup()
+	return uuo
+}
+
+// ClearAttachment clears the "attachment" edge to the Attachment entity.
+func (uuo *UserUpdateOne) ClearAttachment() *UserUpdateOne {
+	uuo.mutation.ClearAttachment()
+	return uuo
+}
+
+// ClearReceived1 clears all "received_1" edges to the Attachment entity.
+func (uuo *UserUpdateOne) ClearReceived1() *UserUpdateOne {
+	uuo.mutation.ClearReceived1()
+	return uuo
+}
+
+// RemoveReceived1IDs removes the "received_1" edge to Attachment entities by IDs.
+func (uuo *UserUpdateOne) RemoveReceived1IDs(ids ...uuid.UUID) *UserUpdateOne {
+	uuo.mutation.RemoveReceived1IDs(ids...)
+	return uuo
+}
+
+// RemoveReceived1 removes "received_1" edges to Attachment entities.
+func (uuo *UserUpdateOne) RemoveReceived1(a ...*Attachment) *UserUpdateOne {
+	ids := make([]uuid.UUID, len(a))
+	for i := range a {
+		ids[i] = a[i].ID
+	}
+	return uuo.RemoveReceived1IDs(ids...)
+}
+
+// ClearPet clears the "pet" edge to the Pet entity.
+func (uuo *UserUpdateOne) ClearPet() *UserUpdateOne {
+	uuo.mutation.ClearPet()
+	return uuo
+}
+
+// ClearSkipEdge clears the "skip_edge" edge to the SkipEdgeExample entity.
+func (uuo *UserUpdateOne) ClearSkipEdge() *UserUpdateOne {
+	uuo.mutation.ClearSkipEdge()
+	return uuo
+}
+
+// Select allows selecting one or more fields (columns) of the returned entity.
+// The default is selecting all fields defined in the entity schema.
+func (uuo *UserUpdateOne) Select(field string, fields ...string) *UserUpdateOne {
+	uuo.fields = append([]string{field}, fields...)
 	return uuo
 }
 
@@ -429,11 +1463,20 @@ func (uuo *UserUpdateOne) Save(ctx context.Context) (*User, error) {
 			return node, err
 		})
 		for i := len(uuo.hooks) - 1; i >= 0; i-- {
+			if uuo.hooks[i] == nil {
+				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
+			}
 			mut = uuo.hooks[i](mut)
 		}
-		if _, err := mut.Mutate(ctx, uuo.mutation); err != nil {
+		v, err := mut.Mutate(ctx, uuo.mutation)
+		if err != nil {
 			return nil, err
 		}
+		nv, ok := v.(*User)
+		if !ok {
+			return nil, fmt.Errorf("unexpected node type %T returned from UserMutation", v)
+		}
+		node = nv
 	}
 	return node, err
 }
@@ -464,7 +1507,7 @@ func (uuo *UserUpdateOne) ExecX(ctx context.Context) {
 func (uuo *UserUpdateOne) check() error {
 	if v, ok := uuo.mutation.Status(); ok {
 		if err := user.StatusValidator(v); err != nil {
-			return &ValidationError{Name: "status", err: fmt.Errorf("ent: validator failed for field \"status\": %w", err)}
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "User.status": %w`, err)}
 		}
 	}
 	return nil
@@ -483,9 +1526,21 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 	}
 	id, ok := uuo.mutation.ID()
 	if !ok {
-		return nil, &ValidationError{Name: "ID", err: fmt.Errorf("missing User.ID for update")}
+		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "User.id" for update`)}
 	}
 	_spec.Node.ID.Value = id
+	if fields := uuo.fields; len(fields) > 0 {
+		_spec.Node.Columns = make([]string, 0, len(fields))
+		_spec.Node.Columns = append(_spec.Node.Columns, user.FieldID)
+		for _, f := range fields {
+			if !user.ValidColumn(f) {
+				return nil, &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
+			}
+			if f != user.FieldID {
+				_spec.Node.Columns = append(_spec.Node.Columns, f)
+			}
+		}
+	}
 	if ps := uuo.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -498,13 +1553,6 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 			Type:   field.TypeString,
 			Value:  value,
 			Column: user.FieldUserName,
-		})
-	}
-	if value, ok := uuo.mutation.Joined(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeTime,
-			Value:  value,
-			Column: user.FieldJoined,
 		})
 	}
 	if value, ok := uuo.mutation.Points(); ok {
@@ -556,6 +1604,180 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 			Column: user.FieldExternalID,
 		})
 	}
+	if value, ok := uuo.mutation.CrmID(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeUUID,
+			Value:  value,
+			Column: user.FieldCrmID,
+		})
+	}
+	if value, ok := uuo.mutation.Banned(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeBool,
+			Value:  value,
+			Column: user.FieldBanned,
+		})
+	}
+	if value, ok := uuo.mutation.CustomPb(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeUint8,
+			Value:  value,
+			Column: user.FieldCustomPb,
+		})
+	}
+	if value, ok := uuo.mutation.AddedCustomPb(); ok {
+		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
+			Type:   field.TypeUint8,
+			Value:  value,
+			Column: user.FieldCustomPb,
+		})
+	}
+	if value, ok := uuo.mutation.OptNum(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt,
+			Value:  value,
+			Column: user.FieldOptNum,
+		})
+	}
+	if value, ok := uuo.mutation.AddedOptNum(); ok {
+		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt,
+			Value:  value,
+			Column: user.FieldOptNum,
+		})
+	}
+	if uuo.mutation.OptNumCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt,
+			Column: user.FieldOptNum,
+		})
+	}
+	if value, ok := uuo.mutation.OptStr(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: user.FieldOptStr,
+		})
+	}
+	if uuo.mutation.OptStrCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: user.FieldOptStr,
+		})
+	}
+	if value, ok := uuo.mutation.OptBool(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeBool,
+			Value:  value,
+			Column: user.FieldOptBool,
+		})
+	}
+	if uuo.mutation.OptBoolCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeBool,
+			Column: user.FieldOptBool,
+		})
+	}
+	if value, ok := uuo.mutation.BigInt(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt,
+			Value:  value,
+			Column: user.FieldBigInt,
+		})
+	}
+	if uuo.mutation.BigIntCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt,
+			Column: user.FieldBigInt,
+		})
+	}
+	if value, ok := uuo.mutation.BUser1(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt,
+			Value:  value,
+			Column: user.FieldBUser1,
+		})
+	}
+	if value, ok := uuo.mutation.AddedBUser1(); ok {
+		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt,
+			Value:  value,
+			Column: user.FieldBUser1,
+		})
+	}
+	if uuo.mutation.BUser1Cleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeInt,
+			Column: user.FieldBUser1,
+		})
+	}
+	if value, ok := uuo.mutation.HeightInCm(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeFloat32,
+			Value:  value,
+			Column: user.FieldHeightInCm,
+		})
+	}
+	if value, ok := uuo.mutation.AddedHeightInCm(); ok {
+		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
+			Type:   field.TypeFloat32,
+			Value:  value,
+			Column: user.FieldHeightInCm,
+		})
+	}
+	if value, ok := uuo.mutation.AccountBalance(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeFloat64,
+			Value:  value,
+			Column: user.FieldAccountBalance,
+		})
+	}
+	if value, ok := uuo.mutation.AddedAccountBalance(); ok {
+		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
+			Type:   field.TypeFloat64,
+			Value:  value,
+			Column: user.FieldAccountBalance,
+		})
+	}
+	if value, ok := uuo.mutation.Unnecessary(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: user.FieldUnnecessary,
+		})
+	}
+	if uuo.mutation.UnnecessaryCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: user.FieldUnnecessary,
+		})
+	}
+	if value, ok := uuo.mutation.GetType(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Value:  value,
+			Column: user.FieldType,
+		})
+	}
+	if uuo.mutation.TypeCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeString,
+			Column: user.FieldType,
+		})
+	}
+	if value, ok := uuo.mutation.Labels(); ok {
+		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
+			Type:   field.TypeJSON,
+			Value:  value,
+			Column: user.FieldLabels,
+		})
+	}
+	if uuo.mutation.LabelsCleared() {
+		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
+			Type:   field.TypeJSON,
+			Column: user.FieldLabels,
+		})
+	}
 	if uuo.mutation.GroupCleared() {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
@@ -591,14 +1813,173 @@ func (uuo *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) 
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if uuo.mutation.AttachmentCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.AttachmentTable,
+			Columns: []string{user.AttachmentColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: attachment.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.AttachmentIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.AttachmentTable,
+			Columns: []string{user.AttachmentColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: attachment.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if uuo.mutation.Received1Cleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   user.Received1Table,
+			Columns: user.Received1PrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: attachment.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.RemovedReceived1IDs(); len(nodes) > 0 && !uuo.mutation.Received1Cleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   user.Received1Table,
+			Columns: user.Received1PrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: attachment.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.Received1IDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: true,
+			Table:   user.Received1Table,
+			Columns: user.Received1PrimaryKey,
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: attachment.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if uuo.mutation.PetCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.PetTable,
+			Columns: []string{user.PetColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: pet.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.PetIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.PetTable,
+			Columns: []string{user.PetColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: pet.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if uuo.mutation.SkipEdgeCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.SkipEdgeTable,
+			Columns: []string{user.SkipEdgeColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: skipedgeexample.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := uuo.mutation.SkipEdgeIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2O,
+			Inverse: false,
+			Table:   user.SkipEdgeTable,
+			Columns: []string{user.SkipEdgeColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeInt,
+					Column: skipedgeexample.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	_node = &User{config: uuo.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
 	if err = sqlgraph.UpdateNode(ctx, uuo.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{user.Label}
-		} else if cerr, ok := isSQLConstraintError(err); ok {
-			err = cerr
+		} else if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{err.Error(), err}
 		}
 		return nil, err
 	}

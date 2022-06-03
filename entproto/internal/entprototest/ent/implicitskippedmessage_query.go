@@ -4,7 +4,6 @@ package ent
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 
@@ -20,6 +19,7 @@ type ImplicitSkippedMessageQuery struct {
 	config
 	limit      *int
 	offset     *int
+	unique     *bool
 	order      []OrderFunc
 	fields     []string
 	predicates []predicate.ImplicitSkippedMessage
@@ -44,6 +44,13 @@ func (ismq *ImplicitSkippedMessageQuery) Limit(limit int) *ImplicitSkippedMessag
 // Offset adds an offset step to the query.
 func (ismq *ImplicitSkippedMessageQuery) Offset(offset int) *ImplicitSkippedMessageQuery {
 	ismq.offset = &offset
+	return ismq
+}
+
+// Unique configures the query builder to filter duplicate records on query.
+// By default, unique is set to true, and can be disabled using this method.
+func (ismq *ImplicitSkippedMessageQuery) Unique(unique bool) *ImplicitSkippedMessageQuery {
+	ismq.unique = &unique
 	return ismq
 }
 
@@ -99,7 +106,7 @@ func (ismq *ImplicitSkippedMessageQuery) FirstIDX(ctx context.Context) int {
 }
 
 // Only returns a single ImplicitSkippedMessage entity found by the query, ensuring it only returns one.
-// Returns a *NotSingularError when exactly one ImplicitSkippedMessage entity is not found.
+// Returns a *NotSingularError when more than one ImplicitSkippedMessage entity is found.
 // Returns a *NotFoundError when no ImplicitSkippedMessage entities are found.
 func (ismq *ImplicitSkippedMessageQuery) Only(ctx context.Context) (*ImplicitSkippedMessage, error) {
 	nodes, err := ismq.Limit(2).All(ctx)
@@ -126,7 +133,7 @@ func (ismq *ImplicitSkippedMessageQuery) OnlyX(ctx context.Context) *ImplicitSki
 }
 
 // OnlyID is like Only, but returns the only ImplicitSkippedMessage ID in the query.
-// Returns a *NotSingularError when exactly one ImplicitSkippedMessage ID is not found.
+// Returns a *NotSingularError when more than one ImplicitSkippedMessage ID is found.
 // Returns a *NotFoundError when no entities are found.
 func (ismq *ImplicitSkippedMessageQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
@@ -235,30 +242,36 @@ func (ismq *ImplicitSkippedMessageQuery) Clone() *ImplicitSkippedMessageQuery {
 		order:      append([]OrderFunc{}, ismq.order...),
 		predicates: append([]predicate.ImplicitSkippedMessage{}, ismq.predicates...),
 		// clone intermediate query.
-		sql:  ismq.sql.Clone(),
-		path: ismq.path,
+		sql:    ismq.sql.Clone(),
+		path:   ismq.path,
+		unique: ismq.unique,
 	}
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
 // It is often used with aggregate functions, like: count, max, mean, min, sum.
 func (ismq *ImplicitSkippedMessageQuery) GroupBy(field string, fields ...string) *ImplicitSkippedMessageGroupBy {
-	group := &ImplicitSkippedMessageGroupBy{config: ismq.config}
-	group.fields = append([]string{field}, fields...)
-	group.path = func(ctx context.Context) (prev *sql.Selector, err error) {
+	grbuild := &ImplicitSkippedMessageGroupBy{config: ismq.config}
+	grbuild.fields = append([]string{field}, fields...)
+	grbuild.path = func(ctx context.Context) (prev *sql.Selector, err error) {
 		if err := ismq.prepareQuery(ctx); err != nil {
 			return nil, err
 		}
 		return ismq.sqlQuery(ctx), nil
 	}
-	return group
+	grbuild.label = implicitskippedmessage.Label
+	grbuild.flds, grbuild.scan = &grbuild.fields, grbuild.Scan
+	return grbuild
 }
 
 // Select allows the selection one or more fields/columns for the given query,
 // instead of selecting all fields in the entity.
-func (ismq *ImplicitSkippedMessageQuery) Select(field string, fields ...string) *ImplicitSkippedMessageSelect {
-	ismq.fields = append([]string{field}, fields...)
-	return &ImplicitSkippedMessageSelect{ImplicitSkippedMessageQuery: ismq}
+func (ismq *ImplicitSkippedMessageQuery) Select(fields ...string) *ImplicitSkippedMessageSelect {
+	ismq.fields = append(ismq.fields, fields...)
+	selbuild := &ImplicitSkippedMessageSelect{ImplicitSkippedMessageQuery: ismq}
+	selbuild.label = implicitskippedmessage.Label
+	selbuild.flds, selbuild.scan = &ismq.fields, selbuild.Scan
+	return selbuild
 }
 
 func (ismq *ImplicitSkippedMessageQuery) prepareQuery(ctx context.Context) error {
@@ -277,7 +290,7 @@ func (ismq *ImplicitSkippedMessageQuery) prepareQuery(ctx context.Context) error
 	return nil
 }
 
-func (ismq *ImplicitSkippedMessageQuery) sqlAll(ctx context.Context) ([]*ImplicitSkippedMessage, error) {
+func (ismq *ImplicitSkippedMessageQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*ImplicitSkippedMessage, error) {
 	var (
 		nodes   = []*ImplicitSkippedMessage{}
 		withFKs = ismq.withFKs
@@ -287,16 +300,15 @@ func (ismq *ImplicitSkippedMessageQuery) sqlAll(ctx context.Context) ([]*Implici
 		_spec.Node.Columns = append(_spec.Node.Columns, implicitskippedmessage.ForeignKeys...)
 	}
 	_spec.ScanValues = func(columns []string) ([]interface{}, error) {
-		node := &ImplicitSkippedMessage{config: ismq.config}
-		nodes = append(nodes, node)
-		return node.scanValues(columns)
+		return (*ImplicitSkippedMessage).scanValues(nil, columns)
 	}
 	_spec.Assign = func(columns []string, values []interface{}) error {
-		if len(nodes) == 0 {
-			return fmt.Errorf("ent: Assign called without calling ScanValues")
-		}
-		node := nodes[len(nodes)-1]
+		node := &ImplicitSkippedMessage{config: ismq.config}
+		nodes = append(nodes, node)
 		return node.assignValues(columns, values)
+	}
+	for i := range hooks {
+		hooks[i](ctx, _spec)
 	}
 	if err := sqlgraph.QueryNodes(ctx, ismq.driver, _spec); err != nil {
 		return nil, err
@@ -309,6 +321,10 @@ func (ismq *ImplicitSkippedMessageQuery) sqlAll(ctx context.Context) ([]*Implici
 
 func (ismq *ImplicitSkippedMessageQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := ismq.querySpec()
+	_spec.Node.Columns = ismq.fields
+	if len(ismq.fields) > 0 {
+		_spec.Unique = ismq.unique != nil && *ismq.unique
+	}
 	return sqlgraph.CountNodes(ctx, ismq.driver, _spec)
 }
 
@@ -332,6 +348,9 @@ func (ismq *ImplicitSkippedMessageQuery) querySpec() *sqlgraph.QuerySpec {
 		},
 		From:   ismq.sql,
 		Unique: true,
+	}
+	if unique := ismq.unique; unique != nil {
+		_spec.Unique = *unique
 	}
 	if fields := ismq.fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
@@ -358,7 +377,7 @@ func (ismq *ImplicitSkippedMessageQuery) querySpec() *sqlgraph.QuerySpec {
 	if ps := ismq.order; len(ps) > 0 {
 		_spec.Order = func(selector *sql.Selector) {
 			for i := range ps {
-				ps[i](selector, implicitskippedmessage.ValidColumn)
+				ps[i](selector)
 			}
 		}
 	}
@@ -368,16 +387,23 @@ func (ismq *ImplicitSkippedMessageQuery) querySpec() *sqlgraph.QuerySpec {
 func (ismq *ImplicitSkippedMessageQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(ismq.driver.Dialect())
 	t1 := builder.Table(implicitskippedmessage.Table)
-	selector := builder.Select(t1.Columns(implicitskippedmessage.Columns...)...).From(t1)
+	columns := ismq.fields
+	if len(columns) == 0 {
+		columns = implicitskippedmessage.Columns
+	}
+	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if ismq.sql != nil {
 		selector = ismq.sql
-		selector.Select(selector.Columns(implicitskippedmessage.Columns...)...)
+		selector.Select(selector.Columns(columns...)...)
+	}
+	if ismq.unique != nil && *ismq.unique {
+		selector.Distinct()
 	}
 	for _, p := range ismq.predicates {
 		p(selector)
 	}
 	for _, p := range ismq.order {
-		p(selector, implicitskippedmessage.ValidColumn)
+		p(selector)
 	}
 	if offset := ismq.offset; offset != nil {
 		// limit is mandatory for offset clause. We start
@@ -393,6 +419,7 @@ func (ismq *ImplicitSkippedMessageQuery) sqlQuery(ctx context.Context) *sql.Sele
 // ImplicitSkippedMessageGroupBy is the group-by builder for ImplicitSkippedMessage entities.
 type ImplicitSkippedMessageGroupBy struct {
 	config
+	selector
 	fields []string
 	fns    []AggregateFunc
 	// intermediate query (i.e. traversal path).
@@ -416,209 +443,6 @@ func (ismgb *ImplicitSkippedMessageGroupBy) Scan(ctx context.Context, v interfac
 	return ismgb.sqlScan(ctx, v)
 }
 
-// ScanX is like Scan, but panics if an error occurs.
-func (ismgb *ImplicitSkippedMessageGroupBy) ScanX(ctx context.Context, v interface{}) {
-	if err := ismgb.Scan(ctx, v); err != nil {
-		panic(err)
-	}
-}
-
-// Strings returns list of strings from group-by.
-// It is only allowed when executing a group-by query with one field.
-func (ismgb *ImplicitSkippedMessageGroupBy) Strings(ctx context.Context) ([]string, error) {
-	if len(ismgb.fields) > 1 {
-		return nil, errors.New("ent: ImplicitSkippedMessageGroupBy.Strings is not achievable when grouping more than 1 field")
-	}
-	var v []string
-	if err := ismgb.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// StringsX is like Strings, but panics if an error occurs.
-func (ismgb *ImplicitSkippedMessageGroupBy) StringsX(ctx context.Context) []string {
-	v, err := ismgb.Strings(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// String returns a single string from a group-by query.
-// It is only allowed when executing a group-by query with one field.
-func (ismgb *ImplicitSkippedMessageGroupBy) String(ctx context.Context) (_ string, err error) {
-	var v []string
-	if v, err = ismgb.Strings(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{implicitskippedmessage.Label}
-	default:
-		err = fmt.Errorf("ent: ImplicitSkippedMessageGroupBy.Strings returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// StringX is like String, but panics if an error occurs.
-func (ismgb *ImplicitSkippedMessageGroupBy) StringX(ctx context.Context) string {
-	v, err := ismgb.String(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Ints returns list of ints from group-by.
-// It is only allowed when executing a group-by query with one field.
-func (ismgb *ImplicitSkippedMessageGroupBy) Ints(ctx context.Context) ([]int, error) {
-	if len(ismgb.fields) > 1 {
-		return nil, errors.New("ent: ImplicitSkippedMessageGroupBy.Ints is not achievable when grouping more than 1 field")
-	}
-	var v []int
-	if err := ismgb.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// IntsX is like Ints, but panics if an error occurs.
-func (ismgb *ImplicitSkippedMessageGroupBy) IntsX(ctx context.Context) []int {
-	v, err := ismgb.Ints(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Int returns a single int from a group-by query.
-// It is only allowed when executing a group-by query with one field.
-func (ismgb *ImplicitSkippedMessageGroupBy) Int(ctx context.Context) (_ int, err error) {
-	var v []int
-	if v, err = ismgb.Ints(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{implicitskippedmessage.Label}
-	default:
-		err = fmt.Errorf("ent: ImplicitSkippedMessageGroupBy.Ints returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// IntX is like Int, but panics if an error occurs.
-func (ismgb *ImplicitSkippedMessageGroupBy) IntX(ctx context.Context) int {
-	v, err := ismgb.Int(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Float64s returns list of float64s from group-by.
-// It is only allowed when executing a group-by query with one field.
-func (ismgb *ImplicitSkippedMessageGroupBy) Float64s(ctx context.Context) ([]float64, error) {
-	if len(ismgb.fields) > 1 {
-		return nil, errors.New("ent: ImplicitSkippedMessageGroupBy.Float64s is not achievable when grouping more than 1 field")
-	}
-	var v []float64
-	if err := ismgb.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// Float64sX is like Float64s, but panics if an error occurs.
-func (ismgb *ImplicitSkippedMessageGroupBy) Float64sX(ctx context.Context) []float64 {
-	v, err := ismgb.Float64s(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Float64 returns a single float64 from a group-by query.
-// It is only allowed when executing a group-by query with one field.
-func (ismgb *ImplicitSkippedMessageGroupBy) Float64(ctx context.Context) (_ float64, err error) {
-	var v []float64
-	if v, err = ismgb.Float64s(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{implicitskippedmessage.Label}
-	default:
-		err = fmt.Errorf("ent: ImplicitSkippedMessageGroupBy.Float64s returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// Float64X is like Float64, but panics if an error occurs.
-func (ismgb *ImplicitSkippedMessageGroupBy) Float64X(ctx context.Context) float64 {
-	v, err := ismgb.Float64(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Bools returns list of bools from group-by.
-// It is only allowed when executing a group-by query with one field.
-func (ismgb *ImplicitSkippedMessageGroupBy) Bools(ctx context.Context) ([]bool, error) {
-	if len(ismgb.fields) > 1 {
-		return nil, errors.New("ent: ImplicitSkippedMessageGroupBy.Bools is not achievable when grouping more than 1 field")
-	}
-	var v []bool
-	if err := ismgb.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// BoolsX is like Bools, but panics if an error occurs.
-func (ismgb *ImplicitSkippedMessageGroupBy) BoolsX(ctx context.Context) []bool {
-	v, err := ismgb.Bools(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Bool returns a single bool from a group-by query.
-// It is only allowed when executing a group-by query with one field.
-func (ismgb *ImplicitSkippedMessageGroupBy) Bool(ctx context.Context) (_ bool, err error) {
-	var v []bool
-	if v, err = ismgb.Bools(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{implicitskippedmessage.Label}
-	default:
-		err = fmt.Errorf("ent: ImplicitSkippedMessageGroupBy.Bools returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// BoolX is like Bool, but panics if an error occurs.
-func (ismgb *ImplicitSkippedMessageGroupBy) BoolX(ctx context.Context) bool {
-	v, err := ismgb.Bool(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
 func (ismgb *ImplicitSkippedMessageGroupBy) sqlScan(ctx context.Context, v interface{}) error {
 	for _, f := range ismgb.fields {
 		if !implicitskippedmessage.ValidColumn(f) {
@@ -639,18 +463,28 @@ func (ismgb *ImplicitSkippedMessageGroupBy) sqlScan(ctx context.Context, v inter
 }
 
 func (ismgb *ImplicitSkippedMessageGroupBy) sqlQuery() *sql.Selector {
-	selector := ismgb.sql
-	columns := make([]string, 0, len(ismgb.fields)+len(ismgb.fns))
-	columns = append(columns, ismgb.fields...)
+	selector := ismgb.sql.Select()
+	aggregation := make([]string, 0, len(ismgb.fns))
 	for _, fn := range ismgb.fns {
-		columns = append(columns, fn(selector, implicitskippedmessage.ValidColumn))
+		aggregation = append(aggregation, fn(selector))
 	}
-	return selector.Select(columns...).GroupBy(ismgb.fields...)
+	// If no columns were selected in a custom aggregation function, the default
+	// selection is the fields used for "group-by", and the aggregation functions.
+	if len(selector.SelectedColumns()) == 0 {
+		columns := make([]string, 0, len(ismgb.fields)+len(ismgb.fns))
+		for _, f := range ismgb.fields {
+			columns = append(columns, selector.C(f))
+		}
+		columns = append(columns, aggregation...)
+		selector.Select(columns...)
+	}
+	return selector.GroupBy(selector.Columns(ismgb.fields...)...)
 }
 
 // ImplicitSkippedMessageSelect is the builder for selecting fields of ImplicitSkippedMessage entities.
 type ImplicitSkippedMessageSelect struct {
 	*ImplicitSkippedMessageQuery
+	selector
 	// intermediate query (i.e. traversal path).
 	sql *sql.Selector
 }
@@ -664,213 +498,12 @@ func (isms *ImplicitSkippedMessageSelect) Scan(ctx context.Context, v interface{
 	return isms.sqlScan(ctx, v)
 }
 
-// ScanX is like Scan, but panics if an error occurs.
-func (isms *ImplicitSkippedMessageSelect) ScanX(ctx context.Context, v interface{}) {
-	if err := isms.Scan(ctx, v); err != nil {
-		panic(err)
-	}
-}
-
-// Strings returns list of strings from a selector. It is only allowed when selecting one field.
-func (isms *ImplicitSkippedMessageSelect) Strings(ctx context.Context) ([]string, error) {
-	if len(isms.fields) > 1 {
-		return nil, errors.New("ent: ImplicitSkippedMessageSelect.Strings is not achievable when selecting more than 1 field")
-	}
-	var v []string
-	if err := isms.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// StringsX is like Strings, but panics if an error occurs.
-func (isms *ImplicitSkippedMessageSelect) StringsX(ctx context.Context) []string {
-	v, err := isms.Strings(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// String returns a single string from a selector. It is only allowed when selecting one field.
-func (isms *ImplicitSkippedMessageSelect) String(ctx context.Context) (_ string, err error) {
-	var v []string
-	if v, err = isms.Strings(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{implicitskippedmessage.Label}
-	default:
-		err = fmt.Errorf("ent: ImplicitSkippedMessageSelect.Strings returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// StringX is like String, but panics if an error occurs.
-func (isms *ImplicitSkippedMessageSelect) StringX(ctx context.Context) string {
-	v, err := isms.String(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Ints returns list of ints from a selector. It is only allowed when selecting one field.
-func (isms *ImplicitSkippedMessageSelect) Ints(ctx context.Context) ([]int, error) {
-	if len(isms.fields) > 1 {
-		return nil, errors.New("ent: ImplicitSkippedMessageSelect.Ints is not achievable when selecting more than 1 field")
-	}
-	var v []int
-	if err := isms.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// IntsX is like Ints, but panics if an error occurs.
-func (isms *ImplicitSkippedMessageSelect) IntsX(ctx context.Context) []int {
-	v, err := isms.Ints(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Int returns a single int from a selector. It is only allowed when selecting one field.
-func (isms *ImplicitSkippedMessageSelect) Int(ctx context.Context) (_ int, err error) {
-	var v []int
-	if v, err = isms.Ints(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{implicitskippedmessage.Label}
-	default:
-		err = fmt.Errorf("ent: ImplicitSkippedMessageSelect.Ints returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// IntX is like Int, but panics if an error occurs.
-func (isms *ImplicitSkippedMessageSelect) IntX(ctx context.Context) int {
-	v, err := isms.Int(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Float64s returns list of float64s from a selector. It is only allowed when selecting one field.
-func (isms *ImplicitSkippedMessageSelect) Float64s(ctx context.Context) ([]float64, error) {
-	if len(isms.fields) > 1 {
-		return nil, errors.New("ent: ImplicitSkippedMessageSelect.Float64s is not achievable when selecting more than 1 field")
-	}
-	var v []float64
-	if err := isms.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// Float64sX is like Float64s, but panics if an error occurs.
-func (isms *ImplicitSkippedMessageSelect) Float64sX(ctx context.Context) []float64 {
-	v, err := isms.Float64s(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Float64 returns a single float64 from a selector. It is only allowed when selecting one field.
-func (isms *ImplicitSkippedMessageSelect) Float64(ctx context.Context) (_ float64, err error) {
-	var v []float64
-	if v, err = isms.Float64s(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{implicitskippedmessage.Label}
-	default:
-		err = fmt.Errorf("ent: ImplicitSkippedMessageSelect.Float64s returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// Float64X is like Float64, but panics if an error occurs.
-func (isms *ImplicitSkippedMessageSelect) Float64X(ctx context.Context) float64 {
-	v, err := isms.Float64(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Bools returns list of bools from a selector. It is only allowed when selecting one field.
-func (isms *ImplicitSkippedMessageSelect) Bools(ctx context.Context) ([]bool, error) {
-	if len(isms.fields) > 1 {
-		return nil, errors.New("ent: ImplicitSkippedMessageSelect.Bools is not achievable when selecting more than 1 field")
-	}
-	var v []bool
-	if err := isms.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// BoolsX is like Bools, but panics if an error occurs.
-func (isms *ImplicitSkippedMessageSelect) BoolsX(ctx context.Context) []bool {
-	v, err := isms.Bools(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Bool returns a single bool from a selector. It is only allowed when selecting one field.
-func (isms *ImplicitSkippedMessageSelect) Bool(ctx context.Context) (_ bool, err error) {
-	var v []bool
-	if v, err = isms.Bools(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{implicitskippedmessage.Label}
-	default:
-		err = fmt.Errorf("ent: ImplicitSkippedMessageSelect.Bools returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// BoolX is like Bool, but panics if an error occurs.
-func (isms *ImplicitSkippedMessageSelect) BoolX(ctx context.Context) bool {
-	v, err := isms.Bool(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
 func (isms *ImplicitSkippedMessageSelect) sqlScan(ctx context.Context, v interface{}) error {
 	rows := &sql.Rows{}
-	query, args := isms.sqlQuery().Query()
+	query, args := isms.sql.Query()
 	if err := isms.driver.Query(ctx, query, args, rows); err != nil {
 		return err
 	}
 	defer rows.Close()
 	return sql.ScanSlice(rows, v)
-}
-
-func (isms *ImplicitSkippedMessageSelect) sqlQuery() sql.Querier {
-	selector := isms.sql
-	selector.Select(selector.Columns(isms.fields...)...)
-	return selector
 }

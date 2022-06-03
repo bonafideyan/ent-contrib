@@ -15,11 +15,19 @@
 package schema
 
 import (
+	"database/sql"
+	"database/sql/driver"
+	"fmt"
+	"math/big"
+	"strings"
+
 	"entgo.io/contrib/entproto"
 	"entgo.io/ent"
 	"entgo.io/ent/schema"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+	"github.com/google/uuid"
+	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 // User holds the schema definition for the User entity.
@@ -41,6 +49,7 @@ func (User) Fields() []ent.Field {
 			Unique().
 			Annotations(entproto.Field(2)),
 		field.Time("joined").
+			Immutable().
 			Annotations(entproto.Field(3)),
 		field.Uint("points").
 			Annotations(entproto.Field(4)),
@@ -58,6 +67,57 @@ func (User) Fields() []ent.Field {
 		field.Int("external_id").
 			Unique().
 			Annotations(entproto.Field(8)),
+		field.UUID("crm_id", uuid.New()).
+			Annotations(entproto.Field(9)),
+		field.Bool("banned").
+			Default(false).
+			Annotations(entproto.Field(10)),
+		field.Uint8("custom_pb").
+			Annotations(
+				entproto.Field(12,
+					entproto.Type(descriptorpb.FieldDescriptorProto_TYPE_UINT64),
+				),
+			),
+		field.Int("opt_num").
+			Optional().
+			Annotations(entproto.Field(13)),
+		field.String("opt_str").
+			Optional().
+			Annotations(entproto.Field(14)),
+		field.Bool("opt_bool").
+			Optional().
+			Annotations(entproto.Field(15)),
+		field.Int("big_int").
+			Optional().
+			GoType(BigInt{}).
+			Annotations(entproto.Field(
+				17,
+				entproto.Type(descriptorpb.FieldDescriptorProto_TYPE_MESSAGE),
+				entproto.TypeName("google.protobuf.StringValue"),
+			)),
+		field.Int("b_user_1").
+			Optional().
+			Unique().
+			Annotations(entproto.Field(18)),
+		field.Float32("height_in_cm").
+			Default(0.0).
+			Annotations(entproto.Field(19)),
+		field.Float("account_balance").
+			Default(0.0).
+			Annotations(entproto.Field(20)),
+		field.String("unnecessary").
+			Optional().
+			Annotations(entproto.Skip()),
+		field.String("type").
+			Optional().
+			Annotations(
+				entproto.Field(23),
+			),
+		field.Strings("labels").
+			Optional().
+			Annotations(
+				entproto.Field(24),
+			),
 	}
 }
 
@@ -68,5 +128,55 @@ func (User) Edges() []ent.Edge {
 			Annotations(
 				entproto.Field(7),
 			),
+		edge.To("attachment", Attachment.Type).
+			Unique().
+			Annotations(
+				entproto.Field(11),
+			),
+		edge.From("received_1", Attachment.Type).
+			Ref("recipients").
+			Annotations(entproto.Field(16)),
+		edge.To("pet", Pet.Type).
+			Unique().
+			Annotations(entproto.Field(21)),
+		edge.To("skip_edge", SkipEdgeExample.Type).
+			Unique().
+			Annotations(entproto.Skip()),
 	}
+}
+
+type BigInt struct {
+	*big.Int
+}
+
+func NewBigInt(i int64) BigInt {
+	return BigInt{Int: big.NewInt(i)}
+}
+
+func (b *BigInt) Scan(src interface{}) error {
+	var i sql.NullString
+	if err := i.Scan(src); err != nil {
+		return err
+	}
+	if !i.Valid {
+		return nil
+	}
+	if b.Int == nil {
+		b.Int = big.NewInt(0)
+	}
+	// Value came in a floating point format.
+	if strings.ContainsAny(i.String, ".+e") {
+		f := big.NewFloat(0)
+		if _, err := fmt.Sscan(i.String, f); err != nil {
+			return err
+		}
+		b.Int, _ = f.Int(b.Int)
+	} else if _, err := fmt.Sscan(i.String, b.Int); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (b BigInt) Value() (driver.Value, error) {
+	return b.String(), nil
 }

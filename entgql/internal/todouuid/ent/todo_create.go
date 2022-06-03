@@ -22,7 +22,9 @@ import (
 	"fmt"
 	"time"
 
+	"entgo.io/contrib/entgql/internal/todouuid/ent/category"
 	"entgo.io/contrib/entgql/internal/todouuid/ent/todo"
+	"entgo.io/contrib/entgql/internal/todouuid/ent/verysecret"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
@@ -75,9 +77,37 @@ func (tc *TodoCreate) SetText(s string) *TodoCreate {
 	return tc
 }
 
+// SetBlob sets the "blob" field.
+func (tc *TodoCreate) SetBlob(b []byte) *TodoCreate {
+	tc.mutation.SetBlob(b)
+	return tc
+}
+
+// SetCategoryID sets the "category_id" field.
+func (tc *TodoCreate) SetCategoryID(u uuid.UUID) *TodoCreate {
+	tc.mutation.SetCategoryID(u)
+	return tc
+}
+
+// SetNillableCategoryID sets the "category_id" field if the given value is not nil.
+func (tc *TodoCreate) SetNillableCategoryID(u *uuid.UUID) *TodoCreate {
+	if u != nil {
+		tc.SetCategoryID(*u)
+	}
+	return tc
+}
+
 // SetID sets the "id" field.
 func (tc *TodoCreate) SetID(u uuid.UUID) *TodoCreate {
 	tc.mutation.SetID(u)
+	return tc
+}
+
+// SetNillableID sets the "id" field if the given value is not nil.
+func (tc *TodoCreate) SetNillableID(u *uuid.UUID) *TodoCreate {
+	if u != nil {
+		tc.SetID(*u)
+	}
 	return tc
 }
 
@@ -115,6 +145,30 @@ func (tc *TodoCreate) AddChildren(t ...*Todo) *TodoCreate {
 	return tc.AddChildIDs(ids...)
 }
 
+// SetCategory sets the "category" edge to the Category entity.
+func (tc *TodoCreate) SetCategory(c *Category) *TodoCreate {
+	return tc.SetCategoryID(c.ID)
+}
+
+// SetSecretID sets the "secret" edge to the VerySecret entity by ID.
+func (tc *TodoCreate) SetSecretID(id uuid.UUID) *TodoCreate {
+	tc.mutation.SetSecretID(id)
+	return tc
+}
+
+// SetNillableSecretID sets the "secret" edge to the VerySecret entity by ID if the given value is not nil.
+func (tc *TodoCreate) SetNillableSecretID(id *uuid.UUID) *TodoCreate {
+	if id != nil {
+		tc = tc.SetSecretID(*id)
+	}
+	return tc
+}
+
+// SetSecret sets the "secret" edge to the VerySecret entity.
+func (tc *TodoCreate) SetSecret(v *VerySecret) *TodoCreate {
+	return tc.SetSecretID(v.ID)
+}
+
 // Mutation returns the TodoMutation object of the builder.
 func (tc *TodoCreate) Mutation() *TodoMutation {
 	return tc.mutation
@@ -142,16 +196,28 @@ func (tc *TodoCreate) Save(ctx context.Context) (*Todo, error) {
 				return nil, err
 			}
 			tc.mutation = mutation
-			node, err = tc.sqlSave(ctx)
+			if node, err = tc.sqlSave(ctx); err != nil {
+				return nil, err
+			}
+			mutation.id = &node.ID
 			mutation.done = true
 			return node, err
 		})
 		for i := len(tc.hooks) - 1; i >= 0; i-- {
+			if tc.hooks[i] == nil {
+				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
+			}
 			mut = tc.hooks[i](mut)
 		}
-		if _, err := mut.Mutate(ctx, tc.mutation); err != nil {
+		v, err := mut.Mutate(ctx, tc.mutation)
+		if err != nil {
 			return nil, err
 		}
+		nv, ok := v.(*Todo)
+		if !ok {
+			return nil, fmt.Errorf("unexpected node type %T returned from TodoMutation", v)
+		}
+		node = nv
 	}
 	return node, err
 }
@@ -163,6 +229,19 @@ func (tc *TodoCreate) SaveX(ctx context.Context) *Todo {
 		panic(err)
 	}
 	return v
+}
+
+// Exec executes the query.
+func (tc *TodoCreate) Exec(ctx context.Context) error {
+	_, err := tc.Save(ctx)
+	return err
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (tc *TodoCreate) ExecX(ctx context.Context) {
+	if err := tc.Exec(ctx); err != nil {
+		panic(err)
+	}
 }
 
 // defaults sets the default values of the builder before save.
@@ -184,25 +263,25 @@ func (tc *TodoCreate) defaults() {
 // check runs all checks and user-defined validators on the builder.
 func (tc *TodoCreate) check() error {
 	if _, ok := tc.mutation.CreatedAt(); !ok {
-		return &ValidationError{Name: "created_at", err: errors.New("ent: missing required field \"created_at\"")}
+		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Todo.created_at"`)}
 	}
 	if _, ok := tc.mutation.Status(); !ok {
-		return &ValidationError{Name: "status", err: errors.New("ent: missing required field \"status\"")}
+		return &ValidationError{Name: "status", err: errors.New(`ent: missing required field "Todo.status"`)}
 	}
 	if v, ok := tc.mutation.Status(); ok {
 		if err := todo.StatusValidator(v); err != nil {
-			return &ValidationError{Name: "status", err: fmt.Errorf("ent: validator failed for field \"status\": %w", err)}
+			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Todo.status": %w`, err)}
 		}
 	}
 	if _, ok := tc.mutation.Priority(); !ok {
-		return &ValidationError{Name: "priority", err: errors.New("ent: missing required field \"priority\"")}
+		return &ValidationError{Name: "priority", err: errors.New(`ent: missing required field "Todo.priority"`)}
 	}
 	if _, ok := tc.mutation.Text(); !ok {
-		return &ValidationError{Name: "text", err: errors.New("ent: missing required field \"text\"")}
+		return &ValidationError{Name: "text", err: errors.New(`ent: missing required field "Todo.text"`)}
 	}
 	if v, ok := tc.mutation.Text(); ok {
 		if err := todo.TextValidator(v); err != nil {
-			return &ValidationError{Name: "text", err: fmt.Errorf("ent: validator failed for field \"text\": %w", err)}
+			return &ValidationError{Name: "text", err: fmt.Errorf(`ent: validator failed for field "Todo.text": %w`, err)}
 		}
 	}
 	return nil
@@ -211,10 +290,17 @@ func (tc *TodoCreate) check() error {
 func (tc *TodoCreate) sqlSave(ctx context.Context) (*Todo, error) {
 	_node, _spec := tc.createSpec()
 	if err := sqlgraph.CreateNode(ctx, tc.driver, _spec); err != nil {
-		if cerr, ok := isSQLConstraintError(err); ok {
-			err = cerr
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{err.Error(), err}
 		}
 		return nil, err
+	}
+	if _spec.ID.Value != nil {
+		if id, ok := _spec.ID.Value.(*uuid.UUID); ok {
+			_node.ID = *id
+		} else if err := _node.ID.Scan(_spec.ID.Value); err != nil {
+			return nil, err
+		}
 	}
 	return _node, nil
 }
@@ -232,7 +318,7 @@ func (tc *TodoCreate) createSpec() (*Todo, *sqlgraph.CreateSpec) {
 	)
 	if id, ok := tc.mutation.ID(); ok {
 		_node.ID = id
-		_spec.ID.Value = id
+		_spec.ID.Value = &id
 	}
 	if value, ok := tc.mutation.CreatedAt(); ok {
 		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
@@ -265,6 +351,14 @@ func (tc *TodoCreate) createSpec() (*Todo, *sqlgraph.CreateSpec) {
 			Column: todo.FieldText,
 		})
 		_node.Text = value
+	}
+	if value, ok := tc.mutation.Blob(); ok {
+		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
+			Type:   field.TypeBytes,
+			Value:  value,
+			Column: todo.FieldBlob,
+		})
+		_node.Blob = value
 	}
 	if nodes := tc.mutation.ParentIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -305,6 +399,46 @@ func (tc *TodoCreate) createSpec() (*Todo, *sqlgraph.CreateSpec) {
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
+	if nodes := tc.mutation.CategoryIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   todo.CategoryTable,
+			Columns: []string{todo.CategoryColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: category.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.CategoryID = nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := tc.mutation.SecretIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   todo.SecretTable,
+			Columns: []string{todo.SecretColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: verysecret.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.todo_secret = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
 	return _node, _spec
 }
 
@@ -337,17 +471,19 @@ func (tcb *TodoCreateBulk) Save(ctx context.Context) ([]*Todo, error) {
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, tcb.builders[i+1].mutation)
 				} else {
+					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
 					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, tcb.driver, &sqlgraph.BatchCreateSpec{Nodes: specs}); err != nil {
-						if cerr, ok := isSQLConstraintError(err); ok {
-							err = cerr
+					if err = sqlgraph.BatchCreate(ctx, tcb.driver, spec); err != nil {
+						if sqlgraph.IsConstraintError(err) {
+							err = &ConstraintError{err.Error(), err}
 						}
 					}
 				}
-				mutation.done = true
 				if err != nil {
 					return nil, err
 				}
+				mutation.id = &nodes[i].ID
+				mutation.done = true
 				return nodes[i], nil
 			})
 			for i := len(builder.hooks) - 1; i >= 0; i-- {
@@ -371,4 +507,17 @@ func (tcb *TodoCreateBulk) SaveX(ctx context.Context) []*Todo {
 		panic(err)
 	}
 	return v
+}
+
+// Exec executes the query.
+func (tcb *TodoCreateBulk) Exec(ctx context.Context) error {
+	_, err := tcb.Save(ctx)
+	return err
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (tcb *TodoCreateBulk) ExecX(ctx context.Context) {
+	if err := tcb.Exec(ctx); err != nil {
+		panic(err)
+	}
 }

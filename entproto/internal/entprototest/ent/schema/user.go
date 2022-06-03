@@ -38,6 +38,9 @@ func (User) Fields() []ent.Field {
 					"pending": 1,
 					"active":  2,
 				})),
+		field.String("unnecessary").
+			Optional().
+			Annotations(entproto.Skip()),
 	}
 }
 
@@ -46,6 +49,12 @@ func (User) Edges() []ent.Edge {
 		edge.From("blog_posts", BlogPost.Type).
 			Ref("author").
 			Annotations(entproto.Field(3)),
+		edge.To("profile_pic", Image.Type).
+			Unique().
+			Annotations(entproto.Field(5)),
+		edge.To("skip_edge", SkipEdgeExample.Type).
+			Unique().
+			Annotations(entproto.Skip()),
 	}
 }
 

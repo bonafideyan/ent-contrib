@@ -30,6 +30,10 @@ func (suite *AdapterTestSuite) TestFieldMap() {
 	assert.NotNil(userName.PbFieldDescriptor)
 	assert.EqualValues("UserName", userName.PbStructField())
 
+	profilePic, ok := mp["profile_pic"]
+	require.True(ok)
+	assert.True(profilePic.IsEdgeField)
+
 	id, ok := mp["id"]
 	require.True(ok)
 	assert.True(id.IsIDField)
@@ -68,4 +72,27 @@ func (suite *AdapterTestSuite) TestExternalId() {
 	eid, ok := mp["external_id"]
 	require.True(ok)
 	assert.EqualValues("ExternalId", eid.PbStructField())
+}
+
+func (suite *AdapterTestSuite) TestReferenced() {
+	require := suite.Require()
+
+	mp, err := suite.adapter.FieldMap("BlogPost")
+	require.NoError(err)
+	require.NotNil(mp)
+	cats, ok := mp["categories"]
+	require.True(ok)
+	require.NotNil(cats)
+	require.EqualValues(cats.ReferencedPbType.GetName(), "Category")
+	auth, ok := mp["author"]
+	require.True(ok)
+	require.NotNil(auth)
+	require.EqualValues(auth.ReferencedPbType.GetName(), "User")
+}
+
+func (suite *AdapterTestSuite) TestNoBackref() {
+	require := suite.Require()
+	mp, err := suite.adapter.FieldMap("NoBackref")
+	require.NoError(err)
+	require.Equal("Id", mp.Edges()[0].EdgeIDPbStructField())
 }

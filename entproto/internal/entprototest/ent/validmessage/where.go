@@ -7,6 +7,7 @@ import (
 
 	"entgo.io/contrib/entproto/internal/entprototest/ent/predicate"
 	"entgo.io/ent/dialect/sql"
+	"github.com/google/uuid"
 )
 
 // ID filters vertices based on their ID field.
@@ -103,6 +104,27 @@ func Name(v string) predicate.ValidMessage {
 func Ts(v time.Time) predicate.ValidMessage {
 	return predicate.ValidMessage(func(s *sql.Selector) {
 		s.Where(sql.EQ(s.C(FieldTs), v))
+	})
+}
+
+// UUID applies equality check predicate on the "uuid" field. It's identical to UUIDEQ.
+func UUID(v uuid.UUID) predicate.ValidMessage {
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldUUID), v))
+	})
+}
+
+// U8 applies equality check predicate on the "u8" field. It's identical to U8EQ.
+func U8(v uint8) predicate.ValidMessage {
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldU8), v))
+	})
+}
+
+// Opti8 applies equality check predicate on the "opti8" field. It's identical to Opti8EQ.
+func Opti8(v int8) predicate.ValidMessage {
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldOpti8), v))
 	})
 }
 
@@ -290,6 +312,248 @@ func TsLT(v time.Time) predicate.ValidMessage {
 func TsLTE(v time.Time) predicate.ValidMessage {
 	return predicate.ValidMessage(func(s *sql.Selector) {
 		s.Where(sql.LTE(s.C(FieldTs), v))
+	})
+}
+
+// UUIDEQ applies the EQ predicate on the "uuid" field.
+func UUIDEQ(v uuid.UUID) predicate.ValidMessage {
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldUUID), v))
+	})
+}
+
+// UUIDNEQ applies the NEQ predicate on the "uuid" field.
+func UUIDNEQ(v uuid.UUID) predicate.ValidMessage {
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldUUID), v))
+	})
+}
+
+// UUIDIn applies the In predicate on the "uuid" field.
+func UUIDIn(vs ...uuid.UUID) predicate.ValidMessage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.In(s.C(FieldUUID), v...))
+	})
+}
+
+// UUIDNotIn applies the NotIn predicate on the "uuid" field.
+func UUIDNotIn(vs ...uuid.UUID) predicate.ValidMessage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.NotIn(s.C(FieldUUID), v...))
+	})
+}
+
+// UUIDGT applies the GT predicate on the "uuid" field.
+func UUIDGT(v uuid.UUID) predicate.ValidMessage {
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldUUID), v))
+	})
+}
+
+// UUIDGTE applies the GTE predicate on the "uuid" field.
+func UUIDGTE(v uuid.UUID) predicate.ValidMessage {
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldUUID), v))
+	})
+}
+
+// UUIDLT applies the LT predicate on the "uuid" field.
+func UUIDLT(v uuid.UUID) predicate.ValidMessage {
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldUUID), v))
+	})
+}
+
+// UUIDLTE applies the LTE predicate on the "uuid" field.
+func UUIDLTE(v uuid.UUID) predicate.ValidMessage {
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldUUID), v))
+	})
+}
+
+// U8EQ applies the EQ predicate on the "u8" field.
+func U8EQ(v uint8) predicate.ValidMessage {
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldU8), v))
+	})
+}
+
+// U8NEQ applies the NEQ predicate on the "u8" field.
+func U8NEQ(v uint8) predicate.ValidMessage {
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldU8), v))
+	})
+}
+
+// U8In applies the In predicate on the "u8" field.
+func U8In(vs ...uint8) predicate.ValidMessage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.In(s.C(FieldU8), v...))
+	})
+}
+
+// U8NotIn applies the NotIn predicate on the "u8" field.
+func U8NotIn(vs ...uint8) predicate.ValidMessage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.NotIn(s.C(FieldU8), v...))
+	})
+}
+
+// U8GT applies the GT predicate on the "u8" field.
+func U8GT(v uint8) predicate.ValidMessage {
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldU8), v))
+	})
+}
+
+// U8GTE applies the GTE predicate on the "u8" field.
+func U8GTE(v uint8) predicate.ValidMessage {
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldU8), v))
+	})
+}
+
+// U8LT applies the LT predicate on the "u8" field.
+func U8LT(v uint8) predicate.ValidMessage {
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldU8), v))
+	})
+}
+
+// U8LTE applies the LTE predicate on the "u8" field.
+func U8LTE(v uint8) predicate.ValidMessage {
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldU8), v))
+	})
+}
+
+// Opti8EQ applies the EQ predicate on the "opti8" field.
+func Opti8EQ(v int8) predicate.ValidMessage {
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldOpti8), v))
+	})
+}
+
+// Opti8NEQ applies the NEQ predicate on the "opti8" field.
+func Opti8NEQ(v int8) predicate.ValidMessage {
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldOpti8), v))
+	})
+}
+
+// Opti8In applies the In predicate on the "opti8" field.
+func Opti8In(vs ...int8) predicate.ValidMessage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.In(s.C(FieldOpti8), v...))
+	})
+}
+
+// Opti8NotIn applies the NotIn predicate on the "opti8" field.
+func Opti8NotIn(vs ...int8) predicate.ValidMessage {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.NotIn(s.C(FieldOpti8), v...))
+	})
+}
+
+// Opti8GT applies the GT predicate on the "opti8" field.
+func Opti8GT(v int8) predicate.ValidMessage {
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldOpti8), v))
+	})
+}
+
+// Opti8GTE applies the GTE predicate on the "opti8" field.
+func Opti8GTE(v int8) predicate.ValidMessage {
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldOpti8), v))
+	})
+}
+
+// Opti8LT applies the LT predicate on the "opti8" field.
+func Opti8LT(v int8) predicate.ValidMessage {
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldOpti8), v))
+	})
+}
+
+// Opti8LTE applies the LTE predicate on the "opti8" field.
+func Opti8LTE(v int8) predicate.ValidMessage {
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldOpti8), v))
+	})
+}
+
+// Opti8IsNil applies the IsNil predicate on the "opti8" field.
+func Opti8IsNil() predicate.ValidMessage {
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		s.Where(sql.IsNull(s.C(FieldOpti8)))
+	})
+}
+
+// Opti8NotNil applies the NotNil predicate on the "opti8" field.
+func Opti8NotNil() predicate.ValidMessage {
+	return predicate.ValidMessage(func(s *sql.Selector) {
+		s.Where(sql.NotNull(s.C(FieldOpti8)))
 	})
 }
 

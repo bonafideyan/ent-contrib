@@ -23,17 +23,77 @@ const (
 	FieldStatus = "status"
 	// FieldExternalID holds the string denoting the external_id field in the database.
 	FieldExternalID = "external_id"
+	// FieldCrmID holds the string denoting the crm_id field in the database.
+	FieldCrmID = "crm_id"
+	// FieldBanned holds the string denoting the banned field in the database.
+	FieldBanned = "banned"
+	// FieldCustomPb holds the string denoting the custom_pb field in the database.
+	FieldCustomPb = "custom_pb"
+	// FieldOptNum holds the string denoting the opt_num field in the database.
+	FieldOptNum = "opt_num"
+	// FieldOptStr holds the string denoting the opt_str field in the database.
+	FieldOptStr = "opt_str"
+	// FieldOptBool holds the string denoting the opt_bool field in the database.
+	FieldOptBool = "opt_bool"
+	// FieldBigInt holds the string denoting the big_int field in the database.
+	FieldBigInt = "big_int"
+	// FieldBUser1 holds the string denoting the b_user_1 field in the database.
+	FieldBUser1 = "b_user_1"
+	// FieldHeightInCm holds the string denoting the height_in_cm field in the database.
+	FieldHeightInCm = "height_in_cm"
+	// FieldAccountBalance holds the string denoting the account_balance field in the database.
+	FieldAccountBalance = "account_balance"
+	// FieldUnnecessary holds the string denoting the unnecessary field in the database.
+	FieldUnnecessary = "unnecessary"
+	// FieldType holds the string denoting the type field in the database.
+	FieldType = "type"
+	// FieldLabels holds the string denoting the labels field in the database.
+	FieldLabels = "labels"
 	// EdgeGroup holds the string denoting the group edge name in mutations.
 	EdgeGroup = "group"
+	// EdgeAttachment holds the string denoting the attachment edge name in mutations.
+	EdgeAttachment = "attachment"
+	// EdgeReceived1 holds the string denoting the received_1 edge name in mutations.
+	EdgeReceived1 = "received_1"
+	// EdgePet holds the string denoting the pet edge name in mutations.
+	EdgePet = "pet"
+	// EdgeSkipEdge holds the string denoting the skip_edge edge name in mutations.
+	EdgeSkipEdge = "skip_edge"
 	// Table holds the table name of the user in the database.
 	Table = "users"
-	// GroupTable is the table the holds the group relation/edge.
+	// GroupTable is the table that holds the group relation/edge.
 	GroupTable = "users"
 	// GroupInverseTable is the table name for the Group entity.
 	// It exists in this package in order to avoid circular dependency with the "group" package.
 	GroupInverseTable = "groups"
 	// GroupColumn is the table column denoting the group relation/edge.
 	GroupColumn = "user_group"
+	// AttachmentTable is the table that holds the attachment relation/edge.
+	AttachmentTable = "attachments"
+	// AttachmentInverseTable is the table name for the Attachment entity.
+	// It exists in this package in order to avoid circular dependency with the "attachment" package.
+	AttachmentInverseTable = "attachments"
+	// AttachmentColumn is the table column denoting the attachment relation/edge.
+	AttachmentColumn = "user_attachment"
+	// Received1Table is the table that holds the received_1 relation/edge. The primary key declared below.
+	Received1Table = "attachment_recipients"
+	// Received1InverseTable is the table name for the Attachment entity.
+	// It exists in this package in order to avoid circular dependency with the "attachment" package.
+	Received1InverseTable = "attachments"
+	// PetTable is the table that holds the pet relation/edge.
+	PetTable = "pets"
+	// PetInverseTable is the table name for the Pet entity.
+	// It exists in this package in order to avoid circular dependency with the "pet" package.
+	PetInverseTable = "pets"
+	// PetColumn is the table column denoting the pet relation/edge.
+	PetColumn = "user_pet"
+	// SkipEdgeTable is the table that holds the skip_edge relation/edge.
+	SkipEdgeTable = "skip_edge_examples"
+	// SkipEdgeInverseTable is the table name for the SkipEdgeExample entity.
+	// It exists in this package in order to avoid circular dependency with the "skipedgeexample" package.
+	SkipEdgeInverseTable = "skip_edge_examples"
+	// SkipEdgeColumn is the table column denoting the skip_edge relation/edge.
+	SkipEdgeColumn = "user_skip_edge"
 )
 
 // Columns holds all SQL columns for user fields.
@@ -45,6 +105,19 @@ var Columns = []string{
 	FieldExp,
 	FieldStatus,
 	FieldExternalID,
+	FieldCrmID,
+	FieldBanned,
+	FieldCustomPb,
+	FieldOptNum,
+	FieldOptStr,
+	FieldOptBool,
+	FieldBigInt,
+	FieldBUser1,
+	FieldHeightInCm,
+	FieldAccountBalance,
+	FieldUnnecessary,
+	FieldType,
+	FieldLabels,
 }
 
 // ForeignKeys holds the SQL foreign-keys that are owned by the "users"
@@ -52,6 +125,12 @@ var Columns = []string{
 var ForeignKeys = []string{
 	"user_group",
 }
+
+var (
+	// Received1PrimaryKey and Received1Column2 are the table columns denoting the
+	// primary key for the received_1 relation (M2M).
+	Received1PrimaryKey = []string{"attachment_id", "user_id"}
+)
 
 // ValidColumn reports if the column name is valid (part of the table columns).
 func ValidColumn(column string) bool {
@@ -67,6 +146,15 @@ func ValidColumn(column string) bool {
 	}
 	return false
 }
+
+var (
+	// DefaultBanned holds the default value on creation for the "banned" field.
+	DefaultBanned bool
+	// DefaultHeightInCm holds the default value on creation for the "height_in_cm" field.
+	DefaultHeightInCm float32
+	// DefaultAccountBalance holds the default value on creation for the "account_balance" field.
+	DefaultAccountBalance float64
+)
 
 // Status defines the type for the "status" enum field.
 type Status string

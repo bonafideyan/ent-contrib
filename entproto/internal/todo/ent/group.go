@@ -46,9 +46,9 @@ func (*Group) scanValues(columns []string) ([]interface{}, error) {
 	for i := range columns {
 		switch columns[i] {
 		case group.FieldID:
-			values[i] = &sql.NullInt64{}
+			values[i] = new(sql.NullInt64)
 		case group.FieldName:
-			values[i] = &sql.NullString{}
+			values[i] = new(sql.NullString)
 		default:
 			return nil, fmt.Errorf("unexpected column %q for type Group", columns[i])
 		}
@@ -108,8 +108,8 @@ func (gr *Group) Unwrap() *Group {
 func (gr *Group) String() string {
 	var builder strings.Builder
 	builder.WriteString("Group(")
-	builder.WriteString(fmt.Sprintf("id=%v", gr.ID))
-	builder.WriteString(", name=")
+	builder.WriteString(fmt.Sprintf("id=%v, ", gr.ID))
+	builder.WriteString("name=")
 	builder.WriteString(gr.Name)
 	builder.WriteByte(')')
 	return builder.String()

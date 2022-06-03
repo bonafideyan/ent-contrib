@@ -6,8 +6,10 @@ import (
 	"time"
 
 	"entgo.io/contrib/entproto/internal/todo/ent/predicate"
+	"entgo.io/contrib/entproto/internal/todo/ent/schema"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/google/uuid"
 )
 
 // ID filters vertices based on their ID field.
@@ -125,6 +127,90 @@ func Exp(v uint64) predicate.User {
 func ExternalID(v int) predicate.User {
 	return predicate.User(func(s *sql.Selector) {
 		s.Where(sql.EQ(s.C(FieldExternalID), v))
+	})
+}
+
+// CrmID applies equality check predicate on the "crm_id" field. It's identical to CrmIDEQ.
+func CrmID(v uuid.UUID) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldCrmID), v))
+	})
+}
+
+// Banned applies equality check predicate on the "banned" field. It's identical to BannedEQ.
+func Banned(v bool) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldBanned), v))
+	})
+}
+
+// CustomPb applies equality check predicate on the "custom_pb" field. It's identical to CustomPbEQ.
+func CustomPb(v uint8) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldCustomPb), v))
+	})
+}
+
+// OptNum applies equality check predicate on the "opt_num" field. It's identical to OptNumEQ.
+func OptNum(v int) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldOptNum), v))
+	})
+}
+
+// OptStr applies equality check predicate on the "opt_str" field. It's identical to OptStrEQ.
+func OptStr(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldOptStr), v))
+	})
+}
+
+// OptBool applies equality check predicate on the "opt_bool" field. It's identical to OptBoolEQ.
+func OptBool(v bool) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldOptBool), v))
+	})
+}
+
+// BigInt applies equality check predicate on the "big_int" field. It's identical to BigIntEQ.
+func BigInt(v schema.BigInt) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldBigInt), v))
+	})
+}
+
+// BUser1 applies equality check predicate on the "b_user_1" field. It's identical to BUser1EQ.
+func BUser1(v int) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldBUser1), v))
+	})
+}
+
+// HeightInCm applies equality check predicate on the "height_in_cm" field. It's identical to HeightInCmEQ.
+func HeightInCm(v float32) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldHeightInCm), v))
+	})
+}
+
+// AccountBalance applies equality check predicate on the "account_balance" field. It's identical to AccountBalanceEQ.
+func AccountBalance(v float64) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldAccountBalance), v))
+	})
+}
+
+// Unnecessary applies equality check predicate on the "unnecessary" field. It's identical to UnnecessaryEQ.
+func Unnecessary(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldUnnecessary), v))
+	})
+}
+
+// Type applies equality check predicate on the "type" field. It's identical to TypeEQ.
+func Type(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldType), v))
 	})
 }
 
@@ -591,6 +677,1011 @@ func ExternalIDLTE(v int) predicate.User {
 	})
 }
 
+// CrmIDEQ applies the EQ predicate on the "crm_id" field.
+func CrmIDEQ(v uuid.UUID) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldCrmID), v))
+	})
+}
+
+// CrmIDNEQ applies the NEQ predicate on the "crm_id" field.
+func CrmIDNEQ(v uuid.UUID) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldCrmID), v))
+	})
+}
+
+// CrmIDIn applies the In predicate on the "crm_id" field.
+func CrmIDIn(vs ...uuid.UUID) predicate.User {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.User(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.In(s.C(FieldCrmID), v...))
+	})
+}
+
+// CrmIDNotIn applies the NotIn predicate on the "crm_id" field.
+func CrmIDNotIn(vs ...uuid.UUID) predicate.User {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.User(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.NotIn(s.C(FieldCrmID), v...))
+	})
+}
+
+// CrmIDGT applies the GT predicate on the "crm_id" field.
+func CrmIDGT(v uuid.UUID) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldCrmID), v))
+	})
+}
+
+// CrmIDGTE applies the GTE predicate on the "crm_id" field.
+func CrmIDGTE(v uuid.UUID) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldCrmID), v))
+	})
+}
+
+// CrmIDLT applies the LT predicate on the "crm_id" field.
+func CrmIDLT(v uuid.UUID) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldCrmID), v))
+	})
+}
+
+// CrmIDLTE applies the LTE predicate on the "crm_id" field.
+func CrmIDLTE(v uuid.UUID) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldCrmID), v))
+	})
+}
+
+// BannedEQ applies the EQ predicate on the "banned" field.
+func BannedEQ(v bool) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldBanned), v))
+	})
+}
+
+// BannedNEQ applies the NEQ predicate on the "banned" field.
+func BannedNEQ(v bool) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldBanned), v))
+	})
+}
+
+// CustomPbEQ applies the EQ predicate on the "custom_pb" field.
+func CustomPbEQ(v uint8) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldCustomPb), v))
+	})
+}
+
+// CustomPbNEQ applies the NEQ predicate on the "custom_pb" field.
+func CustomPbNEQ(v uint8) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldCustomPb), v))
+	})
+}
+
+// CustomPbIn applies the In predicate on the "custom_pb" field.
+func CustomPbIn(vs ...uint8) predicate.User {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.User(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.In(s.C(FieldCustomPb), v...))
+	})
+}
+
+// CustomPbNotIn applies the NotIn predicate on the "custom_pb" field.
+func CustomPbNotIn(vs ...uint8) predicate.User {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.User(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.NotIn(s.C(FieldCustomPb), v...))
+	})
+}
+
+// CustomPbGT applies the GT predicate on the "custom_pb" field.
+func CustomPbGT(v uint8) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldCustomPb), v))
+	})
+}
+
+// CustomPbGTE applies the GTE predicate on the "custom_pb" field.
+func CustomPbGTE(v uint8) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldCustomPb), v))
+	})
+}
+
+// CustomPbLT applies the LT predicate on the "custom_pb" field.
+func CustomPbLT(v uint8) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldCustomPb), v))
+	})
+}
+
+// CustomPbLTE applies the LTE predicate on the "custom_pb" field.
+func CustomPbLTE(v uint8) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldCustomPb), v))
+	})
+}
+
+// OptNumEQ applies the EQ predicate on the "opt_num" field.
+func OptNumEQ(v int) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldOptNum), v))
+	})
+}
+
+// OptNumNEQ applies the NEQ predicate on the "opt_num" field.
+func OptNumNEQ(v int) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldOptNum), v))
+	})
+}
+
+// OptNumIn applies the In predicate on the "opt_num" field.
+func OptNumIn(vs ...int) predicate.User {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.User(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.In(s.C(FieldOptNum), v...))
+	})
+}
+
+// OptNumNotIn applies the NotIn predicate on the "opt_num" field.
+func OptNumNotIn(vs ...int) predicate.User {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.User(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.NotIn(s.C(FieldOptNum), v...))
+	})
+}
+
+// OptNumGT applies the GT predicate on the "opt_num" field.
+func OptNumGT(v int) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldOptNum), v))
+	})
+}
+
+// OptNumGTE applies the GTE predicate on the "opt_num" field.
+func OptNumGTE(v int) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldOptNum), v))
+	})
+}
+
+// OptNumLT applies the LT predicate on the "opt_num" field.
+func OptNumLT(v int) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldOptNum), v))
+	})
+}
+
+// OptNumLTE applies the LTE predicate on the "opt_num" field.
+func OptNumLTE(v int) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldOptNum), v))
+	})
+}
+
+// OptNumIsNil applies the IsNil predicate on the "opt_num" field.
+func OptNumIsNil() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.IsNull(s.C(FieldOptNum)))
+	})
+}
+
+// OptNumNotNil applies the NotNil predicate on the "opt_num" field.
+func OptNumNotNil() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.NotNull(s.C(FieldOptNum)))
+	})
+}
+
+// OptStrEQ applies the EQ predicate on the "opt_str" field.
+func OptStrEQ(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldOptStr), v))
+	})
+}
+
+// OptStrNEQ applies the NEQ predicate on the "opt_str" field.
+func OptStrNEQ(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldOptStr), v))
+	})
+}
+
+// OptStrIn applies the In predicate on the "opt_str" field.
+func OptStrIn(vs ...string) predicate.User {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.User(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.In(s.C(FieldOptStr), v...))
+	})
+}
+
+// OptStrNotIn applies the NotIn predicate on the "opt_str" field.
+func OptStrNotIn(vs ...string) predicate.User {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.User(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.NotIn(s.C(FieldOptStr), v...))
+	})
+}
+
+// OptStrGT applies the GT predicate on the "opt_str" field.
+func OptStrGT(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldOptStr), v))
+	})
+}
+
+// OptStrGTE applies the GTE predicate on the "opt_str" field.
+func OptStrGTE(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldOptStr), v))
+	})
+}
+
+// OptStrLT applies the LT predicate on the "opt_str" field.
+func OptStrLT(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldOptStr), v))
+	})
+}
+
+// OptStrLTE applies the LTE predicate on the "opt_str" field.
+func OptStrLTE(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldOptStr), v))
+	})
+}
+
+// OptStrContains applies the Contains predicate on the "opt_str" field.
+func OptStrContains(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.Contains(s.C(FieldOptStr), v))
+	})
+}
+
+// OptStrHasPrefix applies the HasPrefix predicate on the "opt_str" field.
+func OptStrHasPrefix(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.HasPrefix(s.C(FieldOptStr), v))
+	})
+}
+
+// OptStrHasSuffix applies the HasSuffix predicate on the "opt_str" field.
+func OptStrHasSuffix(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.HasSuffix(s.C(FieldOptStr), v))
+	})
+}
+
+// OptStrIsNil applies the IsNil predicate on the "opt_str" field.
+func OptStrIsNil() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.IsNull(s.C(FieldOptStr)))
+	})
+}
+
+// OptStrNotNil applies the NotNil predicate on the "opt_str" field.
+func OptStrNotNil() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.NotNull(s.C(FieldOptStr)))
+	})
+}
+
+// OptStrEqualFold applies the EqualFold predicate on the "opt_str" field.
+func OptStrEqualFold(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EqualFold(s.C(FieldOptStr), v))
+	})
+}
+
+// OptStrContainsFold applies the ContainsFold predicate on the "opt_str" field.
+func OptStrContainsFold(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.ContainsFold(s.C(FieldOptStr), v))
+	})
+}
+
+// OptBoolEQ applies the EQ predicate on the "opt_bool" field.
+func OptBoolEQ(v bool) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldOptBool), v))
+	})
+}
+
+// OptBoolNEQ applies the NEQ predicate on the "opt_bool" field.
+func OptBoolNEQ(v bool) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldOptBool), v))
+	})
+}
+
+// OptBoolIsNil applies the IsNil predicate on the "opt_bool" field.
+func OptBoolIsNil() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.IsNull(s.C(FieldOptBool)))
+	})
+}
+
+// OptBoolNotNil applies the NotNil predicate on the "opt_bool" field.
+func OptBoolNotNil() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.NotNull(s.C(FieldOptBool)))
+	})
+}
+
+// BigIntEQ applies the EQ predicate on the "big_int" field.
+func BigIntEQ(v schema.BigInt) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldBigInt), v))
+	})
+}
+
+// BigIntNEQ applies the NEQ predicate on the "big_int" field.
+func BigIntNEQ(v schema.BigInt) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldBigInt), v))
+	})
+}
+
+// BigIntIn applies the In predicate on the "big_int" field.
+func BigIntIn(vs ...schema.BigInt) predicate.User {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.User(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.In(s.C(FieldBigInt), v...))
+	})
+}
+
+// BigIntNotIn applies the NotIn predicate on the "big_int" field.
+func BigIntNotIn(vs ...schema.BigInt) predicate.User {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.User(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.NotIn(s.C(FieldBigInt), v...))
+	})
+}
+
+// BigIntGT applies the GT predicate on the "big_int" field.
+func BigIntGT(v schema.BigInt) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldBigInt), v))
+	})
+}
+
+// BigIntGTE applies the GTE predicate on the "big_int" field.
+func BigIntGTE(v schema.BigInt) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldBigInt), v))
+	})
+}
+
+// BigIntLT applies the LT predicate on the "big_int" field.
+func BigIntLT(v schema.BigInt) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldBigInt), v))
+	})
+}
+
+// BigIntLTE applies the LTE predicate on the "big_int" field.
+func BigIntLTE(v schema.BigInt) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldBigInt), v))
+	})
+}
+
+// BigIntIsNil applies the IsNil predicate on the "big_int" field.
+func BigIntIsNil() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.IsNull(s.C(FieldBigInt)))
+	})
+}
+
+// BigIntNotNil applies the NotNil predicate on the "big_int" field.
+func BigIntNotNil() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.NotNull(s.C(FieldBigInt)))
+	})
+}
+
+// BUser1EQ applies the EQ predicate on the "b_user_1" field.
+func BUser1EQ(v int) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldBUser1), v))
+	})
+}
+
+// BUser1NEQ applies the NEQ predicate on the "b_user_1" field.
+func BUser1NEQ(v int) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldBUser1), v))
+	})
+}
+
+// BUser1In applies the In predicate on the "b_user_1" field.
+func BUser1In(vs ...int) predicate.User {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.User(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.In(s.C(FieldBUser1), v...))
+	})
+}
+
+// BUser1NotIn applies the NotIn predicate on the "b_user_1" field.
+func BUser1NotIn(vs ...int) predicate.User {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.User(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.NotIn(s.C(FieldBUser1), v...))
+	})
+}
+
+// BUser1GT applies the GT predicate on the "b_user_1" field.
+func BUser1GT(v int) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldBUser1), v))
+	})
+}
+
+// BUser1GTE applies the GTE predicate on the "b_user_1" field.
+func BUser1GTE(v int) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldBUser1), v))
+	})
+}
+
+// BUser1LT applies the LT predicate on the "b_user_1" field.
+func BUser1LT(v int) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldBUser1), v))
+	})
+}
+
+// BUser1LTE applies the LTE predicate on the "b_user_1" field.
+func BUser1LTE(v int) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldBUser1), v))
+	})
+}
+
+// BUser1IsNil applies the IsNil predicate on the "b_user_1" field.
+func BUser1IsNil() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.IsNull(s.C(FieldBUser1)))
+	})
+}
+
+// BUser1NotNil applies the NotNil predicate on the "b_user_1" field.
+func BUser1NotNil() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.NotNull(s.C(FieldBUser1)))
+	})
+}
+
+// HeightInCmEQ applies the EQ predicate on the "height_in_cm" field.
+func HeightInCmEQ(v float32) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldHeightInCm), v))
+	})
+}
+
+// HeightInCmNEQ applies the NEQ predicate on the "height_in_cm" field.
+func HeightInCmNEQ(v float32) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldHeightInCm), v))
+	})
+}
+
+// HeightInCmIn applies the In predicate on the "height_in_cm" field.
+func HeightInCmIn(vs ...float32) predicate.User {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.User(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.In(s.C(FieldHeightInCm), v...))
+	})
+}
+
+// HeightInCmNotIn applies the NotIn predicate on the "height_in_cm" field.
+func HeightInCmNotIn(vs ...float32) predicate.User {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.User(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.NotIn(s.C(FieldHeightInCm), v...))
+	})
+}
+
+// HeightInCmGT applies the GT predicate on the "height_in_cm" field.
+func HeightInCmGT(v float32) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldHeightInCm), v))
+	})
+}
+
+// HeightInCmGTE applies the GTE predicate on the "height_in_cm" field.
+func HeightInCmGTE(v float32) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldHeightInCm), v))
+	})
+}
+
+// HeightInCmLT applies the LT predicate on the "height_in_cm" field.
+func HeightInCmLT(v float32) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldHeightInCm), v))
+	})
+}
+
+// HeightInCmLTE applies the LTE predicate on the "height_in_cm" field.
+func HeightInCmLTE(v float32) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldHeightInCm), v))
+	})
+}
+
+// AccountBalanceEQ applies the EQ predicate on the "account_balance" field.
+func AccountBalanceEQ(v float64) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldAccountBalance), v))
+	})
+}
+
+// AccountBalanceNEQ applies the NEQ predicate on the "account_balance" field.
+func AccountBalanceNEQ(v float64) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldAccountBalance), v))
+	})
+}
+
+// AccountBalanceIn applies the In predicate on the "account_balance" field.
+func AccountBalanceIn(vs ...float64) predicate.User {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.User(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.In(s.C(FieldAccountBalance), v...))
+	})
+}
+
+// AccountBalanceNotIn applies the NotIn predicate on the "account_balance" field.
+func AccountBalanceNotIn(vs ...float64) predicate.User {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.User(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.NotIn(s.C(FieldAccountBalance), v...))
+	})
+}
+
+// AccountBalanceGT applies the GT predicate on the "account_balance" field.
+func AccountBalanceGT(v float64) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldAccountBalance), v))
+	})
+}
+
+// AccountBalanceGTE applies the GTE predicate on the "account_balance" field.
+func AccountBalanceGTE(v float64) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldAccountBalance), v))
+	})
+}
+
+// AccountBalanceLT applies the LT predicate on the "account_balance" field.
+func AccountBalanceLT(v float64) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldAccountBalance), v))
+	})
+}
+
+// AccountBalanceLTE applies the LTE predicate on the "account_balance" field.
+func AccountBalanceLTE(v float64) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldAccountBalance), v))
+	})
+}
+
+// UnnecessaryEQ applies the EQ predicate on the "unnecessary" field.
+func UnnecessaryEQ(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldUnnecessary), v))
+	})
+}
+
+// UnnecessaryNEQ applies the NEQ predicate on the "unnecessary" field.
+func UnnecessaryNEQ(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldUnnecessary), v))
+	})
+}
+
+// UnnecessaryIn applies the In predicate on the "unnecessary" field.
+func UnnecessaryIn(vs ...string) predicate.User {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.User(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.In(s.C(FieldUnnecessary), v...))
+	})
+}
+
+// UnnecessaryNotIn applies the NotIn predicate on the "unnecessary" field.
+func UnnecessaryNotIn(vs ...string) predicate.User {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.User(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.NotIn(s.C(FieldUnnecessary), v...))
+	})
+}
+
+// UnnecessaryGT applies the GT predicate on the "unnecessary" field.
+func UnnecessaryGT(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldUnnecessary), v))
+	})
+}
+
+// UnnecessaryGTE applies the GTE predicate on the "unnecessary" field.
+func UnnecessaryGTE(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldUnnecessary), v))
+	})
+}
+
+// UnnecessaryLT applies the LT predicate on the "unnecessary" field.
+func UnnecessaryLT(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldUnnecessary), v))
+	})
+}
+
+// UnnecessaryLTE applies the LTE predicate on the "unnecessary" field.
+func UnnecessaryLTE(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldUnnecessary), v))
+	})
+}
+
+// UnnecessaryContains applies the Contains predicate on the "unnecessary" field.
+func UnnecessaryContains(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.Contains(s.C(FieldUnnecessary), v))
+	})
+}
+
+// UnnecessaryHasPrefix applies the HasPrefix predicate on the "unnecessary" field.
+func UnnecessaryHasPrefix(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.HasPrefix(s.C(FieldUnnecessary), v))
+	})
+}
+
+// UnnecessaryHasSuffix applies the HasSuffix predicate on the "unnecessary" field.
+func UnnecessaryHasSuffix(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.HasSuffix(s.C(FieldUnnecessary), v))
+	})
+}
+
+// UnnecessaryIsNil applies the IsNil predicate on the "unnecessary" field.
+func UnnecessaryIsNil() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.IsNull(s.C(FieldUnnecessary)))
+	})
+}
+
+// UnnecessaryNotNil applies the NotNil predicate on the "unnecessary" field.
+func UnnecessaryNotNil() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.NotNull(s.C(FieldUnnecessary)))
+	})
+}
+
+// UnnecessaryEqualFold applies the EqualFold predicate on the "unnecessary" field.
+func UnnecessaryEqualFold(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EqualFold(s.C(FieldUnnecessary), v))
+	})
+}
+
+// UnnecessaryContainsFold applies the ContainsFold predicate on the "unnecessary" field.
+func UnnecessaryContainsFold(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.ContainsFold(s.C(FieldUnnecessary), v))
+	})
+}
+
+// TypeEQ applies the EQ predicate on the "type" field.
+func TypeEQ(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EQ(s.C(FieldType), v))
+	})
+}
+
+// TypeNEQ applies the NEQ predicate on the "type" field.
+func TypeNEQ(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.NEQ(s.C(FieldType), v))
+	})
+}
+
+// TypeIn applies the In predicate on the "type" field.
+func TypeIn(vs ...string) predicate.User {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.User(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.In(s.C(FieldType), v...))
+	})
+}
+
+// TypeNotIn applies the NotIn predicate on the "type" field.
+func TypeNotIn(vs ...string) predicate.User {
+	v := make([]interface{}, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.User(func(s *sql.Selector) {
+		// if not arguments were provided, append the FALSE constants,
+		// since we can't apply "IN ()". This will make this predicate falsy.
+		if len(v) == 0 {
+			s.Where(sql.False())
+			return
+		}
+		s.Where(sql.NotIn(s.C(FieldType), v...))
+	})
+}
+
+// TypeGT applies the GT predicate on the "type" field.
+func TypeGT(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.GT(s.C(FieldType), v))
+	})
+}
+
+// TypeGTE applies the GTE predicate on the "type" field.
+func TypeGTE(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.GTE(s.C(FieldType), v))
+	})
+}
+
+// TypeLT applies the LT predicate on the "type" field.
+func TypeLT(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.LT(s.C(FieldType), v))
+	})
+}
+
+// TypeLTE applies the LTE predicate on the "type" field.
+func TypeLTE(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.LTE(s.C(FieldType), v))
+	})
+}
+
+// TypeContains applies the Contains predicate on the "type" field.
+func TypeContains(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.Contains(s.C(FieldType), v))
+	})
+}
+
+// TypeHasPrefix applies the HasPrefix predicate on the "type" field.
+func TypeHasPrefix(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.HasPrefix(s.C(FieldType), v))
+	})
+}
+
+// TypeHasSuffix applies the HasSuffix predicate on the "type" field.
+func TypeHasSuffix(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.HasSuffix(s.C(FieldType), v))
+	})
+}
+
+// TypeIsNil applies the IsNil predicate on the "type" field.
+func TypeIsNil() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.IsNull(s.C(FieldType)))
+	})
+}
+
+// TypeNotNil applies the NotNil predicate on the "type" field.
+func TypeNotNil() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.NotNull(s.C(FieldType)))
+	})
+}
+
+// TypeEqualFold applies the EqualFold predicate on the "type" field.
+func TypeEqualFold(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.EqualFold(s.C(FieldType), v))
+	})
+}
+
+// TypeContainsFold applies the ContainsFold predicate on the "type" field.
+func TypeContainsFold(v string) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.ContainsFold(s.C(FieldType), v))
+	})
+}
+
+// LabelsIsNil applies the IsNil predicate on the "labels" field.
+func LabelsIsNil() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.IsNull(s.C(FieldLabels)))
+	})
+}
+
+// LabelsNotNil applies the NotNil predicate on the "labels" field.
+func LabelsNotNil() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		s.Where(sql.NotNull(s.C(FieldLabels)))
+	})
+}
+
 // HasGroup applies the HasEdge predicate on the "group" edge.
 func HasGroup() predicate.User {
 	return predicate.User(func(s *sql.Selector) {
@@ -610,6 +1701,118 @@ func HasGroupWith(preds ...predicate.Group) predicate.User {
 			sqlgraph.From(Table, FieldID),
 			sqlgraph.To(GroupInverseTable, FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, false, GroupTable, GroupColumn),
+		)
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasAttachment applies the HasEdge predicate on the "attachment" edge.
+func HasAttachment() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.To(AttachmentTable, FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, AttachmentTable, AttachmentColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasAttachmentWith applies the HasEdge predicate on the "attachment" edge with a given conditions (other predicates).
+func HasAttachmentWith(preds ...predicate.Attachment) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.To(AttachmentInverseTable, FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, AttachmentTable, AttachmentColumn),
+		)
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasReceived1 applies the HasEdge predicate on the "received_1" edge.
+func HasReceived1() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.To(Received1Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, true, Received1Table, Received1PrimaryKey...),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasReceived1With applies the HasEdge predicate on the "received_1" edge with a given conditions (other predicates).
+func HasReceived1With(preds ...predicate.Attachment) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.To(Received1InverseTable, FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, true, Received1Table, Received1PrimaryKey...),
+		)
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasPet applies the HasEdge predicate on the "pet" edge.
+func HasPet() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.To(PetTable, FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, PetTable, PetColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasPetWith applies the HasEdge predicate on the "pet" edge with a given conditions (other predicates).
+func HasPetWith(preds ...predicate.Pet) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.To(PetInverseTable, FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, PetTable, PetColumn),
+		)
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasSkipEdge applies the HasEdge predicate on the "skip_edge" edge.
+func HasSkipEdge() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.To(SkipEdgeTable, FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, SkipEdgeTable, SkipEdgeColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasSkipEdgeWith applies the HasEdge predicate on the "skip_edge" edge with a given conditions (other predicates).
+func HasSkipEdgeWith(preds ...predicate.SkipEdgeExample) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.To(SkipEdgeInverseTable, FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, SkipEdgeTable, SkipEdgeColumn),
 		)
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {

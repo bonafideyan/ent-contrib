@@ -25,9 +25,9 @@ func (*MessageWithPackageName) scanValues(columns []string) ([]interface{}, erro
 	for i := range columns {
 		switch columns[i] {
 		case messagewithpackagename.FieldID:
-			values[i] = &sql.NullInt64{}
+			values[i] = new(sql.NullInt64)
 		case messagewithpackagename.FieldName:
-			values[i] = &sql.NullString{}
+			values[i] = new(sql.NullString)
 		default:
 			return nil, fmt.Errorf("unexpected column %q for type MessageWithPackageName", columns[i])
 		}
@@ -82,8 +82,8 @@ func (mwpn *MessageWithPackageName) Unwrap() *MessageWithPackageName {
 func (mwpn *MessageWithPackageName) String() string {
 	var builder strings.Builder
 	builder.WriteString("MessageWithPackageName(")
-	builder.WriteString(fmt.Sprintf("id=%v", mwpn.ID))
-	builder.WriteString(", name=")
+	builder.WriteString(fmt.Sprintf("id=%v, ", mwpn.ID))
+	builder.WriteString("name=")
 	builder.WriteString(mwpn.Name)
 	builder.WriteByte(')')
 	return builder.String()

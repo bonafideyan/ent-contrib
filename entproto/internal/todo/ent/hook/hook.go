@@ -9,6 +9,19 @@ import (
 	"entgo.io/contrib/entproto/internal/todo/ent"
 )
 
+// The AttachmentFunc type is an adapter to allow the use of ordinary
+// function as Attachment mutator.
+type AttachmentFunc func(context.Context, *ent.AttachmentMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AttachmentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	mv, ok := m.(*ent.AttachmentMutation)
+	if !ok {
+		return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AttachmentMutation", m)
+	}
+	return f(ctx, mv)
+}
+
 // The GroupFunc type is an adapter to allow the use of ordinary
 // function as Group mutator.
 type GroupFunc func(context.Context, *ent.GroupMutation) (ent.Value, error)
@@ -18,6 +31,71 @@ func (f GroupFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error
 	mv, ok := m.(*ent.GroupMutation)
 	if !ok {
 		return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.GroupMutation", m)
+	}
+	return f(ctx, mv)
+}
+
+// The MultiWordSchemaFunc type is an adapter to allow the use of ordinary
+// function as MultiWordSchema mutator.
+type MultiWordSchemaFunc func(context.Context, *ent.MultiWordSchemaMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f MultiWordSchemaFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	mv, ok := m.(*ent.MultiWordSchemaMutation)
+	if !ok {
+		return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MultiWordSchemaMutation", m)
+	}
+	return f(ctx, mv)
+}
+
+// The NilExampleFunc type is an adapter to allow the use of ordinary
+// function as NilExample mutator.
+type NilExampleFunc func(context.Context, *ent.NilExampleMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f NilExampleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	mv, ok := m.(*ent.NilExampleMutation)
+	if !ok {
+		return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.NilExampleMutation", m)
+	}
+	return f(ctx, mv)
+}
+
+// The PetFunc type is an adapter to allow the use of ordinary
+// function as Pet mutator.
+type PetFunc func(context.Context, *ent.PetMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PetFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	mv, ok := m.(*ent.PetMutation)
+	if !ok {
+		return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PetMutation", m)
+	}
+	return f(ctx, mv)
+}
+
+// The PonyFunc type is an adapter to allow the use of ordinary
+// function as Pony mutator.
+type PonyFunc func(context.Context, *ent.PonyMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f PonyFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	mv, ok := m.(*ent.PonyMutation)
+	if !ok {
+		return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.PonyMutation", m)
+	}
+	return f(ctx, mv)
+}
+
+// The SkipEdgeExampleFunc type is an adapter to allow the use of ordinary
+// function as SkipEdgeExample mutator.
+type SkipEdgeExampleFunc func(context.Context, *ent.SkipEdgeExampleMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SkipEdgeExampleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	mv, ok := m.(*ent.SkipEdgeExampleMutation)
+	if !ok {
+		return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SkipEdgeExampleMutation", m)
 	}
 	return f(ctx, mv)
 }

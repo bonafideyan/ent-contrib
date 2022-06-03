@@ -1,81 +1,27 @@
-interface Node {
-  id: ID!
+type CategoryConfig {
+  maxMembers: Int
 }
 
-enum Status {
-  IN_PROGRESS
-  COMPLETED
+input CategoryConfigInput {
+  maxMembers: Int
 }
 
 scalar Time
+scalar Duration
+scalar Uint64
 
-type Todo implements Node {
-  id: ID!
-  createdAt: Time
-  status: Status!
-  priority: Int!
-  text: String!
-  parent: Todo
-  children: [Todo!]
+extend input TodoWhereInput {
+  createdToday: Boolean
 }
 
-input TodoInput {
-  status: Status! = IN_PROGRESS
-  priority: Int
-  text: String!
-  parent: ID
-}
-
-scalar Cursor
-
-type PageInfo {
-  hasNextPage: Boolean!
-  hasPreviousPage: Boolean!
-  startCursor: Cursor
-  endCursor: Cursor
-}
-
-type TodoConnection {
-  totalCount: Int!
-  pageInfo: PageInfo!
-  edges: [TodoEdge]
-}
-
-type TodoEdge {
-  node: Todo
-  cursor: Cursor!
-}
-
-enum OrderDirection {
-  ASC
-  DESC
-}
-
-enum TodoOrderField {
-  CREATED_AT
-  PRIORITY
-  STATUS
-  TEXT
-}
-
-input TodoOrder {
-  direction: OrderDirection!
-  field: TodoOrderField
-}
-
-type Query {
-  node(id: ID!): Node
-  nodes(ids: [ID!]!): [Node]!
-  todos(
-    after: Cursor
-    first: Int
-    before: Cursor
-    last: Int
-    orderBy: TodoOrder
-  ): TodoConnection
+extend type Query {
+  """
+  This field is an example of extending the built-in Query type from Ent.
+  """
+  ping: String!
 }
 
 type Mutation {
-  createTodo(todo: TodoInput!): Todo!
+  createTodo(input: CreateTodoInput!): Todo!
   clearTodos: Int!
 }

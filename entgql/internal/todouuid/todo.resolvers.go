@@ -19,19 +19,17 @@ package todo
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"entgo.io/contrib/entgql/internal/todouuid/ent"
-	"github.com/google/uuid"
+	"entgo.io/contrib/entgql/internal/todouuid/ent/todo"
 )
 
-func (r *mutationResolver) CreateTodo(ctx context.Context, todo TodoInput) (*ent.Todo, error) {
-	client := ent.FromContext(ctx)
-	return client.Todo.
+func (r *mutationResolver) CreateTodo(ctx context.Context, input ent.CreateTodoInput) (*ent.Todo, error) {
+	return ent.FromContext(ctx).Todo.
 		Create().
-		SetStatus(todo.Status).
-		SetNillablePriority(todo.Priority).
-		SetText(todo.Text).
-		SetNillableParentID(todo.Parent).
+		SetInput(input).
 		Save(ctx)
 }
 
@@ -42,26 +40,27 @@ func (r *mutationResolver) ClearTodos(ctx context.Context) (int, error) {
 		Exec(ctx)
 }
 
-func (r *queryResolver) Node(ctx context.Context, id uuid.UUID) (ent.Noder, error) {
-	return r.client.Noder(ctx, id)
+func (r *queryResolver) Ping(ctx context.Context) (string, error) {
+	panic(fmt.Errorf("not implemented"))
 }
 
-func (r *queryResolver) Nodes(ctx context.Context, ids []uuid.UUID) ([]ent.Noder, error) {
-	return r.client.Noders(ctx, ids)
-}
+func (r *todoWhereInputResolver) CreatedToday(ctx context.Context, obj *ent.TodoWhereInput, data *bool) error {
+	if data == nil {
+		return nil
+	}
 
-func (r *queryResolver) Todos(ctx context.Context, after *ent.Cursor, first *int, before *ent.Cursor, last *int, orderBy *ent.TodoOrder) (*ent.TodoConnection, error) {
-	return r.client.Todo.Query().
-		Paginate(ctx, after, first, before, last,
-			ent.WithTodoOrder(orderBy),
-		)
+	startOfDay := time.Now().Truncate(24 * time.Hour)
+	endOfDay := startOfDay.Add(24*time.Hour - 1)
+	if *data {
+		obj.AddPredicates(todo.And(todo.CreatedAtGTE(startOfDay), todo.CreatedAtLTE(endOfDay)))
+	} else {
+		obj.AddPredicates(todo.Or(todo.CreatedAtLT(startOfDay), todo.CreatedAtGT(endOfDay)))
+	}
+
+	return nil
 }
 
 // Mutation returns MutationResolver implementation.
 func (r *Resolver) Mutation() MutationResolver { return &mutationResolver{r} }
 
-// Query returns QueryResolver implementation.
-func (r *Resolver) Query() QueryResolver { return &queryResolver{r} }
-
 type mutationResolver struct{ *Resolver }
-type queryResolver struct{ *Resolver }

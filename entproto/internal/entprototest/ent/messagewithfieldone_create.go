@@ -51,16 +51,28 @@ func (mwfoc *MessageWithFieldOneCreate) Save(ctx context.Context) (*MessageWithF
 				return nil, err
 			}
 			mwfoc.mutation = mutation
-			node, err = mwfoc.sqlSave(ctx)
+			if node, err = mwfoc.sqlSave(ctx); err != nil {
+				return nil, err
+			}
+			mutation.id = &node.ID
 			mutation.done = true
 			return node, err
 		})
 		for i := len(mwfoc.hooks) - 1; i >= 0; i-- {
+			if mwfoc.hooks[i] == nil {
+				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
+			}
 			mut = mwfoc.hooks[i](mut)
 		}
-		if _, err := mut.Mutate(ctx, mwfoc.mutation); err != nil {
+		v, err := mut.Mutate(ctx, mwfoc.mutation)
+		if err != nil {
 			return nil, err
 		}
+		nv, ok := v.(*MessageWithFieldOne)
+		if !ok {
+			return nil, fmt.Errorf("unexpected node type %T returned from MessageWithFieldOneMutation", v)
+		}
+		node = nv
 	}
 	return node, err
 }
@@ -74,10 +86,23 @@ func (mwfoc *MessageWithFieldOneCreate) SaveX(ctx context.Context) *MessageWithF
 	return v
 }
 
+// Exec executes the query.
+func (mwfoc *MessageWithFieldOneCreate) Exec(ctx context.Context) error {
+	_, err := mwfoc.Save(ctx)
+	return err
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (mwfoc *MessageWithFieldOneCreate) ExecX(ctx context.Context) {
+	if err := mwfoc.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
 // check runs all checks and user-defined validators on the builder.
 func (mwfoc *MessageWithFieldOneCreate) check() error {
 	if _, ok := mwfoc.mutation.FieldOne(); !ok {
-		return &ValidationError{Name: "field_one", err: errors.New("ent: missing required field \"field_one\"")}
+		return &ValidationError{Name: "field_one", err: errors.New(`ent: missing required field "MessageWithFieldOne.field_one"`)}
 	}
 	return nil
 }
@@ -85,8 +110,8 @@ func (mwfoc *MessageWithFieldOneCreate) check() error {
 func (mwfoc *MessageWithFieldOneCreate) sqlSave(ctx context.Context) (*MessageWithFieldOne, error) {
 	_node, _spec := mwfoc.createSpec()
 	if err := sqlgraph.CreateNode(ctx, mwfoc.driver, _spec); err != nil {
-		if cerr, ok := isSQLConstraintError(err); ok {
-			err = cerr
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{err.Error(), err}
 		}
 		return nil, err
 	}
@@ -145,19 +170,23 @@ func (mwfocb *MessageWithFieldOneCreateBulk) Save(ctx context.Context) ([]*Messa
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, mwfocb.builders[i+1].mutation)
 				} else {
+					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
 					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, mwfocb.driver, &sqlgraph.BatchCreateSpec{Nodes: specs}); err != nil {
-						if cerr, ok := isSQLConstraintError(err); ok {
-							err = cerr
+					if err = sqlgraph.BatchCreate(ctx, mwfocb.driver, spec); err != nil {
+						if sqlgraph.IsConstraintError(err) {
+							err = &ConstraintError{err.Error(), err}
 						}
 					}
 				}
-				mutation.done = true
 				if err != nil {
 					return nil, err
 				}
-				id := specs[i].ID.Value.(int64)
-				nodes[i].ID = int(id)
+				mutation.id = &nodes[i].ID
+				if specs[i].ID.Value != nil {
+					id := specs[i].ID.Value.(int64)
+					nodes[i].ID = int(id)
+				}
+				mutation.done = true
 				return nodes[i], nil
 			})
 			for i := len(builder.hooks) - 1; i >= 0; i-- {
@@ -181,4 +210,17 @@ func (mwfocb *MessageWithFieldOneCreateBulk) SaveX(ctx context.Context) []*Messa
 		panic(err)
 	}
 	return v
+}
+
+// Exec executes the query.
+func (mwfocb *MessageWithFieldOneCreateBulk) Exec(ctx context.Context) error {
+	_, err := mwfocb.Save(ctx)
+	return err
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (mwfocb *MessageWithFieldOneCreateBulk) ExecX(ctx context.Context) {
+	if err := mwfocb.Exec(ctx); err != nil {
+		panic(err)
+	}
 }

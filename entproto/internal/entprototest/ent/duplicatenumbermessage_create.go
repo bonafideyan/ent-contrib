@@ -57,16 +57,28 @@ func (dnmc *DuplicateNumberMessageCreate) Save(ctx context.Context) (*DuplicateN
 				return nil, err
 			}
 			dnmc.mutation = mutation
-			node, err = dnmc.sqlSave(ctx)
+			if node, err = dnmc.sqlSave(ctx); err != nil {
+				return nil, err
+			}
+			mutation.id = &node.ID
 			mutation.done = true
 			return node, err
 		})
 		for i := len(dnmc.hooks) - 1; i >= 0; i-- {
+			if dnmc.hooks[i] == nil {
+				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
+			}
 			mut = dnmc.hooks[i](mut)
 		}
-		if _, err := mut.Mutate(ctx, dnmc.mutation); err != nil {
+		v, err := mut.Mutate(ctx, dnmc.mutation)
+		if err != nil {
 			return nil, err
 		}
+		nv, ok := v.(*DuplicateNumberMessage)
+		if !ok {
+			return nil, fmt.Errorf("unexpected node type %T returned from DuplicateNumberMessageMutation", v)
+		}
+		node = nv
 	}
 	return node, err
 }
@@ -80,13 +92,26 @@ func (dnmc *DuplicateNumberMessageCreate) SaveX(ctx context.Context) *DuplicateN
 	return v
 }
 
+// Exec executes the query.
+func (dnmc *DuplicateNumberMessageCreate) Exec(ctx context.Context) error {
+	_, err := dnmc.Save(ctx)
+	return err
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (dnmc *DuplicateNumberMessageCreate) ExecX(ctx context.Context) {
+	if err := dnmc.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
 // check runs all checks and user-defined validators on the builder.
 func (dnmc *DuplicateNumberMessageCreate) check() error {
 	if _, ok := dnmc.mutation.Hello(); !ok {
-		return &ValidationError{Name: "hello", err: errors.New("ent: missing required field \"hello\"")}
+		return &ValidationError{Name: "hello", err: errors.New(`ent: missing required field "DuplicateNumberMessage.hello"`)}
 	}
 	if _, ok := dnmc.mutation.World(); !ok {
-		return &ValidationError{Name: "world", err: errors.New("ent: missing required field \"world\"")}
+		return &ValidationError{Name: "world", err: errors.New(`ent: missing required field "DuplicateNumberMessage.world"`)}
 	}
 	return nil
 }
@@ -94,8 +119,8 @@ func (dnmc *DuplicateNumberMessageCreate) check() error {
 func (dnmc *DuplicateNumberMessageCreate) sqlSave(ctx context.Context) (*DuplicateNumberMessage, error) {
 	_node, _spec := dnmc.createSpec()
 	if err := sqlgraph.CreateNode(ctx, dnmc.driver, _spec); err != nil {
-		if cerr, ok := isSQLConstraintError(err); ok {
-			err = cerr
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{err.Error(), err}
 		}
 		return nil, err
 	}
@@ -162,19 +187,23 @@ func (dnmcb *DuplicateNumberMessageCreateBulk) Save(ctx context.Context) ([]*Dup
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, dnmcb.builders[i+1].mutation)
 				} else {
+					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
 					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, dnmcb.driver, &sqlgraph.BatchCreateSpec{Nodes: specs}); err != nil {
-						if cerr, ok := isSQLConstraintError(err); ok {
-							err = cerr
+					if err = sqlgraph.BatchCreate(ctx, dnmcb.driver, spec); err != nil {
+						if sqlgraph.IsConstraintError(err) {
+							err = &ConstraintError{err.Error(), err}
 						}
 					}
 				}
-				mutation.done = true
 				if err != nil {
 					return nil, err
 				}
-				id := specs[i].ID.Value.(int64)
-				nodes[i].ID = int(id)
+				mutation.id = &nodes[i].ID
+				if specs[i].ID.Value != nil {
+					id := specs[i].ID.Value.(int64)
+					nodes[i].ID = int(id)
+				}
+				mutation.done = true
 				return nodes[i], nil
 			})
 			for i := len(builder.hooks) - 1; i >= 0; i-- {
@@ -198,4 +227,17 @@ func (dnmcb *DuplicateNumberMessageCreateBulk) SaveX(ctx context.Context) []*Dup
 		panic(err)
 	}
 	return v
+}
+
+// Exec executes the query.
+func (dnmcb *DuplicateNumberMessageCreateBulk) Exec(ctx context.Context) error {
+	_, err := dnmcb.Save(ctx)
+	return err
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (dnmcb *DuplicateNumberMessageCreateBulk) ExecX(ctx context.Context) {
+	if err := dnmcb.Exec(ctx); err != nil {
+		panic(err)
+	}
 }

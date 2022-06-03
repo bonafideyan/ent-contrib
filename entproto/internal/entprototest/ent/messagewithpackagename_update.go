@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"entgo.io/contrib/entproto/internal/entprototest/ent/messagewithpackagename"
@@ -20,9 +21,9 @@ type MessageWithPackageNameUpdate struct {
 	mutation *MessageWithPackageNameMutation
 }
 
-// Where adds a new predicate for the MessageWithPackageNameUpdate builder.
+// Where appends a list predicates to the MessageWithPackageNameUpdate builder.
 func (mwpnu *MessageWithPackageNameUpdate) Where(ps ...predicate.MessageWithPackageName) *MessageWithPackageNameUpdate {
-	mwpnu.mutation.predicates = append(mwpnu.mutation.predicates, ps...)
+	mwpnu.mutation.Where(ps...)
 	return mwpnu
 }
 
@@ -57,6 +58,9 @@ func (mwpnu *MessageWithPackageNameUpdate) Save(ctx context.Context) (int, error
 			return affected, err
 		})
 		for i := len(mwpnu.hooks) - 1; i >= 0; i-- {
+			if mwpnu.hooks[i] == nil {
+				return 0, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
+			}
 			mut = mwpnu.hooks[i](mut)
 		}
 		if _, err := mut.Mutate(ctx, mwpnu.mutation); err != nil {
@@ -116,8 +120,8 @@ func (mwpnu *MessageWithPackageNameUpdate) sqlSave(ctx context.Context) (n int, 
 	if n, err = sqlgraph.UpdateNodes(ctx, mwpnu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{messagewithpackagename.Label}
-		} else if cerr, ok := isSQLConstraintError(err); ok {
-			err = cerr
+		} else if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{err.Error(), err}
 		}
 		return 0, err
 	}
@@ -127,6 +131,7 @@ func (mwpnu *MessageWithPackageNameUpdate) sqlSave(ctx context.Context) (n int, 
 // MessageWithPackageNameUpdateOne is the builder for updating a single MessageWithPackageName entity.
 type MessageWithPackageNameUpdateOne struct {
 	config
+	fields   []string
 	hooks    []Hook
 	mutation *MessageWithPackageNameMutation
 }
@@ -140,6 +145,13 @@ func (mwpnuo *MessageWithPackageNameUpdateOne) SetName(s string) *MessageWithPac
 // Mutation returns the MessageWithPackageNameMutation object of the builder.
 func (mwpnuo *MessageWithPackageNameUpdateOne) Mutation() *MessageWithPackageNameMutation {
 	return mwpnuo.mutation
+}
+
+// Select allows selecting one or more fields (columns) of the returned entity.
+// The default is selecting all fields defined in the entity schema.
+func (mwpnuo *MessageWithPackageNameUpdateOne) Select(field string, fields ...string) *MessageWithPackageNameUpdateOne {
+	mwpnuo.fields = append([]string{field}, fields...)
+	return mwpnuo
 }
 
 // Save executes the query and returns the updated MessageWithPackageName entity.
@@ -162,11 +174,20 @@ func (mwpnuo *MessageWithPackageNameUpdateOne) Save(ctx context.Context) (*Messa
 			return node, err
 		})
 		for i := len(mwpnuo.hooks) - 1; i >= 0; i-- {
+			if mwpnuo.hooks[i] == nil {
+				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
+			}
 			mut = mwpnuo.hooks[i](mut)
 		}
-		if _, err := mut.Mutate(ctx, mwpnuo.mutation); err != nil {
+		v, err := mut.Mutate(ctx, mwpnuo.mutation)
+		if err != nil {
 			return nil, err
 		}
+		nv, ok := v.(*MessageWithPackageName)
+		if !ok {
+			return nil, fmt.Errorf("unexpected node type %T returned from MessageWithPackageNameMutation", v)
+		}
+		node = nv
 	}
 	return node, err
 }
@@ -206,9 +227,21 @@ func (mwpnuo *MessageWithPackageNameUpdateOne) sqlSave(ctx context.Context) (_no
 	}
 	id, ok := mwpnuo.mutation.ID()
 	if !ok {
-		return nil, &ValidationError{Name: "ID", err: fmt.Errorf("missing MessageWithPackageName.ID for update")}
+		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "MessageWithPackageName.id" for update`)}
 	}
 	_spec.Node.ID.Value = id
+	if fields := mwpnuo.fields; len(fields) > 0 {
+		_spec.Node.Columns = make([]string, 0, len(fields))
+		_spec.Node.Columns = append(_spec.Node.Columns, messagewithpackagename.FieldID)
+		for _, f := range fields {
+			if !messagewithpackagename.ValidColumn(f) {
+				return nil, &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
+			}
+			if f != messagewithpackagename.FieldID {
+				_spec.Node.Columns = append(_spec.Node.Columns, f)
+			}
+		}
+	}
 	if ps := mwpnuo.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -229,8 +262,8 @@ func (mwpnuo *MessageWithPackageNameUpdateOne) sqlSave(ctx context.Context) (_no
 	if err = sqlgraph.UpdateNode(ctx, mwpnuo.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{messagewithpackagename.Label}
-		} else if cerr, ok := isSQLConstraintError(err); ok {
-			err = cerr
+		} else if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{err.Error(), err}
 		}
 		return nil, err
 	}

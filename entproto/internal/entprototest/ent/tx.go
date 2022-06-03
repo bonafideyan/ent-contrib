@@ -12,6 +12,8 @@ import (
 // Tx is a transactional client that is created by calling Client.Tx().
 type Tx struct {
 	config
+	// AllMethodsService is the client for interacting with the AllMethodsService builders.
+	AllMethodsService *AllMethodsServiceClient
 	// BlogPost is the client for interacting with the BlogPost builders.
 	BlogPost *BlogPostClient
 	// Category is the client for interacting with the Category builders.
@@ -22,6 +24,8 @@ type Tx struct {
 	DuplicateNumberMessage *DuplicateNumberMessageClient
 	// ExplicitSkippedMessage is the client for interacting with the ExplicitSkippedMessage builders.
 	ExplicitSkippedMessage *ExplicitSkippedMessageClient
+	// Image is the client for interacting with the Image builders.
+	Image *ImageClient
 	// ImplicitSkippedMessage is the client for interacting with the ImplicitSkippedMessage builders.
 	ImplicitSkippedMessage *ImplicitSkippedMessageClient
 	// InvalidFieldMessage is the client for interacting with the InvalidFieldMessage builders.
@@ -32,10 +36,22 @@ type Tx struct {
 	MessageWithFieldOne *MessageWithFieldOneClient
 	// MessageWithID is the client for interacting with the MessageWithID builders.
 	MessageWithID *MessageWithIDClient
+	// MessageWithOptionals is the client for interacting with the MessageWithOptionals builders.
+	MessageWithOptionals *MessageWithOptionalsClient
 	// MessageWithPackageName is the client for interacting with the MessageWithPackageName builders.
 	MessageWithPackageName *MessageWithPackageNameClient
+	// MessageWithStrings is the client for interacting with the MessageWithStrings builders.
+	MessageWithStrings *MessageWithStringsClient
+	// NoBackref is the client for interacting with the NoBackref builders.
+	NoBackref *NoBackrefClient
+	// OneMethodService is the client for interacting with the OneMethodService builders.
+	OneMethodService *OneMethodServiceClient
 	// Portal is the client for interacting with the Portal builders.
 	Portal *PortalClient
+	// SkipEdgeExample is the client for interacting with the SkipEdgeExample builders.
+	SkipEdgeExample *SkipEdgeExampleClient
+	// TwoMethodService is the client for interacting with the TwoMethodService builders.
+	TwoMethodService *TwoMethodServiceClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 	// ValidMessage is the client for interacting with the ValidMessage builders.
@@ -56,7 +72,7 @@ type Tx struct {
 }
 
 type (
-	// Committer is the interface that wraps the Committer method.
+	// Committer is the interface that wraps the Commit method.
 	Committer interface {
 		Commit(context.Context, *Tx) error
 	}
@@ -70,7 +86,7 @@ type (
 	// and returns a Committer. For example:
 	//
 	//	hook := func(next ent.Committer) ent.Committer {
-	//		return ent.CommitFunc(func(context.Context, tx *ent.Tx) error {
+	//		return ent.CommitFunc(func(ctx context.Context, tx *ent.Tx) error {
 	//			// Do some stuff before.
 	//			if err := next.Commit(ctx, tx); err != nil {
 	//				return err
@@ -111,7 +127,7 @@ func (tx *Tx) OnCommit(f CommitHook) {
 }
 
 type (
-	// Rollbacker is the interface that wraps the Rollbacker method.
+	// Rollbacker is the interface that wraps the Rollback method.
 	Rollbacker interface {
 		Rollback(context.Context, *Tx) error
 	}
@@ -125,7 +141,7 @@ type (
 	// and returns a Rollbacker. For example:
 	//
 	//	hook := func(next ent.Rollbacker) ent.Rollbacker {
-	//		return ent.RollbackFunc(func(context.Context, tx *ent.Tx) error {
+	//		return ent.RollbackFunc(func(ctx context.Context, tx *ent.Tx) error {
 	//			// Do some stuff before.
 	//			if err := next.Rollback(ctx, tx); err != nil {
 	//				return err
@@ -175,18 +191,26 @@ func (tx *Tx) Client() *Client {
 }
 
 func (tx *Tx) init() {
+	tx.AllMethodsService = NewAllMethodsServiceClient(tx.config)
 	tx.BlogPost = NewBlogPostClient(tx.config)
 	tx.Category = NewCategoryClient(tx.config)
 	tx.DependsOnSkipped = NewDependsOnSkippedClient(tx.config)
 	tx.DuplicateNumberMessage = NewDuplicateNumberMessageClient(tx.config)
 	tx.ExplicitSkippedMessage = NewExplicitSkippedMessageClient(tx.config)
+	tx.Image = NewImageClient(tx.config)
 	tx.ImplicitSkippedMessage = NewImplicitSkippedMessageClient(tx.config)
 	tx.InvalidFieldMessage = NewInvalidFieldMessageClient(tx.config)
 	tx.MessageWithEnum = NewMessageWithEnumClient(tx.config)
 	tx.MessageWithFieldOne = NewMessageWithFieldOneClient(tx.config)
 	tx.MessageWithID = NewMessageWithIDClient(tx.config)
+	tx.MessageWithOptionals = NewMessageWithOptionalsClient(tx.config)
 	tx.MessageWithPackageName = NewMessageWithPackageNameClient(tx.config)
+	tx.MessageWithStrings = NewMessageWithStringsClient(tx.config)
+	tx.NoBackref = NewNoBackrefClient(tx.config)
+	tx.OneMethodService = NewOneMethodServiceClient(tx.config)
 	tx.Portal = NewPortalClient(tx.config)
+	tx.SkipEdgeExample = NewSkipEdgeExampleClient(tx.config)
+	tx.TwoMethodService = NewTwoMethodServiceClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 	tx.ValidMessage = NewValidMessageClient(tx.config)
 }
@@ -198,7 +222,7 @@ func (tx *Tx) init() {
 // of them in order to commit or rollback the transaction.
 //
 // If a closed transaction is embedded in one of the generated entities, and the entity
-// applies a query, for example: BlogPost.QueryXXX(), the query will be executed
+// applies a query, for example: AllMethodsService.QueryXXX(), the query will be executed
 // through the driver which created this transaction.
 //
 // Note that txDriver is not goroutine safe.

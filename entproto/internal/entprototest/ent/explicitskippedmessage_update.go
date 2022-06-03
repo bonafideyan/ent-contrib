@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"entgo.io/contrib/entproto/internal/entprototest/ent/explicitskippedmessage"
@@ -20,9 +21,9 @@ type ExplicitSkippedMessageUpdate struct {
 	mutation *ExplicitSkippedMessageMutation
 }
 
-// Where adds a new predicate for the ExplicitSkippedMessageUpdate builder.
+// Where appends a list predicates to the ExplicitSkippedMessageUpdate builder.
 func (esmu *ExplicitSkippedMessageUpdate) Where(ps ...predicate.ExplicitSkippedMessage) *ExplicitSkippedMessageUpdate {
-	esmu.mutation.predicates = append(esmu.mutation.predicates, ps...)
+	esmu.mutation.Where(ps...)
 	return esmu
 }
 
@@ -51,6 +52,9 @@ func (esmu *ExplicitSkippedMessageUpdate) Save(ctx context.Context) (int, error)
 			return affected, err
 		})
 		for i := len(esmu.hooks) - 1; i >= 0; i-- {
+			if esmu.hooks[i] == nil {
+				return 0, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
+			}
 			mut = esmu.hooks[i](mut)
 		}
 		if _, err := mut.Mutate(ctx, esmu.mutation); err != nil {
@@ -103,8 +107,8 @@ func (esmu *ExplicitSkippedMessageUpdate) sqlSave(ctx context.Context) (n int, e
 	if n, err = sqlgraph.UpdateNodes(ctx, esmu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{explicitskippedmessage.Label}
-		} else if cerr, ok := isSQLConstraintError(err); ok {
-			err = cerr
+		} else if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{err.Error(), err}
 		}
 		return 0, err
 	}
@@ -114,6 +118,7 @@ func (esmu *ExplicitSkippedMessageUpdate) sqlSave(ctx context.Context) (n int, e
 // ExplicitSkippedMessageUpdateOne is the builder for updating a single ExplicitSkippedMessage entity.
 type ExplicitSkippedMessageUpdateOne struct {
 	config
+	fields   []string
 	hooks    []Hook
 	mutation *ExplicitSkippedMessageMutation
 }
@@ -121,6 +126,13 @@ type ExplicitSkippedMessageUpdateOne struct {
 // Mutation returns the ExplicitSkippedMessageMutation object of the builder.
 func (esmuo *ExplicitSkippedMessageUpdateOne) Mutation() *ExplicitSkippedMessageMutation {
 	return esmuo.mutation
+}
+
+// Select allows selecting one or more fields (columns) of the returned entity.
+// The default is selecting all fields defined in the entity schema.
+func (esmuo *ExplicitSkippedMessageUpdateOne) Select(field string, fields ...string) *ExplicitSkippedMessageUpdateOne {
+	esmuo.fields = append([]string{field}, fields...)
+	return esmuo
 }
 
 // Save executes the query and returns the updated ExplicitSkippedMessage entity.
@@ -143,11 +155,20 @@ func (esmuo *ExplicitSkippedMessageUpdateOne) Save(ctx context.Context) (*Explic
 			return node, err
 		})
 		for i := len(esmuo.hooks) - 1; i >= 0; i-- {
+			if esmuo.hooks[i] == nil {
+				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
+			}
 			mut = esmuo.hooks[i](mut)
 		}
-		if _, err := mut.Mutate(ctx, esmuo.mutation); err != nil {
+		v, err := mut.Mutate(ctx, esmuo.mutation)
+		if err != nil {
 			return nil, err
 		}
+		nv, ok := v.(*ExplicitSkippedMessage)
+		if !ok {
+			return nil, fmt.Errorf("unexpected node type %T returned from ExplicitSkippedMessageMutation", v)
+		}
+		node = nv
 	}
 	return node, err
 }
@@ -187,9 +208,21 @@ func (esmuo *ExplicitSkippedMessageUpdateOne) sqlSave(ctx context.Context) (_nod
 	}
 	id, ok := esmuo.mutation.ID()
 	if !ok {
-		return nil, &ValidationError{Name: "ID", err: fmt.Errorf("missing ExplicitSkippedMessage.ID for update")}
+		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "ExplicitSkippedMessage.id" for update`)}
 	}
 	_spec.Node.ID.Value = id
+	if fields := esmuo.fields; len(fields) > 0 {
+		_spec.Node.Columns = make([]string, 0, len(fields))
+		_spec.Node.Columns = append(_spec.Node.Columns, explicitskippedmessage.FieldID)
+		for _, f := range fields {
+			if !explicitskippedmessage.ValidColumn(f) {
+				return nil, &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
+			}
+			if f != explicitskippedmessage.FieldID {
+				_spec.Node.Columns = append(_spec.Node.Columns, f)
+			}
+		}
+	}
 	if ps := esmuo.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -203,8 +236,8 @@ func (esmuo *ExplicitSkippedMessageUpdateOne) sqlSave(ctx context.Context) (_nod
 	if err = sqlgraph.UpdateNode(ctx, esmuo.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{explicitskippedmessage.Label}
-		} else if cerr, ok := isSQLConstraintError(err); ok {
-			err = cerr
+		} else if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{err.Error(), err}
 		}
 		return nil, err
 	}

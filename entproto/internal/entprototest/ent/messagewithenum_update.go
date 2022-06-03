@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"entgo.io/contrib/entproto/internal/entprototest/ent/messagewithenum"
@@ -20,9 +21,9 @@ type MessageWithEnumUpdate struct {
 	mutation *MessageWithEnumMutation
 }
 
-// Where adds a new predicate for the MessageWithEnumUpdate builder.
+// Where appends a list predicates to the MessageWithEnumUpdate builder.
 func (mweu *MessageWithEnumUpdate) Where(ps ...predicate.MessageWithEnum) *MessageWithEnumUpdate {
-	mweu.mutation.predicates = append(mweu.mutation.predicates, ps...)
+	mweu.mutation.Where(ps...)
 	return mweu
 }
 
@@ -77,6 +78,9 @@ func (mweu *MessageWithEnumUpdate) Save(ctx context.Context) (int, error) {
 			return affected, err
 		})
 		for i := len(mweu.hooks) - 1; i >= 0; i-- {
+			if mweu.hooks[i] == nil {
+				return 0, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
+			}
 			mut = mweu.hooks[i](mut)
 		}
 		if _, err := mut.Mutate(ctx, mweu.mutation); err != nil {
@@ -112,12 +116,12 @@ func (mweu *MessageWithEnumUpdate) ExecX(ctx context.Context) {
 func (mweu *MessageWithEnumUpdate) check() error {
 	if v, ok := mweu.mutation.EnumType(); ok {
 		if err := messagewithenum.EnumTypeValidator(v); err != nil {
-			return &ValidationError{Name: "enum_type", err: fmt.Errorf("ent: validator failed for field \"enum_type\": %w", err)}
+			return &ValidationError{Name: "enum_type", err: fmt.Errorf(`ent: validator failed for field "MessageWithEnum.enum_type": %w`, err)}
 		}
 	}
 	if v, ok := mweu.mutation.EnumWithoutDefault(); ok {
 		if err := messagewithenum.EnumWithoutDefaultValidator(v); err != nil {
-			return &ValidationError{Name: "enum_without_default", err: fmt.Errorf("ent: validator failed for field \"enum_without_default\": %w", err)}
+			return &ValidationError{Name: "enum_without_default", err: fmt.Errorf(`ent: validator failed for field "MessageWithEnum.enum_without_default": %w`, err)}
 		}
 	}
 	return nil
@@ -158,8 +162,8 @@ func (mweu *MessageWithEnumUpdate) sqlSave(ctx context.Context) (n int, err erro
 	if n, err = sqlgraph.UpdateNodes(ctx, mweu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{messagewithenum.Label}
-		} else if cerr, ok := isSQLConstraintError(err); ok {
-			err = cerr
+		} else if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{err.Error(), err}
 		}
 		return 0, err
 	}
@@ -169,6 +173,7 @@ func (mweu *MessageWithEnumUpdate) sqlSave(ctx context.Context) (n int, err erro
 // MessageWithEnumUpdateOne is the builder for updating a single MessageWithEnum entity.
 type MessageWithEnumUpdateOne struct {
 	config
+	fields   []string
 	hooks    []Hook
 	mutation *MessageWithEnumMutation
 }
@@ -198,6 +203,13 @@ func (mweuo *MessageWithEnumUpdateOne) Mutation() *MessageWithEnumMutation {
 	return mweuo.mutation
 }
 
+// Select allows selecting one or more fields (columns) of the returned entity.
+// The default is selecting all fields defined in the entity schema.
+func (mweuo *MessageWithEnumUpdateOne) Select(field string, fields ...string) *MessageWithEnumUpdateOne {
+	mweuo.fields = append([]string{field}, fields...)
+	return mweuo
+}
+
 // Save executes the query and returns the updated MessageWithEnum entity.
 func (mweuo *MessageWithEnumUpdateOne) Save(ctx context.Context) (*MessageWithEnum, error) {
 	var (
@@ -224,11 +236,20 @@ func (mweuo *MessageWithEnumUpdateOne) Save(ctx context.Context) (*MessageWithEn
 			return node, err
 		})
 		for i := len(mweuo.hooks) - 1; i >= 0; i-- {
+			if mweuo.hooks[i] == nil {
+				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
+			}
 			mut = mweuo.hooks[i](mut)
 		}
-		if _, err := mut.Mutate(ctx, mweuo.mutation); err != nil {
+		v, err := mut.Mutate(ctx, mweuo.mutation)
+		if err != nil {
 			return nil, err
 		}
+		nv, ok := v.(*MessageWithEnum)
+		if !ok {
+			return nil, fmt.Errorf("unexpected node type %T returned from MessageWithEnumMutation", v)
+		}
+		node = nv
 	}
 	return node, err
 }
@@ -259,12 +280,12 @@ func (mweuo *MessageWithEnumUpdateOne) ExecX(ctx context.Context) {
 func (mweuo *MessageWithEnumUpdateOne) check() error {
 	if v, ok := mweuo.mutation.EnumType(); ok {
 		if err := messagewithenum.EnumTypeValidator(v); err != nil {
-			return &ValidationError{Name: "enum_type", err: fmt.Errorf("ent: validator failed for field \"enum_type\": %w", err)}
+			return &ValidationError{Name: "enum_type", err: fmt.Errorf(`ent: validator failed for field "MessageWithEnum.enum_type": %w`, err)}
 		}
 	}
 	if v, ok := mweuo.mutation.EnumWithoutDefault(); ok {
 		if err := messagewithenum.EnumWithoutDefaultValidator(v); err != nil {
-			return &ValidationError{Name: "enum_without_default", err: fmt.Errorf("ent: validator failed for field \"enum_without_default\": %w", err)}
+			return &ValidationError{Name: "enum_without_default", err: fmt.Errorf(`ent: validator failed for field "MessageWithEnum.enum_without_default": %w`, err)}
 		}
 	}
 	return nil
@@ -283,9 +304,21 @@ func (mweuo *MessageWithEnumUpdateOne) sqlSave(ctx context.Context) (_node *Mess
 	}
 	id, ok := mweuo.mutation.ID()
 	if !ok {
-		return nil, &ValidationError{Name: "ID", err: fmt.Errorf("missing MessageWithEnum.ID for update")}
+		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "MessageWithEnum.id" for update`)}
 	}
 	_spec.Node.ID.Value = id
+	if fields := mweuo.fields; len(fields) > 0 {
+		_spec.Node.Columns = make([]string, 0, len(fields))
+		_spec.Node.Columns = append(_spec.Node.Columns, messagewithenum.FieldID)
+		for _, f := range fields {
+			if !messagewithenum.ValidColumn(f) {
+				return nil, &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
+			}
+			if f != messagewithenum.FieldID {
+				_spec.Node.Columns = append(_spec.Node.Columns, f)
+			}
+		}
+	}
 	if ps := mweuo.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -313,8 +346,8 @@ func (mweuo *MessageWithEnumUpdateOne) sqlSave(ctx context.Context) (_node *Mess
 	if err = sqlgraph.UpdateNode(ctx, mweuo.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{messagewithenum.Label}
-		} else if cerr, ok := isSQLConstraintError(err); ok {
-			err = cerr
+		} else if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{err.Error(), err}
 		}
 		return nil, err
 	}

@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"entgo.io/contrib/entproto/internal/entprototest/ent/dependsonskipped"
@@ -21,9 +22,9 @@ type DependsOnSkippedUpdate struct {
 	mutation *DependsOnSkippedMutation
 }
 
-// Where adds a new predicate for the DependsOnSkippedUpdate builder.
+// Where appends a list predicates to the DependsOnSkippedUpdate builder.
 func (dosu *DependsOnSkippedUpdate) Where(ps ...predicate.DependsOnSkipped) *DependsOnSkippedUpdate {
-	dosu.mutation.predicates = append(dosu.mutation.predicates, ps...)
+	dosu.mutation.Where(ps...)
 	return dosu
 }
 
@@ -94,6 +95,9 @@ func (dosu *DependsOnSkippedUpdate) Save(ctx context.Context) (int, error) {
 			return affected, err
 		})
 		for i := len(dosu.hooks) - 1; i >= 0; i-- {
+			if dosu.hooks[i] == nil {
+				return 0, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
+			}
 			mut = dosu.hooks[i](mut)
 		}
 		if _, err := mut.Mutate(ctx, dosu.mutation); err != nil {
@@ -207,8 +211,8 @@ func (dosu *DependsOnSkippedUpdate) sqlSave(ctx context.Context) (n int, err err
 	if n, err = sqlgraph.UpdateNodes(ctx, dosu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{dependsonskipped.Label}
-		} else if cerr, ok := isSQLConstraintError(err); ok {
-			err = cerr
+		} else if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{err.Error(), err}
 		}
 		return 0, err
 	}
@@ -218,6 +222,7 @@ func (dosu *DependsOnSkippedUpdate) sqlSave(ctx context.Context) (n int, err err
 // DependsOnSkippedUpdateOne is the builder for updating a single DependsOnSkipped entity.
 type DependsOnSkippedUpdateOne struct {
 	config
+	fields   []string
 	hooks    []Hook
 	mutation *DependsOnSkippedMutation
 }
@@ -269,6 +274,13 @@ func (dosuo *DependsOnSkippedUpdateOne) RemoveSkipped(i ...*ImplicitSkippedMessa
 	return dosuo.RemoveSkippedIDs(ids...)
 }
 
+// Select allows selecting one or more fields (columns) of the returned entity.
+// The default is selecting all fields defined in the entity schema.
+func (dosuo *DependsOnSkippedUpdateOne) Select(field string, fields ...string) *DependsOnSkippedUpdateOne {
+	dosuo.fields = append([]string{field}, fields...)
+	return dosuo
+}
+
 // Save executes the query and returns the updated DependsOnSkipped entity.
 func (dosuo *DependsOnSkippedUpdateOne) Save(ctx context.Context) (*DependsOnSkipped, error) {
 	var (
@@ -289,11 +301,20 @@ func (dosuo *DependsOnSkippedUpdateOne) Save(ctx context.Context) (*DependsOnSki
 			return node, err
 		})
 		for i := len(dosuo.hooks) - 1; i >= 0; i-- {
+			if dosuo.hooks[i] == nil {
+				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
+			}
 			mut = dosuo.hooks[i](mut)
 		}
-		if _, err := mut.Mutate(ctx, dosuo.mutation); err != nil {
+		v, err := mut.Mutate(ctx, dosuo.mutation)
+		if err != nil {
 			return nil, err
 		}
+		nv, ok := v.(*DependsOnSkipped)
+		if !ok {
+			return nil, fmt.Errorf("unexpected node type %T returned from DependsOnSkippedMutation", v)
+		}
+		node = nv
 	}
 	return node, err
 }
@@ -333,9 +354,21 @@ func (dosuo *DependsOnSkippedUpdateOne) sqlSave(ctx context.Context) (_node *Dep
 	}
 	id, ok := dosuo.mutation.ID()
 	if !ok {
-		return nil, &ValidationError{Name: "ID", err: fmt.Errorf("missing DependsOnSkipped.ID for update")}
+		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "DependsOnSkipped.id" for update`)}
 	}
 	_spec.Node.ID.Value = id
+	if fields := dosuo.fields; len(fields) > 0 {
+		_spec.Node.Columns = make([]string, 0, len(fields))
+		_spec.Node.Columns = append(_spec.Node.Columns, dependsonskipped.FieldID)
+		for _, f := range fields {
+			if !dependsonskipped.ValidColumn(f) {
+				return nil, &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
+			}
+			if f != dependsonskipped.FieldID {
+				_spec.Node.Columns = append(_spec.Node.Columns, f)
+			}
+		}
+	}
 	if ps := dosuo.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -410,8 +443,8 @@ func (dosuo *DependsOnSkippedUpdateOne) sqlSave(ctx context.Context) (_node *Dep
 	if err = sqlgraph.UpdateNode(ctx, dosuo.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{dependsonskipped.Label}
-		} else if cerr, ok := isSQLConstraintError(err); ok {
-			err = cerr
+		} else if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{err.Error(), err}
 		}
 		return nil, err
 	}

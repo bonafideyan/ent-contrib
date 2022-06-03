@@ -4,16 +4,20 @@ package ent
 
 import (
 	"context"
-	"errors"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
+	"entgo.io/contrib/entproto/internal/todo/ent/attachment"
 	"entgo.io/contrib/entproto/internal/todo/ent/group"
+	"entgo.io/contrib/entproto/internal/todo/ent/pet"
 	"entgo.io/contrib/entproto/internal/todo/ent/predicate"
+	"entgo.io/contrib/entproto/internal/todo/ent/skipedgeexample"
 	"entgo.io/contrib/entproto/internal/todo/ent/user"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/google/uuid"
 )
 
 // UserQuery is the builder for querying User entities.
@@ -21,12 +25,17 @@ type UserQuery struct {
 	config
 	limit      *int
 	offset     *int
+	unique     *bool
 	order      []OrderFunc
 	fields     []string
 	predicates []predicate.User
 	// eager-loading edges.
-	withGroup *GroupQuery
-	withFKs   bool
+	withGroup      *GroupQuery
+	withAttachment *AttachmentQuery
+	withReceived1  *AttachmentQuery
+	withPet        *PetQuery
+	withSkipEdge   *SkipEdgeExampleQuery
+	withFKs        bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -47,6 +56,13 @@ func (uq *UserQuery) Limit(limit int) *UserQuery {
 // Offset adds an offset step to the query.
 func (uq *UserQuery) Offset(offset int) *UserQuery {
 	uq.offset = &offset
+	return uq
+}
+
+// Unique configures the query builder to filter duplicate records on query.
+// By default, unique is set to true, and can be disabled using this method.
+func (uq *UserQuery) Unique(unique bool) *UserQuery {
+	uq.unique = &unique
 	return uq
 }
 
@@ -71,6 +87,94 @@ func (uq *UserQuery) QueryGroup() *GroupQuery {
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(group.Table, group.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, false, user.GroupTable, user.GroupColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(uq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryAttachment chains the current query on the "attachment" edge.
+func (uq *UserQuery) QueryAttachment() *AttachmentQuery {
+	query := &AttachmentQuery{config: uq.config}
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := uq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := uq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(attachment.Table, attachment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, user.AttachmentTable, user.AttachmentColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(uq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryReceived1 chains the current query on the "received_1" edge.
+func (uq *UserQuery) QueryReceived1() *AttachmentQuery {
+	query := &AttachmentQuery{config: uq.config}
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := uq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := uq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(attachment.Table, attachment.FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, true, user.Received1Table, user.Received1PrimaryKey...),
+		)
+		fromU = sqlgraph.SetNeighbors(uq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryPet chains the current query on the "pet" edge.
+func (uq *UserQuery) QueryPet() *PetQuery {
+	query := &PetQuery{config: uq.config}
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := uq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := uq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(pet.Table, pet.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, user.PetTable, user.PetColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(uq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QuerySkipEdge chains the current query on the "skip_edge" edge.
+func (uq *UserQuery) QuerySkipEdge() *SkipEdgeExampleQuery {
+	query := &SkipEdgeExampleQuery{config: uq.config}
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := uq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := uq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(skipedgeexample.Table, skipedgeexample.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, user.SkipEdgeTable, user.SkipEdgeColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(uq.driver.Dialect(), step)
 		return fromU, nil
@@ -124,7 +228,7 @@ func (uq *UserQuery) FirstIDX(ctx context.Context) int {
 }
 
 // Only returns a single User entity found by the query, ensuring it only returns one.
-// Returns a *NotSingularError when exactly one User entity is not found.
+// Returns a *NotSingularError when more than one User entity is found.
 // Returns a *NotFoundError when no User entities are found.
 func (uq *UserQuery) Only(ctx context.Context) (*User, error) {
 	nodes, err := uq.Limit(2).All(ctx)
@@ -151,7 +255,7 @@ func (uq *UserQuery) OnlyX(ctx context.Context) *User {
 }
 
 // OnlyID is like Only, but returns the only User ID in the query.
-// Returns a *NotSingularError when exactly one User ID is not found.
+// Returns a *NotSingularError when more than one User ID is found.
 // Returns a *NotFoundError when no entities are found.
 func (uq *UserQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
@@ -254,15 +358,20 @@ func (uq *UserQuery) Clone() *UserQuery {
 		return nil
 	}
 	return &UserQuery{
-		config:     uq.config,
-		limit:      uq.limit,
-		offset:     uq.offset,
-		order:      append([]OrderFunc{}, uq.order...),
-		predicates: append([]predicate.User{}, uq.predicates...),
-		withGroup:  uq.withGroup.Clone(),
+		config:         uq.config,
+		limit:          uq.limit,
+		offset:         uq.offset,
+		order:          append([]OrderFunc{}, uq.order...),
+		predicates:     append([]predicate.User{}, uq.predicates...),
+		withGroup:      uq.withGroup.Clone(),
+		withAttachment: uq.withAttachment.Clone(),
+		withReceived1:  uq.withReceived1.Clone(),
+		withPet:        uq.withPet.Clone(),
+		withSkipEdge:   uq.withSkipEdge.Clone(),
 		// clone intermediate query.
-		sql:  uq.sql.Clone(),
-		path: uq.path,
+		sql:    uq.sql.Clone(),
+		path:   uq.path,
+		unique: uq.unique,
 	}
 }
 
@@ -274,6 +383,50 @@ func (uq *UserQuery) WithGroup(opts ...func(*GroupQuery)) *UserQuery {
 		opt(query)
 	}
 	uq.withGroup = query
+	return uq
+}
+
+// WithAttachment tells the query-builder to eager-load the nodes that are connected to
+// the "attachment" edge. The optional arguments are used to configure the query builder of the edge.
+func (uq *UserQuery) WithAttachment(opts ...func(*AttachmentQuery)) *UserQuery {
+	query := &AttachmentQuery{config: uq.config}
+	for _, opt := range opts {
+		opt(query)
+	}
+	uq.withAttachment = query
+	return uq
+}
+
+// WithReceived1 tells the query-builder to eager-load the nodes that are connected to
+// the "received_1" edge. The optional arguments are used to configure the query builder of the edge.
+func (uq *UserQuery) WithReceived1(opts ...func(*AttachmentQuery)) *UserQuery {
+	query := &AttachmentQuery{config: uq.config}
+	for _, opt := range opts {
+		opt(query)
+	}
+	uq.withReceived1 = query
+	return uq
+}
+
+// WithPet tells the query-builder to eager-load the nodes that are connected to
+// the "pet" edge. The optional arguments are used to configure the query builder of the edge.
+func (uq *UserQuery) WithPet(opts ...func(*PetQuery)) *UserQuery {
+	query := &PetQuery{config: uq.config}
+	for _, opt := range opts {
+		opt(query)
+	}
+	uq.withPet = query
+	return uq
+}
+
+// WithSkipEdge tells the query-builder to eager-load the nodes that are connected to
+// the "skip_edge" edge. The optional arguments are used to configure the query builder of the edge.
+func (uq *UserQuery) WithSkipEdge(opts ...func(*SkipEdgeExampleQuery)) *UserQuery {
+	query := &SkipEdgeExampleQuery{config: uq.config}
+	for _, opt := range opts {
+		opt(query)
+	}
+	uq.withSkipEdge = query
 	return uq
 }
 
@@ -293,15 +446,17 @@ func (uq *UserQuery) WithGroup(opts ...func(*GroupQuery)) *UserQuery {
 //		Scan(ctx, &v)
 //
 func (uq *UserQuery) GroupBy(field string, fields ...string) *UserGroupBy {
-	group := &UserGroupBy{config: uq.config}
-	group.fields = append([]string{field}, fields...)
-	group.path = func(ctx context.Context) (prev *sql.Selector, err error) {
+	grbuild := &UserGroupBy{config: uq.config}
+	grbuild.fields = append([]string{field}, fields...)
+	grbuild.path = func(ctx context.Context) (prev *sql.Selector, err error) {
 		if err := uq.prepareQuery(ctx); err != nil {
 			return nil, err
 		}
 		return uq.sqlQuery(ctx), nil
 	}
-	return group
+	grbuild.label = user.Label
+	grbuild.flds, grbuild.scan = &grbuild.fields, grbuild.Scan
+	return grbuild
 }
 
 // Select allows the selection one or more fields/columns for the given query,
@@ -317,9 +472,12 @@ func (uq *UserQuery) GroupBy(field string, fields ...string) *UserGroupBy {
 //		Select(user.FieldUserName).
 //		Scan(ctx, &v)
 //
-func (uq *UserQuery) Select(field string, fields ...string) *UserSelect {
-	uq.fields = append([]string{field}, fields...)
-	return &UserSelect{UserQuery: uq}
+func (uq *UserQuery) Select(fields ...string) *UserSelect {
+	uq.fields = append(uq.fields, fields...)
+	selbuild := &UserSelect{UserQuery: uq}
+	selbuild.label = user.Label
+	selbuild.flds, selbuild.scan = &uq.fields, selbuild.Scan
+	return selbuild
 }
 
 func (uq *UserQuery) prepareQuery(ctx context.Context) error {
@@ -338,13 +496,17 @@ func (uq *UserQuery) prepareQuery(ctx context.Context) error {
 	return nil
 }
 
-func (uq *UserQuery) sqlAll(ctx context.Context) ([]*User, error) {
+func (uq *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, error) {
 	var (
 		nodes       = []*User{}
 		withFKs     = uq.withFKs
 		_spec       = uq.querySpec()
-		loadedTypes = [1]bool{
+		loadedTypes = [5]bool{
 			uq.withGroup != nil,
+			uq.withAttachment != nil,
+			uq.withReceived1 != nil,
+			uq.withPet != nil,
+			uq.withSkipEdge != nil,
 		}
 	)
 	if uq.withGroup != nil {
@@ -354,17 +516,16 @@ func (uq *UserQuery) sqlAll(ctx context.Context) ([]*User, error) {
 		_spec.Node.Columns = append(_spec.Node.Columns, user.ForeignKeys...)
 	}
 	_spec.ScanValues = func(columns []string) ([]interface{}, error) {
-		node := &User{config: uq.config}
-		nodes = append(nodes, node)
-		return node.scanValues(columns)
+		return (*User).scanValues(nil, columns)
 	}
 	_spec.Assign = func(columns []string, values []interface{}) error {
-		if len(nodes) == 0 {
-			return fmt.Errorf("ent: Assign called without calling ScanValues")
-		}
-		node := nodes[len(nodes)-1]
+		node := &User{config: uq.config}
+		nodes = append(nodes, node)
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
+	}
+	for i := range hooks {
+		hooks[i](ctx, _spec)
 	}
 	if err := sqlgraph.QueryNodes(ctx, uq.driver, _spec); err != nil {
 		return nil, err
@@ -377,11 +538,14 @@ func (uq *UserQuery) sqlAll(ctx context.Context) ([]*User, error) {
 		ids := make([]int, 0, len(nodes))
 		nodeids := make(map[int][]*User)
 		for i := range nodes {
-			fk := nodes[i].user_group
-			if fk != nil {
-				ids = append(ids, *fk)
-				nodeids[*fk] = append(nodeids[*fk], nodes[i])
+			if nodes[i].user_group == nil {
+				continue
 			}
+			fk := *nodes[i].user_group
+			if _, ok := nodeids[fk]; !ok {
+				ids = append(ids, fk)
+			}
+			nodeids[fk] = append(nodeids[fk], nodes[i])
 		}
 		query.Where(group.IDIn(ids...))
 		neighbors, err := query.All(ctx)
@@ -399,11 +563,152 @@ func (uq *UserQuery) sqlAll(ctx context.Context) ([]*User, error) {
 		}
 	}
 
+	if query := uq.withAttachment; query != nil {
+		fks := make([]driver.Value, 0, len(nodes))
+		nodeids := make(map[int]*User)
+		for i := range nodes {
+			fks = append(fks, nodes[i].ID)
+			nodeids[nodes[i].ID] = nodes[i]
+		}
+		query.withFKs = true
+		query.Where(predicate.Attachment(func(s *sql.Selector) {
+			s.Where(sql.InValues(user.AttachmentColumn, fks...))
+		}))
+		neighbors, err := query.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, n := range neighbors {
+			fk := n.user_attachment
+			if fk == nil {
+				return nil, fmt.Errorf(`foreign-key "user_attachment" is nil for node %v`, n.ID)
+			}
+			node, ok := nodeids[*fk]
+			if !ok {
+				return nil, fmt.Errorf(`unexpected foreign-key "user_attachment" returned %v for node %v`, *fk, n.ID)
+			}
+			node.Edges.Attachment = n
+		}
+	}
+
+	if query := uq.withReceived1; query != nil {
+		edgeids := make([]driver.Value, len(nodes))
+		byid := make(map[int]*User)
+		nids := make(map[uuid.UUID]map[*User]struct{})
+		for i, node := range nodes {
+			edgeids[i] = node.ID
+			byid[node.ID] = node
+			node.Edges.Received1 = []*Attachment{}
+		}
+		query.Where(func(s *sql.Selector) {
+			joinT := sql.Table(user.Received1Table)
+			s.Join(joinT).On(s.C(attachment.FieldID), joinT.C(user.Received1PrimaryKey[0]))
+			s.Where(sql.InValues(joinT.C(user.Received1PrimaryKey[1]), edgeids...))
+			columns := s.SelectedColumns()
+			s.Select(joinT.C(user.Received1PrimaryKey[1]))
+			s.AppendSelect(columns...)
+			s.SetDistinct(false)
+		})
+		neighbors, err := query.sqlAll(ctx, func(_ context.Context, spec *sqlgraph.QuerySpec) {
+			assign := spec.Assign
+			values := spec.ScanValues
+			spec.ScanValues = func(columns []string) ([]interface{}, error) {
+				values, err := values(columns[1:])
+				if err != nil {
+					return nil, err
+				}
+				return append([]interface{}{new(sql.NullInt64)}, values...), nil
+			}
+			spec.Assign = func(columns []string, values []interface{}) error {
+				outValue := int(values[0].(*sql.NullInt64).Int64)
+				inValue := *values[1].(*uuid.UUID)
+				if nids[inValue] == nil {
+					nids[inValue] = map[*User]struct{}{byid[outValue]: struct{}{}}
+					return assign(columns[1:], values[1:])
+				}
+				nids[inValue][byid[outValue]] = struct{}{}
+				return nil
+			}
+		})
+		if err != nil {
+			return nil, err
+		}
+		for _, n := range neighbors {
+			nodes, ok := nids[n.ID]
+			if !ok {
+				return nil, fmt.Errorf(`unexpected "received_1" node returned %v`, n.ID)
+			}
+			for kn := range nodes {
+				kn.Edges.Received1 = append(kn.Edges.Received1, n)
+			}
+		}
+	}
+
+	if query := uq.withPet; query != nil {
+		fks := make([]driver.Value, 0, len(nodes))
+		nodeids := make(map[int]*User)
+		for i := range nodes {
+			fks = append(fks, nodes[i].ID)
+			nodeids[nodes[i].ID] = nodes[i]
+		}
+		query.withFKs = true
+		query.Where(predicate.Pet(func(s *sql.Selector) {
+			s.Where(sql.InValues(user.PetColumn, fks...))
+		}))
+		neighbors, err := query.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, n := range neighbors {
+			fk := n.user_pet
+			if fk == nil {
+				return nil, fmt.Errorf(`foreign-key "user_pet" is nil for node %v`, n.ID)
+			}
+			node, ok := nodeids[*fk]
+			if !ok {
+				return nil, fmt.Errorf(`unexpected foreign-key "user_pet" returned %v for node %v`, *fk, n.ID)
+			}
+			node.Edges.Pet = n
+		}
+	}
+
+	if query := uq.withSkipEdge; query != nil {
+		fks := make([]driver.Value, 0, len(nodes))
+		nodeids := make(map[int]*User)
+		for i := range nodes {
+			fks = append(fks, nodes[i].ID)
+			nodeids[nodes[i].ID] = nodes[i]
+		}
+		query.withFKs = true
+		query.Where(predicate.SkipEdgeExample(func(s *sql.Selector) {
+			s.Where(sql.InValues(user.SkipEdgeColumn, fks...))
+		}))
+		neighbors, err := query.All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, n := range neighbors {
+			fk := n.user_skip_edge
+			if fk == nil {
+				return nil, fmt.Errorf(`foreign-key "user_skip_edge" is nil for node %v`, n.ID)
+			}
+			node, ok := nodeids[*fk]
+			if !ok {
+				return nil, fmt.Errorf(`unexpected foreign-key "user_skip_edge" returned %v for node %v`, *fk, n.ID)
+			}
+			node.Edges.SkipEdge = n
+		}
+	}
+
 	return nodes, nil
 }
 
 func (uq *UserQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := uq.querySpec()
+	_spec.Node.Columns = uq.fields
+	if len(uq.fields) > 0 {
+		_spec.Unique = uq.unique != nil && *uq.unique
+	}
 	return sqlgraph.CountNodes(ctx, uq.driver, _spec)
 }
 
@@ -427,6 +732,9 @@ func (uq *UserQuery) querySpec() *sqlgraph.QuerySpec {
 		},
 		From:   uq.sql,
 		Unique: true,
+	}
+	if unique := uq.unique; unique != nil {
+		_spec.Unique = *unique
 	}
 	if fields := uq.fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
@@ -453,7 +761,7 @@ func (uq *UserQuery) querySpec() *sqlgraph.QuerySpec {
 	if ps := uq.order; len(ps) > 0 {
 		_spec.Order = func(selector *sql.Selector) {
 			for i := range ps {
-				ps[i](selector, user.ValidColumn)
+				ps[i](selector)
 			}
 		}
 	}
@@ -463,16 +771,23 @@ func (uq *UserQuery) querySpec() *sqlgraph.QuerySpec {
 func (uq *UserQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(uq.driver.Dialect())
 	t1 := builder.Table(user.Table)
-	selector := builder.Select(t1.Columns(user.Columns...)...).From(t1)
+	columns := uq.fields
+	if len(columns) == 0 {
+		columns = user.Columns
+	}
+	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if uq.sql != nil {
 		selector = uq.sql
-		selector.Select(selector.Columns(user.Columns...)...)
+		selector.Select(selector.Columns(columns...)...)
+	}
+	if uq.unique != nil && *uq.unique {
+		selector.Distinct()
 	}
 	for _, p := range uq.predicates {
 		p(selector)
 	}
 	for _, p := range uq.order {
-		p(selector, user.ValidColumn)
+		p(selector)
 	}
 	if offset := uq.offset; offset != nil {
 		// limit is mandatory for offset clause. We start
@@ -488,6 +803,7 @@ func (uq *UserQuery) sqlQuery(ctx context.Context) *sql.Selector {
 // UserGroupBy is the group-by builder for User entities.
 type UserGroupBy struct {
 	config
+	selector
 	fields []string
 	fns    []AggregateFunc
 	// intermediate query (i.e. traversal path).
@@ -511,209 +827,6 @@ func (ugb *UserGroupBy) Scan(ctx context.Context, v interface{}) error {
 	return ugb.sqlScan(ctx, v)
 }
 
-// ScanX is like Scan, but panics if an error occurs.
-func (ugb *UserGroupBy) ScanX(ctx context.Context, v interface{}) {
-	if err := ugb.Scan(ctx, v); err != nil {
-		panic(err)
-	}
-}
-
-// Strings returns list of strings from group-by.
-// It is only allowed when executing a group-by query with one field.
-func (ugb *UserGroupBy) Strings(ctx context.Context) ([]string, error) {
-	if len(ugb.fields) > 1 {
-		return nil, errors.New("ent: UserGroupBy.Strings is not achievable when grouping more than 1 field")
-	}
-	var v []string
-	if err := ugb.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// StringsX is like Strings, but panics if an error occurs.
-func (ugb *UserGroupBy) StringsX(ctx context.Context) []string {
-	v, err := ugb.Strings(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// String returns a single string from a group-by query.
-// It is only allowed when executing a group-by query with one field.
-func (ugb *UserGroupBy) String(ctx context.Context) (_ string, err error) {
-	var v []string
-	if v, err = ugb.Strings(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{user.Label}
-	default:
-		err = fmt.Errorf("ent: UserGroupBy.Strings returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// StringX is like String, but panics if an error occurs.
-func (ugb *UserGroupBy) StringX(ctx context.Context) string {
-	v, err := ugb.String(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Ints returns list of ints from group-by.
-// It is only allowed when executing a group-by query with one field.
-func (ugb *UserGroupBy) Ints(ctx context.Context) ([]int, error) {
-	if len(ugb.fields) > 1 {
-		return nil, errors.New("ent: UserGroupBy.Ints is not achievable when grouping more than 1 field")
-	}
-	var v []int
-	if err := ugb.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// IntsX is like Ints, but panics if an error occurs.
-func (ugb *UserGroupBy) IntsX(ctx context.Context) []int {
-	v, err := ugb.Ints(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Int returns a single int from a group-by query.
-// It is only allowed when executing a group-by query with one field.
-func (ugb *UserGroupBy) Int(ctx context.Context) (_ int, err error) {
-	var v []int
-	if v, err = ugb.Ints(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{user.Label}
-	default:
-		err = fmt.Errorf("ent: UserGroupBy.Ints returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// IntX is like Int, but panics if an error occurs.
-func (ugb *UserGroupBy) IntX(ctx context.Context) int {
-	v, err := ugb.Int(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Float64s returns list of float64s from group-by.
-// It is only allowed when executing a group-by query with one field.
-func (ugb *UserGroupBy) Float64s(ctx context.Context) ([]float64, error) {
-	if len(ugb.fields) > 1 {
-		return nil, errors.New("ent: UserGroupBy.Float64s is not achievable when grouping more than 1 field")
-	}
-	var v []float64
-	if err := ugb.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// Float64sX is like Float64s, but panics if an error occurs.
-func (ugb *UserGroupBy) Float64sX(ctx context.Context) []float64 {
-	v, err := ugb.Float64s(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Float64 returns a single float64 from a group-by query.
-// It is only allowed when executing a group-by query with one field.
-func (ugb *UserGroupBy) Float64(ctx context.Context) (_ float64, err error) {
-	var v []float64
-	if v, err = ugb.Float64s(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{user.Label}
-	default:
-		err = fmt.Errorf("ent: UserGroupBy.Float64s returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// Float64X is like Float64, but panics if an error occurs.
-func (ugb *UserGroupBy) Float64X(ctx context.Context) float64 {
-	v, err := ugb.Float64(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Bools returns list of bools from group-by.
-// It is only allowed when executing a group-by query with one field.
-func (ugb *UserGroupBy) Bools(ctx context.Context) ([]bool, error) {
-	if len(ugb.fields) > 1 {
-		return nil, errors.New("ent: UserGroupBy.Bools is not achievable when grouping more than 1 field")
-	}
-	var v []bool
-	if err := ugb.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// BoolsX is like Bools, but panics if an error occurs.
-func (ugb *UserGroupBy) BoolsX(ctx context.Context) []bool {
-	v, err := ugb.Bools(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Bool returns a single bool from a group-by query.
-// It is only allowed when executing a group-by query with one field.
-func (ugb *UserGroupBy) Bool(ctx context.Context) (_ bool, err error) {
-	var v []bool
-	if v, err = ugb.Bools(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{user.Label}
-	default:
-		err = fmt.Errorf("ent: UserGroupBy.Bools returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// BoolX is like Bool, but panics if an error occurs.
-func (ugb *UserGroupBy) BoolX(ctx context.Context) bool {
-	v, err := ugb.Bool(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
 func (ugb *UserGroupBy) sqlScan(ctx context.Context, v interface{}) error {
 	for _, f := range ugb.fields {
 		if !user.ValidColumn(f) {
@@ -734,18 +847,28 @@ func (ugb *UserGroupBy) sqlScan(ctx context.Context, v interface{}) error {
 }
 
 func (ugb *UserGroupBy) sqlQuery() *sql.Selector {
-	selector := ugb.sql
-	columns := make([]string, 0, len(ugb.fields)+len(ugb.fns))
-	columns = append(columns, ugb.fields...)
+	selector := ugb.sql.Select()
+	aggregation := make([]string, 0, len(ugb.fns))
 	for _, fn := range ugb.fns {
-		columns = append(columns, fn(selector, user.ValidColumn))
+		aggregation = append(aggregation, fn(selector))
 	}
-	return selector.Select(columns...).GroupBy(ugb.fields...)
+	// If no columns were selected in a custom aggregation function, the default
+	// selection is the fields used for "group-by", and the aggregation functions.
+	if len(selector.SelectedColumns()) == 0 {
+		columns := make([]string, 0, len(ugb.fields)+len(ugb.fns))
+		for _, f := range ugb.fields {
+			columns = append(columns, selector.C(f))
+		}
+		columns = append(columns, aggregation...)
+		selector.Select(columns...)
+	}
+	return selector.GroupBy(selector.Columns(ugb.fields...)...)
 }
 
 // UserSelect is the builder for selecting fields of User entities.
 type UserSelect struct {
 	*UserQuery
+	selector
 	// intermediate query (i.e. traversal path).
 	sql *sql.Selector
 }
@@ -759,213 +882,12 @@ func (us *UserSelect) Scan(ctx context.Context, v interface{}) error {
 	return us.sqlScan(ctx, v)
 }
 
-// ScanX is like Scan, but panics if an error occurs.
-func (us *UserSelect) ScanX(ctx context.Context, v interface{}) {
-	if err := us.Scan(ctx, v); err != nil {
-		panic(err)
-	}
-}
-
-// Strings returns list of strings from a selector. It is only allowed when selecting one field.
-func (us *UserSelect) Strings(ctx context.Context) ([]string, error) {
-	if len(us.fields) > 1 {
-		return nil, errors.New("ent: UserSelect.Strings is not achievable when selecting more than 1 field")
-	}
-	var v []string
-	if err := us.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// StringsX is like Strings, but panics if an error occurs.
-func (us *UserSelect) StringsX(ctx context.Context) []string {
-	v, err := us.Strings(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// String returns a single string from a selector. It is only allowed when selecting one field.
-func (us *UserSelect) String(ctx context.Context) (_ string, err error) {
-	var v []string
-	if v, err = us.Strings(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{user.Label}
-	default:
-		err = fmt.Errorf("ent: UserSelect.Strings returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// StringX is like String, but panics if an error occurs.
-func (us *UserSelect) StringX(ctx context.Context) string {
-	v, err := us.String(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Ints returns list of ints from a selector. It is only allowed when selecting one field.
-func (us *UserSelect) Ints(ctx context.Context) ([]int, error) {
-	if len(us.fields) > 1 {
-		return nil, errors.New("ent: UserSelect.Ints is not achievable when selecting more than 1 field")
-	}
-	var v []int
-	if err := us.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// IntsX is like Ints, but panics if an error occurs.
-func (us *UserSelect) IntsX(ctx context.Context) []int {
-	v, err := us.Ints(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Int returns a single int from a selector. It is only allowed when selecting one field.
-func (us *UserSelect) Int(ctx context.Context) (_ int, err error) {
-	var v []int
-	if v, err = us.Ints(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{user.Label}
-	default:
-		err = fmt.Errorf("ent: UserSelect.Ints returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// IntX is like Int, but panics if an error occurs.
-func (us *UserSelect) IntX(ctx context.Context) int {
-	v, err := us.Int(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Float64s returns list of float64s from a selector. It is only allowed when selecting one field.
-func (us *UserSelect) Float64s(ctx context.Context) ([]float64, error) {
-	if len(us.fields) > 1 {
-		return nil, errors.New("ent: UserSelect.Float64s is not achievable when selecting more than 1 field")
-	}
-	var v []float64
-	if err := us.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// Float64sX is like Float64s, but panics if an error occurs.
-func (us *UserSelect) Float64sX(ctx context.Context) []float64 {
-	v, err := us.Float64s(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Float64 returns a single float64 from a selector. It is only allowed when selecting one field.
-func (us *UserSelect) Float64(ctx context.Context) (_ float64, err error) {
-	var v []float64
-	if v, err = us.Float64s(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{user.Label}
-	default:
-		err = fmt.Errorf("ent: UserSelect.Float64s returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// Float64X is like Float64, but panics if an error occurs.
-func (us *UserSelect) Float64X(ctx context.Context) float64 {
-	v, err := us.Float64(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Bools returns list of bools from a selector. It is only allowed when selecting one field.
-func (us *UserSelect) Bools(ctx context.Context) ([]bool, error) {
-	if len(us.fields) > 1 {
-		return nil, errors.New("ent: UserSelect.Bools is not achievable when selecting more than 1 field")
-	}
-	var v []bool
-	if err := us.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// BoolsX is like Bools, but panics if an error occurs.
-func (us *UserSelect) BoolsX(ctx context.Context) []bool {
-	v, err := us.Bools(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Bool returns a single bool from a selector. It is only allowed when selecting one field.
-func (us *UserSelect) Bool(ctx context.Context) (_ bool, err error) {
-	var v []bool
-	if v, err = us.Bools(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{user.Label}
-	default:
-		err = fmt.Errorf("ent: UserSelect.Bools returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// BoolX is like Bool, but panics if an error occurs.
-func (us *UserSelect) BoolX(ctx context.Context) bool {
-	v, err := us.Bool(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
 func (us *UserSelect) sqlScan(ctx context.Context, v interface{}) error {
 	rows := &sql.Rows{}
-	query, args := us.sqlQuery().Query()
+	query, args := us.sql.Query()
 	if err := us.driver.Query(ctx, query, args, rows); err != nil {
 		return err
 	}
 	defer rows.Close()
 	return sql.ScanSlice(rows, v)
-}
-
-func (us *UserSelect) sqlQuery() sql.Querier {
-	selector := us.sql
-	selector.Select(selector.Columns(us.fields...)...)
-	return selector
 }

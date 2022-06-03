@@ -56,7 +56,7 @@ func (suite *AdapterTestSuite) TestValidMessage() {
 	suite.Equal("entgo.io/contrib/entproto/internal/entprototest/ent/proto/entpb",
 		fd.GetFileOptions().GetGoPackage())
 	message := fd.FindMessage("entpb.ValidMessage")
-	suite.Len(message.GetFields(), 3)
+	suite.Len(message.GetFields(), 6)
 
 	idField := message.FindFieldByName("id")
 	suite.NotNil(idField)
@@ -70,6 +70,17 @@ func (suite *AdapterTestSuite) TestValidMessage() {
 	suite.NotNil(nameField)
 	suite.EqualValues(3, tsField.GetNumber())
 	suite.EqualValues("google.protobuf.Timestamp", tsField.GetMessageType().GetFullyQualifiedName())
+
+	uuField := message.FindFieldByName("uuid")
+	suite.NotNil(uuField)
+
+	u8Field := message.FindFieldByName("u8")
+	suite.NotNil(u8Field)
+	suite.EqualValues(u8Field.GetType(), descriptorpb.FieldDescriptorProto_TYPE_UINT64)
+
+	opti8Field := message.FindFieldByName("opti8")
+	suite.NotNil(opti8Field)
+	suite.EqualValues("google.protobuf.Int32Value", opti8Field.GetMessageType().GetFullyQualifiedName())
 }
 
 func (suite *AdapterTestSuite) TestWktProtosDropped() {
@@ -83,14 +94,33 @@ func (suite *AdapterTestSuite) TestImplicitSkippedMessage() {
 	suite.EqualError(err, entproto.ErrSchemaSkipped.Error())
 }
 
+func (suite *AdapterTestSuite) TestMessageWithStrings() {
+	message, err := suite.adapter.GetMessageDescriptor("MessageWithStrings")
+	suite.NoError(err)
+	field := message.FindFieldByName("strings")
+	suite.Require().EqualValues(descriptorpb.FieldDescriptorProto_TYPE_STRING, field.GetType(), "expected repeated")
+	suite.Require().True(field.IsRepeated(), "expected repeated")
+}
+
 func (suite *AdapterTestSuite) TestExplicitSkippedMessage() {
 	_, err := suite.adapter.GetFileDescriptor("ExplicitSkippedMessage")
 	suite.EqualError(err, entproto.ErrSchemaSkipped.Error())
 }
 
+func (suite *AdapterTestSuite) TestSkippedFieldAndEdge() {
+	message, err := suite.adapter.GetMessageDescriptor("User")
+	suite.Require().NoError(err)
+
+	postsField := message.FindFieldByName("unnecessary")
+	suite.Require().Nil(postsField)
+
+	edgeField := message.FindFieldByName("skip_edge")
+	suite.Require().Nil(edgeField)
+}
+
 func (suite *AdapterTestSuite) TestInvalidField() {
 	_, err := suite.adapter.GetFileDescriptor("InvalidFieldMessage")
-	suite.EqualError(err, "unsupported field type \"TypeUUID\"")
+	suite.EqualError(err, "unsupported field type \"TypeJSON\"")
 }
 
 func (suite *AdapterTestSuite) TestDuplicateNumber() {
@@ -194,4 +224,37 @@ func (suite *AdapterTestSuite) TestInterpackageDep() {
 	message, err := suite.adapter.GetMessageDescriptor("Portal")
 	suite.Require().NoError(err)
 	suite.Len(message.GetFields(), 4)
+}
+
+func (suite *AdapterTestSuite) TestOptionals() {
+	message, err := suite.adapter.GetMessageDescriptor("MessageWithOptionals")
+	suite.Require().NoError(err)
+
+	intField := message.FindFieldByName("int_optional")
+	suite.Require().EqualValues(descriptorpb.FieldDescriptorProto_TYPE_MESSAGE, intField.GetType())
+	suite.Require().EqualValues("Int32Value", intField.GetMessageType().GetName())
+
+	uintField := message.FindFieldByName("uint_optional")
+	suite.Require().EqualValues(descriptorpb.FieldDescriptorProto_TYPE_MESSAGE, uintField.GetType())
+	suite.Require().EqualValues("UInt32Value", uintField.GetMessageType().GetName())
+
+	floatField := message.FindFieldByName("float_optional")
+	suite.Require().EqualValues(descriptorpb.FieldDescriptorProto_TYPE_MESSAGE, floatField.GetType())
+	suite.Require().EqualValues("FloatValue", floatField.GetMessageType().GetName())
+
+	strField := message.FindFieldByName("str_optional")
+	suite.Require().EqualValues(descriptorpb.FieldDescriptorProto_TYPE_MESSAGE, strField.GetType())
+	suite.Require().EqualValues("StringValue", strField.GetMessageType().GetName())
+
+	boolField := message.FindFieldByName("bool_optional")
+	suite.Require().EqualValues(descriptorpb.FieldDescriptorProto_TYPE_MESSAGE, boolField.GetType())
+	suite.Require().EqualValues("BoolValue", boolField.GetMessageType().GetName())
+
+	bytesField := message.FindFieldByName("bytes_optional")
+	suite.Require().EqualValues(descriptorpb.FieldDescriptorProto_TYPE_MESSAGE, bytesField.GetType())
+	suite.Require().EqualValues("BytesValue", bytesField.GetMessageType().GetName())
+
+	uuidField := message.FindFieldByName("uuid_optional")
+	suite.Require().EqualValues(descriptorpb.FieldDescriptorProto_TYPE_MESSAGE, bytesField.GetType())
+	suite.Require().EqualValues("BytesValue", uuidField.GetMessageType().GetName())
 }

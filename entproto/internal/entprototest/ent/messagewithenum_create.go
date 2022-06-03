@@ -66,16 +66,28 @@ func (mwec *MessageWithEnumCreate) Save(ctx context.Context) (*MessageWithEnum, 
 				return nil, err
 			}
 			mwec.mutation = mutation
-			node, err = mwec.sqlSave(ctx)
+			if node, err = mwec.sqlSave(ctx); err != nil {
+				return nil, err
+			}
+			mutation.id = &node.ID
 			mutation.done = true
 			return node, err
 		})
 		for i := len(mwec.hooks) - 1; i >= 0; i-- {
+			if mwec.hooks[i] == nil {
+				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
+			}
 			mut = mwec.hooks[i](mut)
 		}
-		if _, err := mut.Mutate(ctx, mwec.mutation); err != nil {
+		v, err := mut.Mutate(ctx, mwec.mutation)
+		if err != nil {
 			return nil, err
 		}
+		nv, ok := v.(*MessageWithEnum)
+		if !ok {
+			return nil, fmt.Errorf("unexpected node type %T returned from MessageWithEnumMutation", v)
+		}
+		node = nv
 	}
 	return node, err
 }
@@ -89,6 +101,19 @@ func (mwec *MessageWithEnumCreate) SaveX(ctx context.Context) *MessageWithEnum {
 	return v
 }
 
+// Exec executes the query.
+func (mwec *MessageWithEnumCreate) Exec(ctx context.Context) error {
+	_, err := mwec.Save(ctx)
+	return err
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (mwec *MessageWithEnumCreate) ExecX(ctx context.Context) {
+	if err := mwec.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
 // defaults sets the default values of the builder before save.
 func (mwec *MessageWithEnumCreate) defaults() {
 	if _, ok := mwec.mutation.EnumType(); !ok {
@@ -100,19 +125,19 @@ func (mwec *MessageWithEnumCreate) defaults() {
 // check runs all checks and user-defined validators on the builder.
 func (mwec *MessageWithEnumCreate) check() error {
 	if _, ok := mwec.mutation.EnumType(); !ok {
-		return &ValidationError{Name: "enum_type", err: errors.New("ent: missing required field \"enum_type\"")}
+		return &ValidationError{Name: "enum_type", err: errors.New(`ent: missing required field "MessageWithEnum.enum_type"`)}
 	}
 	if v, ok := mwec.mutation.EnumType(); ok {
 		if err := messagewithenum.EnumTypeValidator(v); err != nil {
-			return &ValidationError{Name: "enum_type", err: fmt.Errorf("ent: validator failed for field \"enum_type\": %w", err)}
+			return &ValidationError{Name: "enum_type", err: fmt.Errorf(`ent: validator failed for field "MessageWithEnum.enum_type": %w`, err)}
 		}
 	}
 	if _, ok := mwec.mutation.EnumWithoutDefault(); !ok {
-		return &ValidationError{Name: "enum_without_default", err: errors.New("ent: missing required field \"enum_without_default\"")}
+		return &ValidationError{Name: "enum_without_default", err: errors.New(`ent: missing required field "MessageWithEnum.enum_without_default"`)}
 	}
 	if v, ok := mwec.mutation.EnumWithoutDefault(); ok {
 		if err := messagewithenum.EnumWithoutDefaultValidator(v); err != nil {
-			return &ValidationError{Name: "enum_without_default", err: fmt.Errorf("ent: validator failed for field \"enum_without_default\": %w", err)}
+			return &ValidationError{Name: "enum_without_default", err: fmt.Errorf(`ent: validator failed for field "MessageWithEnum.enum_without_default": %w`, err)}
 		}
 	}
 	return nil
@@ -121,8 +146,8 @@ func (mwec *MessageWithEnumCreate) check() error {
 func (mwec *MessageWithEnumCreate) sqlSave(ctx context.Context) (*MessageWithEnum, error) {
 	_node, _spec := mwec.createSpec()
 	if err := sqlgraph.CreateNode(ctx, mwec.driver, _spec); err != nil {
-		if cerr, ok := isSQLConstraintError(err); ok {
-			err = cerr
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{err.Error(), err}
 		}
 		return nil, err
 	}
@@ -190,19 +215,23 @@ func (mwecb *MessageWithEnumCreateBulk) Save(ctx context.Context) ([]*MessageWit
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, mwecb.builders[i+1].mutation)
 				} else {
+					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
 					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, mwecb.driver, &sqlgraph.BatchCreateSpec{Nodes: specs}); err != nil {
-						if cerr, ok := isSQLConstraintError(err); ok {
-							err = cerr
+					if err = sqlgraph.BatchCreate(ctx, mwecb.driver, spec); err != nil {
+						if sqlgraph.IsConstraintError(err) {
+							err = &ConstraintError{err.Error(), err}
 						}
 					}
 				}
-				mutation.done = true
 				if err != nil {
 					return nil, err
 				}
-				id := specs[i].ID.Value.(int64)
-				nodes[i].ID = int(id)
+				mutation.id = &nodes[i].ID
+				if specs[i].ID.Value != nil {
+					id := specs[i].ID.Value.(int64)
+					nodes[i].ID = int(id)
+				}
+				mutation.done = true
 				return nodes[i], nil
 			})
 			for i := len(builder.hooks) - 1; i >= 0; i-- {
@@ -226,4 +255,17 @@ func (mwecb *MessageWithEnumCreateBulk) SaveX(ctx context.Context) []*MessageWit
 		panic(err)
 	}
 	return v
+}
+
+// Exec executes the query.
+func (mwecb *MessageWithEnumCreateBulk) Exec(ctx context.Context) error {
+	_, err := mwecb.Save(ctx)
+	return err
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (mwecb *MessageWithEnumCreateBulk) ExecX(ctx context.Context) {
+	if err := mwecb.Exec(ctx); err != nil {
+		panic(err)
+	}
 }

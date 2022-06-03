@@ -19,6 +19,7 @@ import (
 
 	"entgo.io/contrib/entgql"
 	"entgo.io/ent"
+	"entgo.io/ent/schema"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 )
@@ -36,6 +37,7 @@ func (Todo) Fields() []ent.Field {
 			Immutable().
 			Annotations(
 				entgql.OrderField("CREATED_AT"),
+				entgql.Skip(entgql.SkipMutationCreateInput),
 			),
 		field.Enum("status").
 			NamedValues(
@@ -55,6 +57,13 @@ func (Todo) Fields() []ent.Field {
 			Annotations(
 				entgql.OrderField("TEXT"),
 			),
+		field.Bytes("blob").
+			Annotations(
+				entgql.Skip(),
+			).
+			Optional(),
+		field.Int("category_id").
+			Optional(),
 	}
 }
 
@@ -62,9 +71,26 @@ func (Todo) Fields() []ent.Field {
 func (Todo) Edges() []ent.Edge {
 	return []ent.Edge{
 		edge.To("children", Todo.Type).
-			Annotations(entgql.Bind()).
+			//nolint SA1019 we keep this as the example.
+			Annotations(entgql.Bind(), entgql.RelayConnection()).
 			From("parent").
+			//nolint SA1019 we keep this as the example.
 			Annotations(entgql.Bind()).
 			Unique(),
+		edge.From("category", Category.Type).
+			Ref("todos").
+			Field("category_id").
+			Unique(),
+		edge.To("secret", VerySecret.Type).
+			Unique(),
+	}
+}
+
+// Annotations returns Todo annotations.
+func (Todo) Annotations() []schema.Annotation {
+	return []schema.Annotation{
+		entgql.RelayConnection(),
+		entgql.QueryField(),
+		entgql.Mutations(entgql.MutationCreate()),
 	}
 }

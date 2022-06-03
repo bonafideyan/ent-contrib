@@ -4,7 +4,6 @@ package ent
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 
@@ -20,6 +19,7 @@ type InvalidFieldMessageQuery struct {
 	config
 	limit      *int
 	offset     *int
+	unique     *bool
 	order      []OrderFunc
 	fields     []string
 	predicates []predicate.InvalidFieldMessage
@@ -43,6 +43,13 @@ func (ifmq *InvalidFieldMessageQuery) Limit(limit int) *InvalidFieldMessageQuery
 // Offset adds an offset step to the query.
 func (ifmq *InvalidFieldMessageQuery) Offset(offset int) *InvalidFieldMessageQuery {
 	ifmq.offset = &offset
+	return ifmq
+}
+
+// Unique configures the query builder to filter duplicate records on query.
+// By default, unique is set to true, and can be disabled using this method.
+func (ifmq *InvalidFieldMessageQuery) Unique(unique bool) *InvalidFieldMessageQuery {
+	ifmq.unique = &unique
 	return ifmq
 }
 
@@ -98,7 +105,7 @@ func (ifmq *InvalidFieldMessageQuery) FirstIDX(ctx context.Context) int {
 }
 
 // Only returns a single InvalidFieldMessage entity found by the query, ensuring it only returns one.
-// Returns a *NotSingularError when exactly one InvalidFieldMessage entity is not found.
+// Returns a *NotSingularError when more than one InvalidFieldMessage entity is found.
 // Returns a *NotFoundError when no InvalidFieldMessage entities are found.
 func (ifmq *InvalidFieldMessageQuery) Only(ctx context.Context) (*InvalidFieldMessage, error) {
 	nodes, err := ifmq.Limit(2).All(ctx)
@@ -125,7 +132,7 @@ func (ifmq *InvalidFieldMessageQuery) OnlyX(ctx context.Context) *InvalidFieldMe
 }
 
 // OnlyID is like Only, but returns the only InvalidFieldMessage ID in the query.
-// Returns a *NotSingularError when exactly one InvalidFieldMessage ID is not found.
+// Returns a *NotSingularError when more than one InvalidFieldMessage ID is found.
 // Returns a *NotFoundError when no entities are found.
 func (ifmq *InvalidFieldMessageQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
@@ -234,8 +241,9 @@ func (ifmq *InvalidFieldMessageQuery) Clone() *InvalidFieldMessageQuery {
 		order:      append([]OrderFunc{}, ifmq.order...),
 		predicates: append([]predicate.InvalidFieldMessage{}, ifmq.predicates...),
 		// clone intermediate query.
-		sql:  ifmq.sql.Clone(),
-		path: ifmq.path,
+		sql:    ifmq.sql.Clone(),
+		path:   ifmq.path,
+		unique: ifmq.unique,
 	}
 }
 
@@ -245,25 +253,27 @@ func (ifmq *InvalidFieldMessageQuery) Clone() *InvalidFieldMessageQuery {
 // Example:
 //
 //	var v []struct {
-//		Hello uuid.UUID `json:"hello,omitempty"`
+//		JSON *schema.SomeJSON `json:"json,omitempty"`
 //		Count int `json:"count,omitempty"`
 //	}
 //
 //	client.InvalidFieldMessage.Query().
-//		GroupBy(invalidfieldmessage.FieldHello).
+//		GroupBy(invalidfieldmessage.FieldJSON).
 //		Aggregate(ent.Count()).
 //		Scan(ctx, &v)
 //
 func (ifmq *InvalidFieldMessageQuery) GroupBy(field string, fields ...string) *InvalidFieldMessageGroupBy {
-	group := &InvalidFieldMessageGroupBy{config: ifmq.config}
-	group.fields = append([]string{field}, fields...)
-	group.path = func(ctx context.Context) (prev *sql.Selector, err error) {
+	grbuild := &InvalidFieldMessageGroupBy{config: ifmq.config}
+	grbuild.fields = append([]string{field}, fields...)
+	grbuild.path = func(ctx context.Context) (prev *sql.Selector, err error) {
 		if err := ifmq.prepareQuery(ctx); err != nil {
 			return nil, err
 		}
 		return ifmq.sqlQuery(ctx), nil
 	}
-	return group
+	grbuild.label = invalidfieldmessage.Label
+	grbuild.flds, grbuild.scan = &grbuild.fields, grbuild.Scan
+	return grbuild
 }
 
 // Select allows the selection one or more fields/columns for the given query,
@@ -272,16 +282,19 @@ func (ifmq *InvalidFieldMessageQuery) GroupBy(field string, fields ...string) *I
 // Example:
 //
 //	var v []struct {
-//		Hello uuid.UUID `json:"hello,omitempty"`
+//		JSON *schema.SomeJSON `json:"json,omitempty"`
 //	}
 //
 //	client.InvalidFieldMessage.Query().
-//		Select(invalidfieldmessage.FieldHello).
+//		Select(invalidfieldmessage.FieldJSON).
 //		Scan(ctx, &v)
 //
-func (ifmq *InvalidFieldMessageQuery) Select(field string, fields ...string) *InvalidFieldMessageSelect {
-	ifmq.fields = append([]string{field}, fields...)
-	return &InvalidFieldMessageSelect{InvalidFieldMessageQuery: ifmq}
+func (ifmq *InvalidFieldMessageQuery) Select(fields ...string) *InvalidFieldMessageSelect {
+	ifmq.fields = append(ifmq.fields, fields...)
+	selbuild := &InvalidFieldMessageSelect{InvalidFieldMessageQuery: ifmq}
+	selbuild.label = invalidfieldmessage.Label
+	selbuild.flds, selbuild.scan = &ifmq.fields, selbuild.Scan
+	return selbuild
 }
 
 func (ifmq *InvalidFieldMessageQuery) prepareQuery(ctx context.Context) error {
@@ -300,22 +313,21 @@ func (ifmq *InvalidFieldMessageQuery) prepareQuery(ctx context.Context) error {
 	return nil
 }
 
-func (ifmq *InvalidFieldMessageQuery) sqlAll(ctx context.Context) ([]*InvalidFieldMessage, error) {
+func (ifmq *InvalidFieldMessageQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*InvalidFieldMessage, error) {
 	var (
 		nodes = []*InvalidFieldMessage{}
 		_spec = ifmq.querySpec()
 	)
 	_spec.ScanValues = func(columns []string) ([]interface{}, error) {
-		node := &InvalidFieldMessage{config: ifmq.config}
-		nodes = append(nodes, node)
-		return node.scanValues(columns)
+		return (*InvalidFieldMessage).scanValues(nil, columns)
 	}
 	_spec.Assign = func(columns []string, values []interface{}) error {
-		if len(nodes) == 0 {
-			return fmt.Errorf("ent: Assign called without calling ScanValues")
-		}
-		node := nodes[len(nodes)-1]
+		node := &InvalidFieldMessage{config: ifmq.config}
+		nodes = append(nodes, node)
 		return node.assignValues(columns, values)
+	}
+	for i := range hooks {
+		hooks[i](ctx, _spec)
 	}
 	if err := sqlgraph.QueryNodes(ctx, ifmq.driver, _spec); err != nil {
 		return nil, err
@@ -328,6 +340,10 @@ func (ifmq *InvalidFieldMessageQuery) sqlAll(ctx context.Context) ([]*InvalidFie
 
 func (ifmq *InvalidFieldMessageQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := ifmq.querySpec()
+	_spec.Node.Columns = ifmq.fields
+	if len(ifmq.fields) > 0 {
+		_spec.Unique = ifmq.unique != nil && *ifmq.unique
+	}
 	return sqlgraph.CountNodes(ctx, ifmq.driver, _spec)
 }
 
@@ -351,6 +367,9 @@ func (ifmq *InvalidFieldMessageQuery) querySpec() *sqlgraph.QuerySpec {
 		},
 		From:   ifmq.sql,
 		Unique: true,
+	}
+	if unique := ifmq.unique; unique != nil {
+		_spec.Unique = *unique
 	}
 	if fields := ifmq.fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
@@ -377,7 +396,7 @@ func (ifmq *InvalidFieldMessageQuery) querySpec() *sqlgraph.QuerySpec {
 	if ps := ifmq.order; len(ps) > 0 {
 		_spec.Order = func(selector *sql.Selector) {
 			for i := range ps {
-				ps[i](selector, invalidfieldmessage.ValidColumn)
+				ps[i](selector)
 			}
 		}
 	}
@@ -387,16 +406,23 @@ func (ifmq *InvalidFieldMessageQuery) querySpec() *sqlgraph.QuerySpec {
 func (ifmq *InvalidFieldMessageQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(ifmq.driver.Dialect())
 	t1 := builder.Table(invalidfieldmessage.Table)
-	selector := builder.Select(t1.Columns(invalidfieldmessage.Columns...)...).From(t1)
+	columns := ifmq.fields
+	if len(columns) == 0 {
+		columns = invalidfieldmessage.Columns
+	}
+	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if ifmq.sql != nil {
 		selector = ifmq.sql
-		selector.Select(selector.Columns(invalidfieldmessage.Columns...)...)
+		selector.Select(selector.Columns(columns...)...)
+	}
+	if ifmq.unique != nil && *ifmq.unique {
+		selector.Distinct()
 	}
 	for _, p := range ifmq.predicates {
 		p(selector)
 	}
 	for _, p := range ifmq.order {
-		p(selector, invalidfieldmessage.ValidColumn)
+		p(selector)
 	}
 	if offset := ifmq.offset; offset != nil {
 		// limit is mandatory for offset clause. We start
@@ -412,6 +438,7 @@ func (ifmq *InvalidFieldMessageQuery) sqlQuery(ctx context.Context) *sql.Selecto
 // InvalidFieldMessageGroupBy is the group-by builder for InvalidFieldMessage entities.
 type InvalidFieldMessageGroupBy struct {
 	config
+	selector
 	fields []string
 	fns    []AggregateFunc
 	// intermediate query (i.e. traversal path).
@@ -435,209 +462,6 @@ func (ifmgb *InvalidFieldMessageGroupBy) Scan(ctx context.Context, v interface{}
 	return ifmgb.sqlScan(ctx, v)
 }
 
-// ScanX is like Scan, but panics if an error occurs.
-func (ifmgb *InvalidFieldMessageGroupBy) ScanX(ctx context.Context, v interface{}) {
-	if err := ifmgb.Scan(ctx, v); err != nil {
-		panic(err)
-	}
-}
-
-// Strings returns list of strings from group-by.
-// It is only allowed when executing a group-by query with one field.
-func (ifmgb *InvalidFieldMessageGroupBy) Strings(ctx context.Context) ([]string, error) {
-	if len(ifmgb.fields) > 1 {
-		return nil, errors.New("ent: InvalidFieldMessageGroupBy.Strings is not achievable when grouping more than 1 field")
-	}
-	var v []string
-	if err := ifmgb.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// StringsX is like Strings, but panics if an error occurs.
-func (ifmgb *InvalidFieldMessageGroupBy) StringsX(ctx context.Context) []string {
-	v, err := ifmgb.Strings(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// String returns a single string from a group-by query.
-// It is only allowed when executing a group-by query with one field.
-func (ifmgb *InvalidFieldMessageGroupBy) String(ctx context.Context) (_ string, err error) {
-	var v []string
-	if v, err = ifmgb.Strings(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{invalidfieldmessage.Label}
-	default:
-		err = fmt.Errorf("ent: InvalidFieldMessageGroupBy.Strings returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// StringX is like String, but panics if an error occurs.
-func (ifmgb *InvalidFieldMessageGroupBy) StringX(ctx context.Context) string {
-	v, err := ifmgb.String(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Ints returns list of ints from group-by.
-// It is only allowed when executing a group-by query with one field.
-func (ifmgb *InvalidFieldMessageGroupBy) Ints(ctx context.Context) ([]int, error) {
-	if len(ifmgb.fields) > 1 {
-		return nil, errors.New("ent: InvalidFieldMessageGroupBy.Ints is not achievable when grouping more than 1 field")
-	}
-	var v []int
-	if err := ifmgb.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// IntsX is like Ints, but panics if an error occurs.
-func (ifmgb *InvalidFieldMessageGroupBy) IntsX(ctx context.Context) []int {
-	v, err := ifmgb.Ints(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Int returns a single int from a group-by query.
-// It is only allowed when executing a group-by query with one field.
-func (ifmgb *InvalidFieldMessageGroupBy) Int(ctx context.Context) (_ int, err error) {
-	var v []int
-	if v, err = ifmgb.Ints(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{invalidfieldmessage.Label}
-	default:
-		err = fmt.Errorf("ent: InvalidFieldMessageGroupBy.Ints returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// IntX is like Int, but panics if an error occurs.
-func (ifmgb *InvalidFieldMessageGroupBy) IntX(ctx context.Context) int {
-	v, err := ifmgb.Int(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Float64s returns list of float64s from group-by.
-// It is only allowed when executing a group-by query with one field.
-func (ifmgb *InvalidFieldMessageGroupBy) Float64s(ctx context.Context) ([]float64, error) {
-	if len(ifmgb.fields) > 1 {
-		return nil, errors.New("ent: InvalidFieldMessageGroupBy.Float64s is not achievable when grouping more than 1 field")
-	}
-	var v []float64
-	if err := ifmgb.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// Float64sX is like Float64s, but panics if an error occurs.
-func (ifmgb *InvalidFieldMessageGroupBy) Float64sX(ctx context.Context) []float64 {
-	v, err := ifmgb.Float64s(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Float64 returns a single float64 from a group-by query.
-// It is only allowed when executing a group-by query with one field.
-func (ifmgb *InvalidFieldMessageGroupBy) Float64(ctx context.Context) (_ float64, err error) {
-	var v []float64
-	if v, err = ifmgb.Float64s(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{invalidfieldmessage.Label}
-	default:
-		err = fmt.Errorf("ent: InvalidFieldMessageGroupBy.Float64s returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// Float64X is like Float64, but panics if an error occurs.
-func (ifmgb *InvalidFieldMessageGroupBy) Float64X(ctx context.Context) float64 {
-	v, err := ifmgb.Float64(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Bools returns list of bools from group-by.
-// It is only allowed when executing a group-by query with one field.
-func (ifmgb *InvalidFieldMessageGroupBy) Bools(ctx context.Context) ([]bool, error) {
-	if len(ifmgb.fields) > 1 {
-		return nil, errors.New("ent: InvalidFieldMessageGroupBy.Bools is not achievable when grouping more than 1 field")
-	}
-	var v []bool
-	if err := ifmgb.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// BoolsX is like Bools, but panics if an error occurs.
-func (ifmgb *InvalidFieldMessageGroupBy) BoolsX(ctx context.Context) []bool {
-	v, err := ifmgb.Bools(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Bool returns a single bool from a group-by query.
-// It is only allowed when executing a group-by query with one field.
-func (ifmgb *InvalidFieldMessageGroupBy) Bool(ctx context.Context) (_ bool, err error) {
-	var v []bool
-	if v, err = ifmgb.Bools(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{invalidfieldmessage.Label}
-	default:
-		err = fmt.Errorf("ent: InvalidFieldMessageGroupBy.Bools returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// BoolX is like Bool, but panics if an error occurs.
-func (ifmgb *InvalidFieldMessageGroupBy) BoolX(ctx context.Context) bool {
-	v, err := ifmgb.Bool(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
 func (ifmgb *InvalidFieldMessageGroupBy) sqlScan(ctx context.Context, v interface{}) error {
 	for _, f := range ifmgb.fields {
 		if !invalidfieldmessage.ValidColumn(f) {
@@ -658,18 +482,28 @@ func (ifmgb *InvalidFieldMessageGroupBy) sqlScan(ctx context.Context, v interfac
 }
 
 func (ifmgb *InvalidFieldMessageGroupBy) sqlQuery() *sql.Selector {
-	selector := ifmgb.sql
-	columns := make([]string, 0, len(ifmgb.fields)+len(ifmgb.fns))
-	columns = append(columns, ifmgb.fields...)
+	selector := ifmgb.sql.Select()
+	aggregation := make([]string, 0, len(ifmgb.fns))
 	for _, fn := range ifmgb.fns {
-		columns = append(columns, fn(selector, invalidfieldmessage.ValidColumn))
+		aggregation = append(aggregation, fn(selector))
 	}
-	return selector.Select(columns...).GroupBy(ifmgb.fields...)
+	// If no columns were selected in a custom aggregation function, the default
+	// selection is the fields used for "group-by", and the aggregation functions.
+	if len(selector.SelectedColumns()) == 0 {
+		columns := make([]string, 0, len(ifmgb.fields)+len(ifmgb.fns))
+		for _, f := range ifmgb.fields {
+			columns = append(columns, selector.C(f))
+		}
+		columns = append(columns, aggregation...)
+		selector.Select(columns...)
+	}
+	return selector.GroupBy(selector.Columns(ifmgb.fields...)...)
 }
 
 // InvalidFieldMessageSelect is the builder for selecting fields of InvalidFieldMessage entities.
 type InvalidFieldMessageSelect struct {
 	*InvalidFieldMessageQuery
+	selector
 	// intermediate query (i.e. traversal path).
 	sql *sql.Selector
 }
@@ -683,213 +517,12 @@ func (ifms *InvalidFieldMessageSelect) Scan(ctx context.Context, v interface{}) 
 	return ifms.sqlScan(ctx, v)
 }
 
-// ScanX is like Scan, but panics if an error occurs.
-func (ifms *InvalidFieldMessageSelect) ScanX(ctx context.Context, v interface{}) {
-	if err := ifms.Scan(ctx, v); err != nil {
-		panic(err)
-	}
-}
-
-// Strings returns list of strings from a selector. It is only allowed when selecting one field.
-func (ifms *InvalidFieldMessageSelect) Strings(ctx context.Context) ([]string, error) {
-	if len(ifms.fields) > 1 {
-		return nil, errors.New("ent: InvalidFieldMessageSelect.Strings is not achievable when selecting more than 1 field")
-	}
-	var v []string
-	if err := ifms.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// StringsX is like Strings, but panics if an error occurs.
-func (ifms *InvalidFieldMessageSelect) StringsX(ctx context.Context) []string {
-	v, err := ifms.Strings(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// String returns a single string from a selector. It is only allowed when selecting one field.
-func (ifms *InvalidFieldMessageSelect) String(ctx context.Context) (_ string, err error) {
-	var v []string
-	if v, err = ifms.Strings(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{invalidfieldmessage.Label}
-	default:
-		err = fmt.Errorf("ent: InvalidFieldMessageSelect.Strings returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// StringX is like String, but panics if an error occurs.
-func (ifms *InvalidFieldMessageSelect) StringX(ctx context.Context) string {
-	v, err := ifms.String(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Ints returns list of ints from a selector. It is only allowed when selecting one field.
-func (ifms *InvalidFieldMessageSelect) Ints(ctx context.Context) ([]int, error) {
-	if len(ifms.fields) > 1 {
-		return nil, errors.New("ent: InvalidFieldMessageSelect.Ints is not achievable when selecting more than 1 field")
-	}
-	var v []int
-	if err := ifms.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// IntsX is like Ints, but panics if an error occurs.
-func (ifms *InvalidFieldMessageSelect) IntsX(ctx context.Context) []int {
-	v, err := ifms.Ints(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Int returns a single int from a selector. It is only allowed when selecting one field.
-func (ifms *InvalidFieldMessageSelect) Int(ctx context.Context) (_ int, err error) {
-	var v []int
-	if v, err = ifms.Ints(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{invalidfieldmessage.Label}
-	default:
-		err = fmt.Errorf("ent: InvalidFieldMessageSelect.Ints returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// IntX is like Int, but panics if an error occurs.
-func (ifms *InvalidFieldMessageSelect) IntX(ctx context.Context) int {
-	v, err := ifms.Int(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Float64s returns list of float64s from a selector. It is only allowed when selecting one field.
-func (ifms *InvalidFieldMessageSelect) Float64s(ctx context.Context) ([]float64, error) {
-	if len(ifms.fields) > 1 {
-		return nil, errors.New("ent: InvalidFieldMessageSelect.Float64s is not achievable when selecting more than 1 field")
-	}
-	var v []float64
-	if err := ifms.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// Float64sX is like Float64s, but panics if an error occurs.
-func (ifms *InvalidFieldMessageSelect) Float64sX(ctx context.Context) []float64 {
-	v, err := ifms.Float64s(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Float64 returns a single float64 from a selector. It is only allowed when selecting one field.
-func (ifms *InvalidFieldMessageSelect) Float64(ctx context.Context) (_ float64, err error) {
-	var v []float64
-	if v, err = ifms.Float64s(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{invalidfieldmessage.Label}
-	default:
-		err = fmt.Errorf("ent: InvalidFieldMessageSelect.Float64s returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// Float64X is like Float64, but panics if an error occurs.
-func (ifms *InvalidFieldMessageSelect) Float64X(ctx context.Context) float64 {
-	v, err := ifms.Float64(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Bools returns list of bools from a selector. It is only allowed when selecting one field.
-func (ifms *InvalidFieldMessageSelect) Bools(ctx context.Context) ([]bool, error) {
-	if len(ifms.fields) > 1 {
-		return nil, errors.New("ent: InvalidFieldMessageSelect.Bools is not achievable when selecting more than 1 field")
-	}
-	var v []bool
-	if err := ifms.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// BoolsX is like Bools, but panics if an error occurs.
-func (ifms *InvalidFieldMessageSelect) BoolsX(ctx context.Context) []bool {
-	v, err := ifms.Bools(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Bool returns a single bool from a selector. It is only allowed when selecting one field.
-func (ifms *InvalidFieldMessageSelect) Bool(ctx context.Context) (_ bool, err error) {
-	var v []bool
-	if v, err = ifms.Bools(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{invalidfieldmessage.Label}
-	default:
-		err = fmt.Errorf("ent: InvalidFieldMessageSelect.Bools returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// BoolX is like Bool, but panics if an error occurs.
-func (ifms *InvalidFieldMessageSelect) BoolX(ctx context.Context) bool {
-	v, err := ifms.Bool(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
 func (ifms *InvalidFieldMessageSelect) sqlScan(ctx context.Context, v interface{}) error {
 	rows := &sql.Rows{}
-	query, args := ifms.sqlQuery().Query()
+	query, args := ifms.sql.Query()
 	if err := ifms.driver.Query(ctx, query, args, rows); err != nil {
 		return err
 	}
 	defer rows.Close()
 	return sql.ScanSlice(rows, v)
-}
-
-func (ifms *InvalidFieldMessageSelect) sqlQuery() sql.Querier {
-	selector := ifms.sql
-	selector.Select(selector.Columns(ifms.fields...)...)
-	return selector
 }

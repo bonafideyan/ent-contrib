@@ -19,6 +19,8 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/schema"
 	"entgo.io/ent/schema/field"
+	"github.com/google/uuid"
+	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 // ValidMessage holds the schema definition for the ValidMessage entity.
@@ -33,6 +35,21 @@ func (ValidMessage) Fields() []ent.Field {
 			Annotations(entproto.Field(2)),
 		field.Time("ts").
 			Annotations(entproto.Field(3)),
+		field.UUID("uuid", uuid.New()).
+			Annotations(entproto.Field(4)),
+		field.Uint8("u8").
+			Annotations(
+				entproto.Field(
+					5,
+					entproto.Type(
+						descriptorpb.FieldDescriptorProto_TYPE_UINT64,
+					),
+				),
+			),
+		field.Int8("opti8").
+			Nillable().
+			Optional().
+			Annotations(entproto.Field(6)),
 	}
 }
 

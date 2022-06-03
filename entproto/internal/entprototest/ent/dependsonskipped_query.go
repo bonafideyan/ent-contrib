@@ -5,7 +5,6 @@ package ent
 import (
 	"context"
 	"database/sql/driver"
-	"errors"
 	"fmt"
 	"math"
 
@@ -22,6 +21,7 @@ type DependsOnSkippedQuery struct {
 	config
 	limit      *int
 	offset     *int
+	unique     *bool
 	order      []OrderFunc
 	fields     []string
 	predicates []predicate.DependsOnSkipped
@@ -47,6 +47,13 @@ func (dosq *DependsOnSkippedQuery) Limit(limit int) *DependsOnSkippedQuery {
 // Offset adds an offset step to the query.
 func (dosq *DependsOnSkippedQuery) Offset(offset int) *DependsOnSkippedQuery {
 	dosq.offset = &offset
+	return dosq
+}
+
+// Unique configures the query builder to filter duplicate records on query.
+// By default, unique is set to true, and can be disabled using this method.
+func (dosq *DependsOnSkippedQuery) Unique(unique bool) *DependsOnSkippedQuery {
+	dosq.unique = &unique
 	return dosq
 }
 
@@ -124,7 +131,7 @@ func (dosq *DependsOnSkippedQuery) FirstIDX(ctx context.Context) int {
 }
 
 // Only returns a single DependsOnSkipped entity found by the query, ensuring it only returns one.
-// Returns a *NotSingularError when exactly one DependsOnSkipped entity is not found.
+// Returns a *NotSingularError when more than one DependsOnSkipped entity is found.
 // Returns a *NotFoundError when no DependsOnSkipped entities are found.
 func (dosq *DependsOnSkippedQuery) Only(ctx context.Context) (*DependsOnSkipped, error) {
 	nodes, err := dosq.Limit(2).All(ctx)
@@ -151,7 +158,7 @@ func (dosq *DependsOnSkippedQuery) OnlyX(ctx context.Context) *DependsOnSkipped 
 }
 
 // OnlyID is like Only, but returns the only DependsOnSkipped ID in the query.
-// Returns a *NotSingularError when exactly one DependsOnSkipped ID is not found.
+// Returns a *NotSingularError when more than one DependsOnSkipped ID is found.
 // Returns a *NotFoundError when no entities are found.
 func (dosq *DependsOnSkippedQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
@@ -261,8 +268,9 @@ func (dosq *DependsOnSkippedQuery) Clone() *DependsOnSkippedQuery {
 		predicates:  append([]predicate.DependsOnSkipped{}, dosq.predicates...),
 		withSkipped: dosq.withSkipped.Clone(),
 		// clone intermediate query.
-		sql:  dosq.sql.Clone(),
-		path: dosq.path,
+		sql:    dosq.sql.Clone(),
+		path:   dosq.path,
+		unique: dosq.unique,
 	}
 }
 
@@ -293,15 +301,17 @@ func (dosq *DependsOnSkippedQuery) WithSkipped(opts ...func(*ImplicitSkippedMess
 //		Scan(ctx, &v)
 //
 func (dosq *DependsOnSkippedQuery) GroupBy(field string, fields ...string) *DependsOnSkippedGroupBy {
-	group := &DependsOnSkippedGroupBy{config: dosq.config}
-	group.fields = append([]string{field}, fields...)
-	group.path = func(ctx context.Context) (prev *sql.Selector, err error) {
+	grbuild := &DependsOnSkippedGroupBy{config: dosq.config}
+	grbuild.fields = append([]string{field}, fields...)
+	grbuild.path = func(ctx context.Context) (prev *sql.Selector, err error) {
 		if err := dosq.prepareQuery(ctx); err != nil {
 			return nil, err
 		}
 		return dosq.sqlQuery(ctx), nil
 	}
-	return group
+	grbuild.label = dependsonskipped.Label
+	grbuild.flds, grbuild.scan = &grbuild.fields, grbuild.Scan
+	return grbuild
 }
 
 // Select allows the selection one or more fields/columns for the given query,
@@ -317,9 +327,12 @@ func (dosq *DependsOnSkippedQuery) GroupBy(field string, fields ...string) *Depe
 //		Select(dependsonskipped.FieldName).
 //		Scan(ctx, &v)
 //
-func (dosq *DependsOnSkippedQuery) Select(field string, fields ...string) *DependsOnSkippedSelect {
-	dosq.fields = append([]string{field}, fields...)
-	return &DependsOnSkippedSelect{DependsOnSkippedQuery: dosq}
+func (dosq *DependsOnSkippedQuery) Select(fields ...string) *DependsOnSkippedSelect {
+	dosq.fields = append(dosq.fields, fields...)
+	selbuild := &DependsOnSkippedSelect{DependsOnSkippedQuery: dosq}
+	selbuild.label = dependsonskipped.Label
+	selbuild.flds, selbuild.scan = &dosq.fields, selbuild.Scan
+	return selbuild
 }
 
 func (dosq *DependsOnSkippedQuery) prepareQuery(ctx context.Context) error {
@@ -338,7 +351,7 @@ func (dosq *DependsOnSkippedQuery) prepareQuery(ctx context.Context) error {
 	return nil
 }
 
-func (dosq *DependsOnSkippedQuery) sqlAll(ctx context.Context) ([]*DependsOnSkipped, error) {
+func (dosq *DependsOnSkippedQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*DependsOnSkipped, error) {
 	var (
 		nodes       = []*DependsOnSkipped{}
 		_spec       = dosq.querySpec()
@@ -347,17 +360,16 @@ func (dosq *DependsOnSkippedQuery) sqlAll(ctx context.Context) ([]*DependsOnSkip
 		}
 	)
 	_spec.ScanValues = func(columns []string) ([]interface{}, error) {
-		node := &DependsOnSkipped{config: dosq.config}
-		nodes = append(nodes, node)
-		return node.scanValues(columns)
+		return (*DependsOnSkipped).scanValues(nil, columns)
 	}
 	_spec.Assign = func(columns []string, values []interface{}) error {
-		if len(nodes) == 0 {
-			return fmt.Errorf("ent: Assign called without calling ScanValues")
-		}
-		node := nodes[len(nodes)-1]
+		node := &DependsOnSkipped{config: dosq.config}
+		nodes = append(nodes, node)
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
+	}
+	for i := range hooks {
+		hooks[i](ctx, _spec)
 	}
 	if err := sqlgraph.QueryNodes(ctx, dosq.driver, _spec); err != nil {
 		return nil, err
@@ -400,6 +412,10 @@ func (dosq *DependsOnSkippedQuery) sqlAll(ctx context.Context) ([]*DependsOnSkip
 
 func (dosq *DependsOnSkippedQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := dosq.querySpec()
+	_spec.Node.Columns = dosq.fields
+	if len(dosq.fields) > 0 {
+		_spec.Unique = dosq.unique != nil && *dosq.unique
+	}
 	return sqlgraph.CountNodes(ctx, dosq.driver, _spec)
 }
 
@@ -423,6 +439,9 @@ func (dosq *DependsOnSkippedQuery) querySpec() *sqlgraph.QuerySpec {
 		},
 		From:   dosq.sql,
 		Unique: true,
+	}
+	if unique := dosq.unique; unique != nil {
+		_spec.Unique = *unique
 	}
 	if fields := dosq.fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
@@ -449,7 +468,7 @@ func (dosq *DependsOnSkippedQuery) querySpec() *sqlgraph.QuerySpec {
 	if ps := dosq.order; len(ps) > 0 {
 		_spec.Order = func(selector *sql.Selector) {
 			for i := range ps {
-				ps[i](selector, dependsonskipped.ValidColumn)
+				ps[i](selector)
 			}
 		}
 	}
@@ -459,16 +478,23 @@ func (dosq *DependsOnSkippedQuery) querySpec() *sqlgraph.QuerySpec {
 func (dosq *DependsOnSkippedQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(dosq.driver.Dialect())
 	t1 := builder.Table(dependsonskipped.Table)
-	selector := builder.Select(t1.Columns(dependsonskipped.Columns...)...).From(t1)
+	columns := dosq.fields
+	if len(columns) == 0 {
+		columns = dependsonskipped.Columns
+	}
+	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if dosq.sql != nil {
 		selector = dosq.sql
-		selector.Select(selector.Columns(dependsonskipped.Columns...)...)
+		selector.Select(selector.Columns(columns...)...)
+	}
+	if dosq.unique != nil && *dosq.unique {
+		selector.Distinct()
 	}
 	for _, p := range dosq.predicates {
 		p(selector)
 	}
 	for _, p := range dosq.order {
-		p(selector, dependsonskipped.ValidColumn)
+		p(selector)
 	}
 	if offset := dosq.offset; offset != nil {
 		// limit is mandatory for offset clause. We start
@@ -484,6 +510,7 @@ func (dosq *DependsOnSkippedQuery) sqlQuery(ctx context.Context) *sql.Selector {
 // DependsOnSkippedGroupBy is the group-by builder for DependsOnSkipped entities.
 type DependsOnSkippedGroupBy struct {
 	config
+	selector
 	fields []string
 	fns    []AggregateFunc
 	// intermediate query (i.e. traversal path).
@@ -507,209 +534,6 @@ func (dosgb *DependsOnSkippedGroupBy) Scan(ctx context.Context, v interface{}) e
 	return dosgb.sqlScan(ctx, v)
 }
 
-// ScanX is like Scan, but panics if an error occurs.
-func (dosgb *DependsOnSkippedGroupBy) ScanX(ctx context.Context, v interface{}) {
-	if err := dosgb.Scan(ctx, v); err != nil {
-		panic(err)
-	}
-}
-
-// Strings returns list of strings from group-by.
-// It is only allowed when executing a group-by query with one field.
-func (dosgb *DependsOnSkippedGroupBy) Strings(ctx context.Context) ([]string, error) {
-	if len(dosgb.fields) > 1 {
-		return nil, errors.New("ent: DependsOnSkippedGroupBy.Strings is not achievable when grouping more than 1 field")
-	}
-	var v []string
-	if err := dosgb.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// StringsX is like Strings, but panics if an error occurs.
-func (dosgb *DependsOnSkippedGroupBy) StringsX(ctx context.Context) []string {
-	v, err := dosgb.Strings(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// String returns a single string from a group-by query.
-// It is only allowed when executing a group-by query with one field.
-func (dosgb *DependsOnSkippedGroupBy) String(ctx context.Context) (_ string, err error) {
-	var v []string
-	if v, err = dosgb.Strings(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{dependsonskipped.Label}
-	default:
-		err = fmt.Errorf("ent: DependsOnSkippedGroupBy.Strings returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// StringX is like String, but panics if an error occurs.
-func (dosgb *DependsOnSkippedGroupBy) StringX(ctx context.Context) string {
-	v, err := dosgb.String(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Ints returns list of ints from group-by.
-// It is only allowed when executing a group-by query with one field.
-func (dosgb *DependsOnSkippedGroupBy) Ints(ctx context.Context) ([]int, error) {
-	if len(dosgb.fields) > 1 {
-		return nil, errors.New("ent: DependsOnSkippedGroupBy.Ints is not achievable when grouping more than 1 field")
-	}
-	var v []int
-	if err := dosgb.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// IntsX is like Ints, but panics if an error occurs.
-func (dosgb *DependsOnSkippedGroupBy) IntsX(ctx context.Context) []int {
-	v, err := dosgb.Ints(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Int returns a single int from a group-by query.
-// It is only allowed when executing a group-by query with one field.
-func (dosgb *DependsOnSkippedGroupBy) Int(ctx context.Context) (_ int, err error) {
-	var v []int
-	if v, err = dosgb.Ints(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{dependsonskipped.Label}
-	default:
-		err = fmt.Errorf("ent: DependsOnSkippedGroupBy.Ints returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// IntX is like Int, but panics if an error occurs.
-func (dosgb *DependsOnSkippedGroupBy) IntX(ctx context.Context) int {
-	v, err := dosgb.Int(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Float64s returns list of float64s from group-by.
-// It is only allowed when executing a group-by query with one field.
-func (dosgb *DependsOnSkippedGroupBy) Float64s(ctx context.Context) ([]float64, error) {
-	if len(dosgb.fields) > 1 {
-		return nil, errors.New("ent: DependsOnSkippedGroupBy.Float64s is not achievable when grouping more than 1 field")
-	}
-	var v []float64
-	if err := dosgb.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// Float64sX is like Float64s, but panics if an error occurs.
-func (dosgb *DependsOnSkippedGroupBy) Float64sX(ctx context.Context) []float64 {
-	v, err := dosgb.Float64s(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Float64 returns a single float64 from a group-by query.
-// It is only allowed when executing a group-by query with one field.
-func (dosgb *DependsOnSkippedGroupBy) Float64(ctx context.Context) (_ float64, err error) {
-	var v []float64
-	if v, err = dosgb.Float64s(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{dependsonskipped.Label}
-	default:
-		err = fmt.Errorf("ent: DependsOnSkippedGroupBy.Float64s returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// Float64X is like Float64, but panics if an error occurs.
-func (dosgb *DependsOnSkippedGroupBy) Float64X(ctx context.Context) float64 {
-	v, err := dosgb.Float64(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Bools returns list of bools from group-by.
-// It is only allowed when executing a group-by query with one field.
-func (dosgb *DependsOnSkippedGroupBy) Bools(ctx context.Context) ([]bool, error) {
-	if len(dosgb.fields) > 1 {
-		return nil, errors.New("ent: DependsOnSkippedGroupBy.Bools is not achievable when grouping more than 1 field")
-	}
-	var v []bool
-	if err := dosgb.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// BoolsX is like Bools, but panics if an error occurs.
-func (dosgb *DependsOnSkippedGroupBy) BoolsX(ctx context.Context) []bool {
-	v, err := dosgb.Bools(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Bool returns a single bool from a group-by query.
-// It is only allowed when executing a group-by query with one field.
-func (dosgb *DependsOnSkippedGroupBy) Bool(ctx context.Context) (_ bool, err error) {
-	var v []bool
-	if v, err = dosgb.Bools(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{dependsonskipped.Label}
-	default:
-		err = fmt.Errorf("ent: DependsOnSkippedGroupBy.Bools returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// BoolX is like Bool, but panics if an error occurs.
-func (dosgb *DependsOnSkippedGroupBy) BoolX(ctx context.Context) bool {
-	v, err := dosgb.Bool(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
 func (dosgb *DependsOnSkippedGroupBy) sqlScan(ctx context.Context, v interface{}) error {
 	for _, f := range dosgb.fields {
 		if !dependsonskipped.ValidColumn(f) {
@@ -730,18 +554,28 @@ func (dosgb *DependsOnSkippedGroupBy) sqlScan(ctx context.Context, v interface{}
 }
 
 func (dosgb *DependsOnSkippedGroupBy) sqlQuery() *sql.Selector {
-	selector := dosgb.sql
-	columns := make([]string, 0, len(dosgb.fields)+len(dosgb.fns))
-	columns = append(columns, dosgb.fields...)
+	selector := dosgb.sql.Select()
+	aggregation := make([]string, 0, len(dosgb.fns))
 	for _, fn := range dosgb.fns {
-		columns = append(columns, fn(selector, dependsonskipped.ValidColumn))
+		aggregation = append(aggregation, fn(selector))
 	}
-	return selector.Select(columns...).GroupBy(dosgb.fields...)
+	// If no columns were selected in a custom aggregation function, the default
+	// selection is the fields used for "group-by", and the aggregation functions.
+	if len(selector.SelectedColumns()) == 0 {
+		columns := make([]string, 0, len(dosgb.fields)+len(dosgb.fns))
+		for _, f := range dosgb.fields {
+			columns = append(columns, selector.C(f))
+		}
+		columns = append(columns, aggregation...)
+		selector.Select(columns...)
+	}
+	return selector.GroupBy(selector.Columns(dosgb.fields...)...)
 }
 
 // DependsOnSkippedSelect is the builder for selecting fields of DependsOnSkipped entities.
 type DependsOnSkippedSelect struct {
 	*DependsOnSkippedQuery
+	selector
 	// intermediate query (i.e. traversal path).
 	sql *sql.Selector
 }
@@ -755,213 +589,12 @@ func (doss *DependsOnSkippedSelect) Scan(ctx context.Context, v interface{}) err
 	return doss.sqlScan(ctx, v)
 }
 
-// ScanX is like Scan, but panics if an error occurs.
-func (doss *DependsOnSkippedSelect) ScanX(ctx context.Context, v interface{}) {
-	if err := doss.Scan(ctx, v); err != nil {
-		panic(err)
-	}
-}
-
-// Strings returns list of strings from a selector. It is only allowed when selecting one field.
-func (doss *DependsOnSkippedSelect) Strings(ctx context.Context) ([]string, error) {
-	if len(doss.fields) > 1 {
-		return nil, errors.New("ent: DependsOnSkippedSelect.Strings is not achievable when selecting more than 1 field")
-	}
-	var v []string
-	if err := doss.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// StringsX is like Strings, but panics if an error occurs.
-func (doss *DependsOnSkippedSelect) StringsX(ctx context.Context) []string {
-	v, err := doss.Strings(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// String returns a single string from a selector. It is only allowed when selecting one field.
-func (doss *DependsOnSkippedSelect) String(ctx context.Context) (_ string, err error) {
-	var v []string
-	if v, err = doss.Strings(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{dependsonskipped.Label}
-	default:
-		err = fmt.Errorf("ent: DependsOnSkippedSelect.Strings returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// StringX is like String, but panics if an error occurs.
-func (doss *DependsOnSkippedSelect) StringX(ctx context.Context) string {
-	v, err := doss.String(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Ints returns list of ints from a selector. It is only allowed when selecting one field.
-func (doss *DependsOnSkippedSelect) Ints(ctx context.Context) ([]int, error) {
-	if len(doss.fields) > 1 {
-		return nil, errors.New("ent: DependsOnSkippedSelect.Ints is not achievable when selecting more than 1 field")
-	}
-	var v []int
-	if err := doss.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// IntsX is like Ints, but panics if an error occurs.
-func (doss *DependsOnSkippedSelect) IntsX(ctx context.Context) []int {
-	v, err := doss.Ints(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Int returns a single int from a selector. It is only allowed when selecting one field.
-func (doss *DependsOnSkippedSelect) Int(ctx context.Context) (_ int, err error) {
-	var v []int
-	if v, err = doss.Ints(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{dependsonskipped.Label}
-	default:
-		err = fmt.Errorf("ent: DependsOnSkippedSelect.Ints returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// IntX is like Int, but panics if an error occurs.
-func (doss *DependsOnSkippedSelect) IntX(ctx context.Context) int {
-	v, err := doss.Int(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Float64s returns list of float64s from a selector. It is only allowed when selecting one field.
-func (doss *DependsOnSkippedSelect) Float64s(ctx context.Context) ([]float64, error) {
-	if len(doss.fields) > 1 {
-		return nil, errors.New("ent: DependsOnSkippedSelect.Float64s is not achievable when selecting more than 1 field")
-	}
-	var v []float64
-	if err := doss.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// Float64sX is like Float64s, but panics if an error occurs.
-func (doss *DependsOnSkippedSelect) Float64sX(ctx context.Context) []float64 {
-	v, err := doss.Float64s(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Float64 returns a single float64 from a selector. It is only allowed when selecting one field.
-func (doss *DependsOnSkippedSelect) Float64(ctx context.Context) (_ float64, err error) {
-	var v []float64
-	if v, err = doss.Float64s(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{dependsonskipped.Label}
-	default:
-		err = fmt.Errorf("ent: DependsOnSkippedSelect.Float64s returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// Float64X is like Float64, but panics if an error occurs.
-func (doss *DependsOnSkippedSelect) Float64X(ctx context.Context) float64 {
-	v, err := doss.Float64(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Bools returns list of bools from a selector. It is only allowed when selecting one field.
-func (doss *DependsOnSkippedSelect) Bools(ctx context.Context) ([]bool, error) {
-	if len(doss.fields) > 1 {
-		return nil, errors.New("ent: DependsOnSkippedSelect.Bools is not achievable when selecting more than 1 field")
-	}
-	var v []bool
-	if err := doss.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// BoolsX is like Bools, but panics if an error occurs.
-func (doss *DependsOnSkippedSelect) BoolsX(ctx context.Context) []bool {
-	v, err := doss.Bools(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Bool returns a single bool from a selector. It is only allowed when selecting one field.
-func (doss *DependsOnSkippedSelect) Bool(ctx context.Context) (_ bool, err error) {
-	var v []bool
-	if v, err = doss.Bools(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{dependsonskipped.Label}
-	default:
-		err = fmt.Errorf("ent: DependsOnSkippedSelect.Bools returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// BoolX is like Bool, but panics if an error occurs.
-func (doss *DependsOnSkippedSelect) BoolX(ctx context.Context) bool {
-	v, err := doss.Bool(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
 func (doss *DependsOnSkippedSelect) sqlScan(ctx context.Context, v interface{}) error {
 	rows := &sql.Rows{}
-	query, args := doss.sqlQuery().Query()
+	query, args := doss.sql.Query()
 	if err := doss.driver.Query(ctx, query, args, rows); err != nil {
 		return err
 	}
 	defer rows.Close()
 	return sql.ScanSlice(rows, v)
-}
-
-func (doss *DependsOnSkippedSelect) sqlQuery() sql.Querier {
-	selector := doss.sql
-	selector.Select(selector.Columns(doss.fields...)...)
-	return selector
 }

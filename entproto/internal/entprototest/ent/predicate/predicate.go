@@ -6,6 +6,9 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// AllMethodsService is the predicate function for allmethodsservice builders.
+type AllMethodsService func(*sql.Selector)
+
 // BlogPost is the predicate function for blogpost builders.
 type BlogPost func(*sql.Selector)
 
@@ -20,6 +23,9 @@ type DuplicateNumberMessage func(*sql.Selector)
 
 // ExplicitSkippedMessage is the predicate function for explicitskippedmessage builders.
 type ExplicitSkippedMessage func(*sql.Selector)
+
+// Image is the predicate function for image builders.
+type Image func(*sql.Selector)
 
 // ImplicitSkippedMessage is the predicate function for implicitskippedmessage builders.
 type ImplicitSkippedMessage func(*sql.Selector)
@@ -36,11 +42,29 @@ type MessageWithFieldOne func(*sql.Selector)
 // MessageWithID is the predicate function for messagewithid builders.
 type MessageWithID func(*sql.Selector)
 
+// MessageWithOptionals is the predicate function for messagewithoptionals builders.
+type MessageWithOptionals func(*sql.Selector)
+
 // MessageWithPackageName is the predicate function for messagewithpackagename builders.
 type MessageWithPackageName func(*sql.Selector)
 
+// MessageWithStrings is the predicate function for messagewithstrings builders.
+type MessageWithStrings func(*sql.Selector)
+
+// NoBackref is the predicate function for nobackref builders.
+type NoBackref func(*sql.Selector)
+
+// OneMethodService is the predicate function for onemethodservice builders.
+type OneMethodService func(*sql.Selector)
+
 // Portal is the predicate function for portal builders.
 type Portal func(*sql.Selector)
+
+// SkipEdgeExample is the predicate function for skipedgeexample builders.
+type SkipEdgeExample func(*sql.Selector)
+
+// TwoMethodService is the predicate function for twomethodservice builders.
+type TwoMethodService func(*sql.Selector)
 
 // User is the predicate function for user builders.
 type User func(*sql.Selector)

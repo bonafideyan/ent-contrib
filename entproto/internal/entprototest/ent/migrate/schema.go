@@ -8,6 +8,16 @@ import (
 )
 
 var (
+	// AllMethodsServicesColumns holds the columns for the "all_methods_services" table.
+	AllMethodsServicesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+	}
+	// AllMethodsServicesTable holds the schema information for the "all_methods_services" table.
+	AllMethodsServicesTable = &schema.Table{
+		Name:       "all_methods_services",
+		Columns:    AllMethodsServicesColumns,
+		PrimaryKey: []*schema.Column{AllMethodsServicesColumns[0]},
+	}
 	// BlogPostsColumns holds the columns for the "blog_posts" table.
 	BlogPostsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -38,10 +48,9 @@ var (
 	}
 	// CategoriesTable holds the schema information for the "categories" table.
 	CategoriesTable = &schema.Table{
-		Name:        "categories",
-		Columns:     CategoriesColumns,
-		PrimaryKey:  []*schema.Column{CategoriesColumns[0]},
-		ForeignKeys: []*schema.ForeignKey{},
+		Name:       "categories",
+		Columns:    CategoriesColumns,
+		PrimaryKey: []*schema.Column{CategoriesColumns[0]},
 	}
 	// DependsOnSkippedsColumns holds the columns for the "depends_on_skippeds" table.
 	DependsOnSkippedsColumns = []*schema.Column{
@@ -50,10 +59,9 @@ var (
 	}
 	// DependsOnSkippedsTable holds the schema information for the "depends_on_skippeds" table.
 	DependsOnSkippedsTable = &schema.Table{
-		Name:        "depends_on_skippeds",
-		Columns:     DependsOnSkippedsColumns,
-		PrimaryKey:  []*schema.Column{DependsOnSkippedsColumns[0]},
-		ForeignKeys: []*schema.ForeignKey{},
+		Name:       "depends_on_skippeds",
+		Columns:    DependsOnSkippedsColumns,
+		PrimaryKey: []*schema.Column{DependsOnSkippedsColumns[0]},
 	}
 	// DuplicateNumberMessagesColumns holds the columns for the "duplicate_number_messages" table.
 	DuplicateNumberMessagesColumns = []*schema.Column{
@@ -63,10 +71,9 @@ var (
 	}
 	// DuplicateNumberMessagesTable holds the schema information for the "duplicate_number_messages" table.
 	DuplicateNumberMessagesTable = &schema.Table{
-		Name:        "duplicate_number_messages",
-		Columns:     DuplicateNumberMessagesColumns,
-		PrimaryKey:  []*schema.Column{DuplicateNumberMessagesColumns[0]},
-		ForeignKeys: []*schema.ForeignKey{},
+		Name:       "duplicate_number_messages",
+		Columns:    DuplicateNumberMessagesColumns,
+		PrimaryKey: []*schema.Column{DuplicateNumberMessagesColumns[0]},
 	}
 	// ExplicitSkippedMessagesColumns holds the columns for the "explicit_skipped_messages" table.
 	ExplicitSkippedMessagesColumns = []*schema.Column{
@@ -74,10 +81,29 @@ var (
 	}
 	// ExplicitSkippedMessagesTable holds the schema information for the "explicit_skipped_messages" table.
 	ExplicitSkippedMessagesTable = &schema.Table{
-		Name:        "explicit_skipped_messages",
-		Columns:     ExplicitSkippedMessagesColumns,
-		PrimaryKey:  []*schema.Column{ExplicitSkippedMessagesColumns[0]},
-		ForeignKeys: []*schema.ForeignKey{},
+		Name:       "explicit_skipped_messages",
+		Columns:    ExplicitSkippedMessagesColumns,
+		PrimaryKey: []*schema.Column{ExplicitSkippedMessagesColumns[0]},
+	}
+	// ImagesColumns holds the columns for the "images" table.
+	ImagesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "url_path", Type: field.TypeString},
+		{Name: "no_backref_images", Type: field.TypeInt, Nullable: true},
+	}
+	// ImagesTable holds the schema information for the "images" table.
+	ImagesTable = &schema.Table{
+		Name:       "images",
+		Columns:    ImagesColumns,
+		PrimaryKey: []*schema.Column{ImagesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "images_no_backrefs_images",
+				Columns:    []*schema.Column{ImagesColumns[2]},
+				RefColumns: []*schema.Column{NoBackrefsColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
 	}
 	// ImplicitSkippedMessagesColumns holds the columns for the "implicit_skipped_messages" table.
 	ImplicitSkippedMessagesColumns = []*schema.Column{
@@ -101,14 +127,13 @@ var (
 	// InvalidFieldMessagesColumns holds the columns for the "invalid_field_messages" table.
 	InvalidFieldMessagesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
-		{Name: "hello", Type: field.TypeUUID},
+		{Name: "json", Type: field.TypeJSON},
 	}
 	// InvalidFieldMessagesTable holds the schema information for the "invalid_field_messages" table.
 	InvalidFieldMessagesTable = &schema.Table{
-		Name:        "invalid_field_messages",
-		Columns:     InvalidFieldMessagesColumns,
-		PrimaryKey:  []*schema.Column{InvalidFieldMessagesColumns[0]},
-		ForeignKeys: []*schema.ForeignKey{},
+		Name:       "invalid_field_messages",
+		Columns:    InvalidFieldMessagesColumns,
+		PrimaryKey: []*schema.Column{InvalidFieldMessagesColumns[0]},
 	}
 	// MessageWithEnumsColumns holds the columns for the "message_with_enums" table.
 	MessageWithEnumsColumns = []*schema.Column{
@@ -118,10 +143,9 @@ var (
 	}
 	// MessageWithEnumsTable holds the schema information for the "message_with_enums" table.
 	MessageWithEnumsTable = &schema.Table{
-		Name:        "message_with_enums",
-		Columns:     MessageWithEnumsColumns,
-		PrimaryKey:  []*schema.Column{MessageWithEnumsColumns[0]},
-		ForeignKeys: []*schema.ForeignKey{},
+		Name:       "message_with_enums",
+		Columns:    MessageWithEnumsColumns,
+		PrimaryKey: []*schema.Column{MessageWithEnumsColumns[0]},
 	}
 	// MessageWithFieldOnesColumns holds the columns for the "message_with_field_ones" table.
 	MessageWithFieldOnesColumns = []*schema.Column{
@@ -130,10 +154,9 @@ var (
 	}
 	// MessageWithFieldOnesTable holds the schema information for the "message_with_field_ones" table.
 	MessageWithFieldOnesTable = &schema.Table{
-		Name:        "message_with_field_ones",
-		Columns:     MessageWithFieldOnesColumns,
-		PrimaryKey:  []*schema.Column{MessageWithFieldOnesColumns[0]},
-		ForeignKeys: []*schema.ForeignKey{},
+		Name:       "message_with_field_ones",
+		Columns:    MessageWithFieldOnesColumns,
+		PrimaryKey: []*schema.Column{MessageWithFieldOnesColumns[0]},
 	}
 	// MessageWithIdsColumns holds the columns for the "message_with_ids" table.
 	MessageWithIdsColumns = []*schema.Column{
@@ -141,10 +164,27 @@ var (
 	}
 	// MessageWithIdsTable holds the schema information for the "message_with_ids" table.
 	MessageWithIdsTable = &schema.Table{
-		Name:        "message_with_ids",
-		Columns:     MessageWithIdsColumns,
-		PrimaryKey:  []*schema.Column{MessageWithIdsColumns[0]},
-		ForeignKeys: []*schema.ForeignKey{},
+		Name:       "message_with_ids",
+		Columns:    MessageWithIdsColumns,
+		PrimaryKey: []*schema.Column{MessageWithIdsColumns[0]},
+	}
+	// MessageWithOptionalsColumns holds the columns for the "message_with_optionals" table.
+	MessageWithOptionalsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "str_optional", Type: field.TypeString, Nullable: true},
+		{Name: "int_optional", Type: field.TypeInt8, Nullable: true},
+		{Name: "uint_optional", Type: field.TypeUint8, Nullable: true},
+		{Name: "float_optional", Type: field.TypeFloat32, Nullable: true},
+		{Name: "bool_optional", Type: field.TypeBool, Nullable: true},
+		{Name: "bytes_optional", Type: field.TypeBytes, Nullable: true},
+		{Name: "uuid_optional", Type: field.TypeUUID, Nullable: true},
+		{Name: "time_optional", Type: field.TypeTime, Nullable: true},
+	}
+	// MessageWithOptionalsTable holds the schema information for the "message_with_optionals" table.
+	MessageWithOptionalsTable = &schema.Table{
+		Name:       "message_with_optionals",
+		Columns:    MessageWithOptionalsColumns,
+		PrimaryKey: []*schema.Column{MessageWithOptionalsColumns[0]},
 	}
 	// MessageWithPackageNamesColumns holds the columns for the "message_with_package_names" table.
 	MessageWithPackageNamesColumns = []*schema.Column{
@@ -153,10 +193,40 @@ var (
 	}
 	// MessageWithPackageNamesTable holds the schema information for the "message_with_package_names" table.
 	MessageWithPackageNamesTable = &schema.Table{
-		Name:        "message_with_package_names",
-		Columns:     MessageWithPackageNamesColumns,
-		PrimaryKey:  []*schema.Column{MessageWithPackageNamesColumns[0]},
-		ForeignKeys: []*schema.ForeignKey{},
+		Name:       "message_with_package_names",
+		Columns:    MessageWithPackageNamesColumns,
+		PrimaryKey: []*schema.Column{MessageWithPackageNamesColumns[0]},
+	}
+	// MessageWithStringsColumns holds the columns for the "message_with_strings" table.
+	MessageWithStringsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "strings", Type: field.TypeJSON},
+	}
+	// MessageWithStringsTable holds the schema information for the "message_with_strings" table.
+	MessageWithStringsTable = &schema.Table{
+		Name:       "message_with_strings",
+		Columns:    MessageWithStringsColumns,
+		PrimaryKey: []*schema.Column{MessageWithStringsColumns[0]},
+	}
+	// NoBackrefsColumns holds the columns for the "no_backrefs" table.
+	NoBackrefsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+	}
+	// NoBackrefsTable holds the schema information for the "no_backrefs" table.
+	NoBackrefsTable = &schema.Table{
+		Name:       "no_backrefs",
+		Columns:    NoBackrefsColumns,
+		PrimaryKey: []*schema.Column{NoBackrefsColumns[0]},
+	}
+	// OneMethodServicesColumns holds the columns for the "one_method_services" table.
+	OneMethodServicesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+	}
+	// OneMethodServicesTable holds the schema information for the "one_method_services" table.
+	OneMethodServicesTable = &schema.Table{
+		Name:       "one_method_services",
+		Columns:    OneMethodServicesColumns,
+		PrimaryKey: []*schema.Column{OneMethodServicesColumns[0]},
 	}
 	// PortalsColumns holds the columns for the "portals" table.
 	PortalsColumns = []*schema.Column{
@@ -179,31 +249,71 @@ var (
 			},
 		},
 	}
+	// SkipEdgeExamplesColumns holds the columns for the "skip_edge_examples" table.
+	SkipEdgeExamplesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "user_skip_edge", Type: field.TypeInt, Unique: true, Nullable: true},
+	}
+	// SkipEdgeExamplesTable holds the schema information for the "skip_edge_examples" table.
+	SkipEdgeExamplesTable = &schema.Table{
+		Name:       "skip_edge_examples",
+		Columns:    SkipEdgeExamplesColumns,
+		PrimaryKey: []*schema.Column{SkipEdgeExamplesColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "skip_edge_examples_users_skip_edge",
+				Columns:    []*schema.Column{SkipEdgeExamplesColumns[1]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+	}
+	// TwoMethodServicesColumns holds the columns for the "two_method_services" table.
+	TwoMethodServicesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+	}
+	// TwoMethodServicesTable holds the schema information for the "two_method_services" table.
+	TwoMethodServicesTable = &schema.Table{
+		Name:       "two_method_services",
+		Columns:    TwoMethodServicesColumns,
+		PrimaryKey: []*schema.Column{TwoMethodServicesColumns[0]},
+	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "user_name", Type: field.TypeString},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"pending", "active"}},
+		{Name: "unnecessary", Type: field.TypeString, Nullable: true},
+		{Name: "user_profile_pic", Type: field.TypeUUID, Nullable: true},
 	}
 	// UsersTable holds the schema information for the "users" table.
 	UsersTable = &schema.Table{
-		Name:        "users",
-		Columns:     UsersColumns,
-		PrimaryKey:  []*schema.Column{UsersColumns[0]},
-		ForeignKeys: []*schema.ForeignKey{},
+		Name:       "users",
+		Columns:    UsersColumns,
+		PrimaryKey: []*schema.Column{UsersColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "users_images_profile_pic",
+				Columns:    []*schema.Column{UsersColumns[4]},
+				RefColumns: []*schema.Column{ImagesColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
 	}
 	// ValidMessagesColumns holds the columns for the "valid_messages" table.
 	ValidMessagesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
 		{Name: "name", Type: field.TypeString},
 		{Name: "ts", Type: field.TypeTime},
+		{Name: "uuid", Type: field.TypeUUID},
+		{Name: "u8", Type: field.TypeUint8},
+		{Name: "opti8", Type: field.TypeInt8, Nullable: true},
 	}
 	// ValidMessagesTable holds the schema information for the "valid_messages" table.
 	ValidMessagesTable = &schema.Table{
-		Name:        "valid_messages",
-		Columns:     ValidMessagesColumns,
-		PrimaryKey:  []*schema.Column{ValidMessagesColumns[0]},
-		ForeignKeys: []*schema.ForeignKey{},
+		Name:       "valid_messages",
+		Columns:    ValidMessagesColumns,
+		PrimaryKey: []*schema.Column{ValidMessagesColumns[0]},
 	}
 	// CategoryBlogPostsColumns holds the columns for the "category_blog_posts" table.
 	CategoryBlogPostsColumns = []*schema.Column{
@@ -232,18 +342,26 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		AllMethodsServicesTable,
 		BlogPostsTable,
 		CategoriesTable,
 		DependsOnSkippedsTable,
 		DuplicateNumberMessagesTable,
 		ExplicitSkippedMessagesTable,
+		ImagesTable,
 		ImplicitSkippedMessagesTable,
 		InvalidFieldMessagesTable,
 		MessageWithEnumsTable,
 		MessageWithFieldOnesTable,
 		MessageWithIdsTable,
+		MessageWithOptionalsTable,
 		MessageWithPackageNamesTable,
+		MessageWithStringsTable,
+		NoBackrefsTable,
+		OneMethodServicesTable,
 		PortalsTable,
+		SkipEdgeExamplesTable,
+		TwoMethodServicesTable,
 		UsersTable,
 		ValidMessagesTable,
 		CategoryBlogPostsTable,
@@ -252,8 +370,11 @@ var (
 
 func init() {
 	BlogPostsTable.ForeignKeys[0].RefTable = UsersTable
+	ImagesTable.ForeignKeys[0].RefTable = NoBackrefsTable
 	ImplicitSkippedMessagesTable.ForeignKeys[0].RefTable = DependsOnSkippedsTable
 	PortalsTable.ForeignKeys[0].RefTable = CategoriesTable
+	SkipEdgeExamplesTable.ForeignKeys[0].RefTable = UsersTable
+	UsersTable.ForeignKeys[0].RefTable = ImagesTable
 	CategoryBlogPostsTable.ForeignKeys[0].RefTable = CategoriesTable
 	CategoryBlogPostsTable.ForeignKeys[1].RefTable = BlogPostsTable
 }

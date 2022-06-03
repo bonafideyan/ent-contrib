@@ -4,7 +4,6 @@ package ent
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 
@@ -20,6 +19,7 @@ type ExplicitSkippedMessageQuery struct {
 	config
 	limit      *int
 	offset     *int
+	unique     *bool
 	order      []OrderFunc
 	fields     []string
 	predicates []predicate.ExplicitSkippedMessage
@@ -43,6 +43,13 @@ func (esmq *ExplicitSkippedMessageQuery) Limit(limit int) *ExplicitSkippedMessag
 // Offset adds an offset step to the query.
 func (esmq *ExplicitSkippedMessageQuery) Offset(offset int) *ExplicitSkippedMessageQuery {
 	esmq.offset = &offset
+	return esmq
+}
+
+// Unique configures the query builder to filter duplicate records on query.
+// By default, unique is set to true, and can be disabled using this method.
+func (esmq *ExplicitSkippedMessageQuery) Unique(unique bool) *ExplicitSkippedMessageQuery {
+	esmq.unique = &unique
 	return esmq
 }
 
@@ -98,7 +105,7 @@ func (esmq *ExplicitSkippedMessageQuery) FirstIDX(ctx context.Context) int {
 }
 
 // Only returns a single ExplicitSkippedMessage entity found by the query, ensuring it only returns one.
-// Returns a *NotSingularError when exactly one ExplicitSkippedMessage entity is not found.
+// Returns a *NotSingularError when more than one ExplicitSkippedMessage entity is found.
 // Returns a *NotFoundError when no ExplicitSkippedMessage entities are found.
 func (esmq *ExplicitSkippedMessageQuery) Only(ctx context.Context) (*ExplicitSkippedMessage, error) {
 	nodes, err := esmq.Limit(2).All(ctx)
@@ -125,7 +132,7 @@ func (esmq *ExplicitSkippedMessageQuery) OnlyX(ctx context.Context) *ExplicitSki
 }
 
 // OnlyID is like Only, but returns the only ExplicitSkippedMessage ID in the query.
-// Returns a *NotSingularError when exactly one ExplicitSkippedMessage ID is not found.
+// Returns a *NotSingularError when more than one ExplicitSkippedMessage ID is found.
 // Returns a *NotFoundError when no entities are found.
 func (esmq *ExplicitSkippedMessageQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
@@ -234,30 +241,36 @@ func (esmq *ExplicitSkippedMessageQuery) Clone() *ExplicitSkippedMessageQuery {
 		order:      append([]OrderFunc{}, esmq.order...),
 		predicates: append([]predicate.ExplicitSkippedMessage{}, esmq.predicates...),
 		// clone intermediate query.
-		sql:  esmq.sql.Clone(),
-		path: esmq.path,
+		sql:    esmq.sql.Clone(),
+		path:   esmq.path,
+		unique: esmq.unique,
 	}
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
 // It is often used with aggregate functions, like: count, max, mean, min, sum.
 func (esmq *ExplicitSkippedMessageQuery) GroupBy(field string, fields ...string) *ExplicitSkippedMessageGroupBy {
-	group := &ExplicitSkippedMessageGroupBy{config: esmq.config}
-	group.fields = append([]string{field}, fields...)
-	group.path = func(ctx context.Context) (prev *sql.Selector, err error) {
+	grbuild := &ExplicitSkippedMessageGroupBy{config: esmq.config}
+	grbuild.fields = append([]string{field}, fields...)
+	grbuild.path = func(ctx context.Context) (prev *sql.Selector, err error) {
 		if err := esmq.prepareQuery(ctx); err != nil {
 			return nil, err
 		}
 		return esmq.sqlQuery(ctx), nil
 	}
-	return group
+	grbuild.label = explicitskippedmessage.Label
+	grbuild.flds, grbuild.scan = &grbuild.fields, grbuild.Scan
+	return grbuild
 }
 
 // Select allows the selection one or more fields/columns for the given query,
 // instead of selecting all fields in the entity.
-func (esmq *ExplicitSkippedMessageQuery) Select(field string, fields ...string) *ExplicitSkippedMessageSelect {
-	esmq.fields = append([]string{field}, fields...)
-	return &ExplicitSkippedMessageSelect{ExplicitSkippedMessageQuery: esmq}
+func (esmq *ExplicitSkippedMessageQuery) Select(fields ...string) *ExplicitSkippedMessageSelect {
+	esmq.fields = append(esmq.fields, fields...)
+	selbuild := &ExplicitSkippedMessageSelect{ExplicitSkippedMessageQuery: esmq}
+	selbuild.label = explicitskippedmessage.Label
+	selbuild.flds, selbuild.scan = &esmq.fields, selbuild.Scan
+	return selbuild
 }
 
 func (esmq *ExplicitSkippedMessageQuery) prepareQuery(ctx context.Context) error {
@@ -276,22 +289,21 @@ func (esmq *ExplicitSkippedMessageQuery) prepareQuery(ctx context.Context) error
 	return nil
 }
 
-func (esmq *ExplicitSkippedMessageQuery) sqlAll(ctx context.Context) ([]*ExplicitSkippedMessage, error) {
+func (esmq *ExplicitSkippedMessageQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*ExplicitSkippedMessage, error) {
 	var (
 		nodes = []*ExplicitSkippedMessage{}
 		_spec = esmq.querySpec()
 	)
 	_spec.ScanValues = func(columns []string) ([]interface{}, error) {
-		node := &ExplicitSkippedMessage{config: esmq.config}
-		nodes = append(nodes, node)
-		return node.scanValues(columns)
+		return (*ExplicitSkippedMessage).scanValues(nil, columns)
 	}
 	_spec.Assign = func(columns []string, values []interface{}) error {
-		if len(nodes) == 0 {
-			return fmt.Errorf("ent: Assign called without calling ScanValues")
-		}
-		node := nodes[len(nodes)-1]
+		node := &ExplicitSkippedMessage{config: esmq.config}
+		nodes = append(nodes, node)
 		return node.assignValues(columns, values)
+	}
+	for i := range hooks {
+		hooks[i](ctx, _spec)
 	}
 	if err := sqlgraph.QueryNodes(ctx, esmq.driver, _spec); err != nil {
 		return nil, err
@@ -304,6 +316,10 @@ func (esmq *ExplicitSkippedMessageQuery) sqlAll(ctx context.Context) ([]*Explici
 
 func (esmq *ExplicitSkippedMessageQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := esmq.querySpec()
+	_spec.Node.Columns = esmq.fields
+	if len(esmq.fields) > 0 {
+		_spec.Unique = esmq.unique != nil && *esmq.unique
+	}
 	return sqlgraph.CountNodes(ctx, esmq.driver, _spec)
 }
 
@@ -327,6 +343,9 @@ func (esmq *ExplicitSkippedMessageQuery) querySpec() *sqlgraph.QuerySpec {
 		},
 		From:   esmq.sql,
 		Unique: true,
+	}
+	if unique := esmq.unique; unique != nil {
+		_spec.Unique = *unique
 	}
 	if fields := esmq.fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
@@ -353,7 +372,7 @@ func (esmq *ExplicitSkippedMessageQuery) querySpec() *sqlgraph.QuerySpec {
 	if ps := esmq.order; len(ps) > 0 {
 		_spec.Order = func(selector *sql.Selector) {
 			for i := range ps {
-				ps[i](selector, explicitskippedmessage.ValidColumn)
+				ps[i](selector)
 			}
 		}
 	}
@@ -363,16 +382,23 @@ func (esmq *ExplicitSkippedMessageQuery) querySpec() *sqlgraph.QuerySpec {
 func (esmq *ExplicitSkippedMessageQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	builder := sql.Dialect(esmq.driver.Dialect())
 	t1 := builder.Table(explicitskippedmessage.Table)
-	selector := builder.Select(t1.Columns(explicitskippedmessage.Columns...)...).From(t1)
+	columns := esmq.fields
+	if len(columns) == 0 {
+		columns = explicitskippedmessage.Columns
+	}
+	selector := builder.Select(t1.Columns(columns...)...).From(t1)
 	if esmq.sql != nil {
 		selector = esmq.sql
-		selector.Select(selector.Columns(explicitskippedmessage.Columns...)...)
+		selector.Select(selector.Columns(columns...)...)
+	}
+	if esmq.unique != nil && *esmq.unique {
+		selector.Distinct()
 	}
 	for _, p := range esmq.predicates {
 		p(selector)
 	}
 	for _, p := range esmq.order {
-		p(selector, explicitskippedmessage.ValidColumn)
+		p(selector)
 	}
 	if offset := esmq.offset; offset != nil {
 		// limit is mandatory for offset clause. We start
@@ -388,6 +414,7 @@ func (esmq *ExplicitSkippedMessageQuery) sqlQuery(ctx context.Context) *sql.Sele
 // ExplicitSkippedMessageGroupBy is the group-by builder for ExplicitSkippedMessage entities.
 type ExplicitSkippedMessageGroupBy struct {
 	config
+	selector
 	fields []string
 	fns    []AggregateFunc
 	// intermediate query (i.e. traversal path).
@@ -411,209 +438,6 @@ func (esmgb *ExplicitSkippedMessageGroupBy) Scan(ctx context.Context, v interfac
 	return esmgb.sqlScan(ctx, v)
 }
 
-// ScanX is like Scan, but panics if an error occurs.
-func (esmgb *ExplicitSkippedMessageGroupBy) ScanX(ctx context.Context, v interface{}) {
-	if err := esmgb.Scan(ctx, v); err != nil {
-		panic(err)
-	}
-}
-
-// Strings returns list of strings from group-by.
-// It is only allowed when executing a group-by query with one field.
-func (esmgb *ExplicitSkippedMessageGroupBy) Strings(ctx context.Context) ([]string, error) {
-	if len(esmgb.fields) > 1 {
-		return nil, errors.New("ent: ExplicitSkippedMessageGroupBy.Strings is not achievable when grouping more than 1 field")
-	}
-	var v []string
-	if err := esmgb.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// StringsX is like Strings, but panics if an error occurs.
-func (esmgb *ExplicitSkippedMessageGroupBy) StringsX(ctx context.Context) []string {
-	v, err := esmgb.Strings(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// String returns a single string from a group-by query.
-// It is only allowed when executing a group-by query with one field.
-func (esmgb *ExplicitSkippedMessageGroupBy) String(ctx context.Context) (_ string, err error) {
-	var v []string
-	if v, err = esmgb.Strings(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{explicitskippedmessage.Label}
-	default:
-		err = fmt.Errorf("ent: ExplicitSkippedMessageGroupBy.Strings returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// StringX is like String, but panics if an error occurs.
-func (esmgb *ExplicitSkippedMessageGroupBy) StringX(ctx context.Context) string {
-	v, err := esmgb.String(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Ints returns list of ints from group-by.
-// It is only allowed when executing a group-by query with one field.
-func (esmgb *ExplicitSkippedMessageGroupBy) Ints(ctx context.Context) ([]int, error) {
-	if len(esmgb.fields) > 1 {
-		return nil, errors.New("ent: ExplicitSkippedMessageGroupBy.Ints is not achievable when grouping more than 1 field")
-	}
-	var v []int
-	if err := esmgb.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// IntsX is like Ints, but panics if an error occurs.
-func (esmgb *ExplicitSkippedMessageGroupBy) IntsX(ctx context.Context) []int {
-	v, err := esmgb.Ints(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Int returns a single int from a group-by query.
-// It is only allowed when executing a group-by query with one field.
-func (esmgb *ExplicitSkippedMessageGroupBy) Int(ctx context.Context) (_ int, err error) {
-	var v []int
-	if v, err = esmgb.Ints(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{explicitskippedmessage.Label}
-	default:
-		err = fmt.Errorf("ent: ExplicitSkippedMessageGroupBy.Ints returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// IntX is like Int, but panics if an error occurs.
-func (esmgb *ExplicitSkippedMessageGroupBy) IntX(ctx context.Context) int {
-	v, err := esmgb.Int(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Float64s returns list of float64s from group-by.
-// It is only allowed when executing a group-by query with one field.
-func (esmgb *ExplicitSkippedMessageGroupBy) Float64s(ctx context.Context) ([]float64, error) {
-	if len(esmgb.fields) > 1 {
-		return nil, errors.New("ent: ExplicitSkippedMessageGroupBy.Float64s is not achievable when grouping more than 1 field")
-	}
-	var v []float64
-	if err := esmgb.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// Float64sX is like Float64s, but panics if an error occurs.
-func (esmgb *ExplicitSkippedMessageGroupBy) Float64sX(ctx context.Context) []float64 {
-	v, err := esmgb.Float64s(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Float64 returns a single float64 from a group-by query.
-// It is only allowed when executing a group-by query with one field.
-func (esmgb *ExplicitSkippedMessageGroupBy) Float64(ctx context.Context) (_ float64, err error) {
-	var v []float64
-	if v, err = esmgb.Float64s(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{explicitskippedmessage.Label}
-	default:
-		err = fmt.Errorf("ent: ExplicitSkippedMessageGroupBy.Float64s returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// Float64X is like Float64, but panics if an error occurs.
-func (esmgb *ExplicitSkippedMessageGroupBy) Float64X(ctx context.Context) float64 {
-	v, err := esmgb.Float64(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Bools returns list of bools from group-by.
-// It is only allowed when executing a group-by query with one field.
-func (esmgb *ExplicitSkippedMessageGroupBy) Bools(ctx context.Context) ([]bool, error) {
-	if len(esmgb.fields) > 1 {
-		return nil, errors.New("ent: ExplicitSkippedMessageGroupBy.Bools is not achievable when grouping more than 1 field")
-	}
-	var v []bool
-	if err := esmgb.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// BoolsX is like Bools, but panics if an error occurs.
-func (esmgb *ExplicitSkippedMessageGroupBy) BoolsX(ctx context.Context) []bool {
-	v, err := esmgb.Bools(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Bool returns a single bool from a group-by query.
-// It is only allowed when executing a group-by query with one field.
-func (esmgb *ExplicitSkippedMessageGroupBy) Bool(ctx context.Context) (_ bool, err error) {
-	var v []bool
-	if v, err = esmgb.Bools(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{explicitskippedmessage.Label}
-	default:
-		err = fmt.Errorf("ent: ExplicitSkippedMessageGroupBy.Bools returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// BoolX is like Bool, but panics if an error occurs.
-func (esmgb *ExplicitSkippedMessageGroupBy) BoolX(ctx context.Context) bool {
-	v, err := esmgb.Bool(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
 func (esmgb *ExplicitSkippedMessageGroupBy) sqlScan(ctx context.Context, v interface{}) error {
 	for _, f := range esmgb.fields {
 		if !explicitskippedmessage.ValidColumn(f) {
@@ -634,18 +458,28 @@ func (esmgb *ExplicitSkippedMessageGroupBy) sqlScan(ctx context.Context, v inter
 }
 
 func (esmgb *ExplicitSkippedMessageGroupBy) sqlQuery() *sql.Selector {
-	selector := esmgb.sql
-	columns := make([]string, 0, len(esmgb.fields)+len(esmgb.fns))
-	columns = append(columns, esmgb.fields...)
+	selector := esmgb.sql.Select()
+	aggregation := make([]string, 0, len(esmgb.fns))
 	for _, fn := range esmgb.fns {
-		columns = append(columns, fn(selector, explicitskippedmessage.ValidColumn))
+		aggregation = append(aggregation, fn(selector))
 	}
-	return selector.Select(columns...).GroupBy(esmgb.fields...)
+	// If no columns were selected in a custom aggregation function, the default
+	// selection is the fields used for "group-by", and the aggregation functions.
+	if len(selector.SelectedColumns()) == 0 {
+		columns := make([]string, 0, len(esmgb.fields)+len(esmgb.fns))
+		for _, f := range esmgb.fields {
+			columns = append(columns, selector.C(f))
+		}
+		columns = append(columns, aggregation...)
+		selector.Select(columns...)
+	}
+	return selector.GroupBy(selector.Columns(esmgb.fields...)...)
 }
 
 // ExplicitSkippedMessageSelect is the builder for selecting fields of ExplicitSkippedMessage entities.
 type ExplicitSkippedMessageSelect struct {
 	*ExplicitSkippedMessageQuery
+	selector
 	// intermediate query (i.e. traversal path).
 	sql *sql.Selector
 }
@@ -659,213 +493,12 @@ func (esms *ExplicitSkippedMessageSelect) Scan(ctx context.Context, v interface{
 	return esms.sqlScan(ctx, v)
 }
 
-// ScanX is like Scan, but panics if an error occurs.
-func (esms *ExplicitSkippedMessageSelect) ScanX(ctx context.Context, v interface{}) {
-	if err := esms.Scan(ctx, v); err != nil {
-		panic(err)
-	}
-}
-
-// Strings returns list of strings from a selector. It is only allowed when selecting one field.
-func (esms *ExplicitSkippedMessageSelect) Strings(ctx context.Context) ([]string, error) {
-	if len(esms.fields) > 1 {
-		return nil, errors.New("ent: ExplicitSkippedMessageSelect.Strings is not achievable when selecting more than 1 field")
-	}
-	var v []string
-	if err := esms.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// StringsX is like Strings, but panics if an error occurs.
-func (esms *ExplicitSkippedMessageSelect) StringsX(ctx context.Context) []string {
-	v, err := esms.Strings(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// String returns a single string from a selector. It is only allowed when selecting one field.
-func (esms *ExplicitSkippedMessageSelect) String(ctx context.Context) (_ string, err error) {
-	var v []string
-	if v, err = esms.Strings(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{explicitskippedmessage.Label}
-	default:
-		err = fmt.Errorf("ent: ExplicitSkippedMessageSelect.Strings returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// StringX is like String, but panics if an error occurs.
-func (esms *ExplicitSkippedMessageSelect) StringX(ctx context.Context) string {
-	v, err := esms.String(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Ints returns list of ints from a selector. It is only allowed when selecting one field.
-func (esms *ExplicitSkippedMessageSelect) Ints(ctx context.Context) ([]int, error) {
-	if len(esms.fields) > 1 {
-		return nil, errors.New("ent: ExplicitSkippedMessageSelect.Ints is not achievable when selecting more than 1 field")
-	}
-	var v []int
-	if err := esms.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// IntsX is like Ints, but panics if an error occurs.
-func (esms *ExplicitSkippedMessageSelect) IntsX(ctx context.Context) []int {
-	v, err := esms.Ints(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Int returns a single int from a selector. It is only allowed when selecting one field.
-func (esms *ExplicitSkippedMessageSelect) Int(ctx context.Context) (_ int, err error) {
-	var v []int
-	if v, err = esms.Ints(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{explicitskippedmessage.Label}
-	default:
-		err = fmt.Errorf("ent: ExplicitSkippedMessageSelect.Ints returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// IntX is like Int, but panics if an error occurs.
-func (esms *ExplicitSkippedMessageSelect) IntX(ctx context.Context) int {
-	v, err := esms.Int(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Float64s returns list of float64s from a selector. It is only allowed when selecting one field.
-func (esms *ExplicitSkippedMessageSelect) Float64s(ctx context.Context) ([]float64, error) {
-	if len(esms.fields) > 1 {
-		return nil, errors.New("ent: ExplicitSkippedMessageSelect.Float64s is not achievable when selecting more than 1 field")
-	}
-	var v []float64
-	if err := esms.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// Float64sX is like Float64s, but panics if an error occurs.
-func (esms *ExplicitSkippedMessageSelect) Float64sX(ctx context.Context) []float64 {
-	v, err := esms.Float64s(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Float64 returns a single float64 from a selector. It is only allowed when selecting one field.
-func (esms *ExplicitSkippedMessageSelect) Float64(ctx context.Context) (_ float64, err error) {
-	var v []float64
-	if v, err = esms.Float64s(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{explicitskippedmessage.Label}
-	default:
-		err = fmt.Errorf("ent: ExplicitSkippedMessageSelect.Float64s returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// Float64X is like Float64, but panics if an error occurs.
-func (esms *ExplicitSkippedMessageSelect) Float64X(ctx context.Context) float64 {
-	v, err := esms.Float64(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Bools returns list of bools from a selector. It is only allowed when selecting one field.
-func (esms *ExplicitSkippedMessageSelect) Bools(ctx context.Context) ([]bool, error) {
-	if len(esms.fields) > 1 {
-		return nil, errors.New("ent: ExplicitSkippedMessageSelect.Bools is not achievable when selecting more than 1 field")
-	}
-	var v []bool
-	if err := esms.Scan(ctx, &v); err != nil {
-		return nil, err
-	}
-	return v, nil
-}
-
-// BoolsX is like Bools, but panics if an error occurs.
-func (esms *ExplicitSkippedMessageSelect) BoolsX(ctx context.Context) []bool {
-	v, err := esms.Bools(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
-// Bool returns a single bool from a selector. It is only allowed when selecting one field.
-func (esms *ExplicitSkippedMessageSelect) Bool(ctx context.Context) (_ bool, err error) {
-	var v []bool
-	if v, err = esms.Bools(ctx); err != nil {
-		return
-	}
-	switch len(v) {
-	case 1:
-		return v[0], nil
-	case 0:
-		err = &NotFoundError{explicitskippedmessage.Label}
-	default:
-		err = fmt.Errorf("ent: ExplicitSkippedMessageSelect.Bools returned %d results when one was expected", len(v))
-	}
-	return
-}
-
-// BoolX is like Bool, but panics if an error occurs.
-func (esms *ExplicitSkippedMessageSelect) BoolX(ctx context.Context) bool {
-	v, err := esms.Bool(ctx)
-	if err != nil {
-		panic(err)
-	}
-	return v
-}
-
 func (esms *ExplicitSkippedMessageSelect) sqlScan(ctx context.Context, v interface{}) error {
 	rows := &sql.Rows{}
-	query, args := esms.sqlQuery().Query()
+	query, args := esms.sql.Query()
 	if err := esms.driver.Query(ctx, query, args, rows); err != nil {
 		return err
 	}
 	defer rows.Close()
 	return sql.ScanSlice(rows, v)
-}
-
-func (esms *ExplicitSkippedMessageSelect) sqlQuery() sql.Querier {
-	selector := esms.sql
-	selector.Select(selector.Columns(esms.fields...)...)
-	return selector
 }

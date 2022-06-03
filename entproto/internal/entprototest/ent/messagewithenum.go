@@ -27,9 +27,9 @@ func (*MessageWithEnum) scanValues(columns []string) ([]interface{}, error) {
 	for i := range columns {
 		switch columns[i] {
 		case messagewithenum.FieldID:
-			values[i] = &sql.NullInt64{}
+			values[i] = new(sql.NullInt64)
 		case messagewithenum.FieldEnumType, messagewithenum.FieldEnumWithoutDefault:
-			values[i] = &sql.NullString{}
+			values[i] = new(sql.NullString)
 		default:
 			return nil, fmt.Errorf("unexpected column %q for type MessageWithEnum", columns[i])
 		}
@@ -90,10 +90,11 @@ func (mwe *MessageWithEnum) Unwrap() *MessageWithEnum {
 func (mwe *MessageWithEnum) String() string {
 	var builder strings.Builder
 	builder.WriteString("MessageWithEnum(")
-	builder.WriteString(fmt.Sprintf("id=%v", mwe.ID))
-	builder.WriteString(", enum_type=")
+	builder.WriteString(fmt.Sprintf("id=%v, ", mwe.ID))
+	builder.WriteString("enum_type=")
 	builder.WriteString(fmt.Sprintf("%v", mwe.EnumType))
-	builder.WriteString(", enum_without_default=")
+	builder.WriteString(", ")
+	builder.WriteString("enum_without_default=")
 	builder.WriteString(fmt.Sprintf("%v", mwe.EnumWithoutDefault))
 	builder.WriteByte(')')
 	return builder.String()

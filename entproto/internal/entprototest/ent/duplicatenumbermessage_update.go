@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"entgo.io/contrib/entproto/internal/entprototest/ent/duplicatenumbermessage"
@@ -20,9 +21,9 @@ type DuplicateNumberMessageUpdate struct {
 	mutation *DuplicateNumberMessageMutation
 }
 
-// Where adds a new predicate for the DuplicateNumberMessageUpdate builder.
+// Where appends a list predicates to the DuplicateNumberMessageUpdate builder.
 func (dnmu *DuplicateNumberMessageUpdate) Where(ps ...predicate.DuplicateNumberMessage) *DuplicateNumberMessageUpdate {
-	dnmu.mutation.predicates = append(dnmu.mutation.predicates, ps...)
+	dnmu.mutation.Where(ps...)
 	return dnmu
 }
 
@@ -63,6 +64,9 @@ func (dnmu *DuplicateNumberMessageUpdate) Save(ctx context.Context) (int, error)
 			return affected, err
 		})
 		for i := len(dnmu.hooks) - 1; i >= 0; i-- {
+			if dnmu.hooks[i] == nil {
+				return 0, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
+			}
 			mut = dnmu.hooks[i](mut)
 		}
 		if _, err := mut.Mutate(ctx, dnmu.mutation); err != nil {
@@ -129,8 +133,8 @@ func (dnmu *DuplicateNumberMessageUpdate) sqlSave(ctx context.Context) (n int, e
 	if n, err = sqlgraph.UpdateNodes(ctx, dnmu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{duplicatenumbermessage.Label}
-		} else if cerr, ok := isSQLConstraintError(err); ok {
-			err = cerr
+		} else if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{err.Error(), err}
 		}
 		return 0, err
 	}
@@ -140,6 +144,7 @@ func (dnmu *DuplicateNumberMessageUpdate) sqlSave(ctx context.Context) (n int, e
 // DuplicateNumberMessageUpdateOne is the builder for updating a single DuplicateNumberMessage entity.
 type DuplicateNumberMessageUpdateOne struct {
 	config
+	fields   []string
 	hooks    []Hook
 	mutation *DuplicateNumberMessageMutation
 }
@@ -159,6 +164,13 @@ func (dnmuo *DuplicateNumberMessageUpdateOne) SetWorld(s string) *DuplicateNumbe
 // Mutation returns the DuplicateNumberMessageMutation object of the builder.
 func (dnmuo *DuplicateNumberMessageUpdateOne) Mutation() *DuplicateNumberMessageMutation {
 	return dnmuo.mutation
+}
+
+// Select allows selecting one or more fields (columns) of the returned entity.
+// The default is selecting all fields defined in the entity schema.
+func (dnmuo *DuplicateNumberMessageUpdateOne) Select(field string, fields ...string) *DuplicateNumberMessageUpdateOne {
+	dnmuo.fields = append([]string{field}, fields...)
+	return dnmuo
 }
 
 // Save executes the query and returns the updated DuplicateNumberMessage entity.
@@ -181,11 +193,20 @@ func (dnmuo *DuplicateNumberMessageUpdateOne) Save(ctx context.Context) (*Duplic
 			return node, err
 		})
 		for i := len(dnmuo.hooks) - 1; i >= 0; i-- {
+			if dnmuo.hooks[i] == nil {
+				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
+			}
 			mut = dnmuo.hooks[i](mut)
 		}
-		if _, err := mut.Mutate(ctx, dnmuo.mutation); err != nil {
+		v, err := mut.Mutate(ctx, dnmuo.mutation)
+		if err != nil {
 			return nil, err
 		}
+		nv, ok := v.(*DuplicateNumberMessage)
+		if !ok {
+			return nil, fmt.Errorf("unexpected node type %T returned from DuplicateNumberMessageMutation", v)
+		}
+		node = nv
 	}
 	return node, err
 }
@@ -225,9 +246,21 @@ func (dnmuo *DuplicateNumberMessageUpdateOne) sqlSave(ctx context.Context) (_nod
 	}
 	id, ok := dnmuo.mutation.ID()
 	if !ok {
-		return nil, &ValidationError{Name: "ID", err: fmt.Errorf("missing DuplicateNumberMessage.ID for update")}
+		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "DuplicateNumberMessage.id" for update`)}
 	}
 	_spec.Node.ID.Value = id
+	if fields := dnmuo.fields; len(fields) > 0 {
+		_spec.Node.Columns = make([]string, 0, len(fields))
+		_spec.Node.Columns = append(_spec.Node.Columns, duplicatenumbermessage.FieldID)
+		for _, f := range fields {
+			if !duplicatenumbermessage.ValidColumn(f) {
+				return nil, &ValidationError{Name: f, err: fmt.Errorf("ent: invalid field %q for query", f)}
+			}
+			if f != duplicatenumbermessage.FieldID {
+				_spec.Node.Columns = append(_spec.Node.Columns, f)
+			}
+		}
+	}
 	if ps := dnmuo.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -255,8 +288,8 @@ func (dnmuo *DuplicateNumberMessageUpdateOne) sqlSave(ctx context.Context) (_nod
 	if err = sqlgraph.UpdateNode(ctx, dnmuo.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{duplicatenumbermessage.Label}
-		} else if cerr, ok := isSQLConstraintError(err); ok {
-			err = cerr
+		} else if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{err.Error(), err}
 		}
 		return nil, err
 	}

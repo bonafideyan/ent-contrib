@@ -51,16 +51,28 @@ func (mwpnc *MessageWithPackageNameCreate) Save(ctx context.Context) (*MessageWi
 				return nil, err
 			}
 			mwpnc.mutation = mutation
-			node, err = mwpnc.sqlSave(ctx)
+			if node, err = mwpnc.sqlSave(ctx); err != nil {
+				return nil, err
+			}
+			mutation.id = &node.ID
 			mutation.done = true
 			return node, err
 		})
 		for i := len(mwpnc.hooks) - 1; i >= 0; i-- {
+			if mwpnc.hooks[i] == nil {
+				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
+			}
 			mut = mwpnc.hooks[i](mut)
 		}
-		if _, err := mut.Mutate(ctx, mwpnc.mutation); err != nil {
+		v, err := mut.Mutate(ctx, mwpnc.mutation)
+		if err != nil {
 			return nil, err
 		}
+		nv, ok := v.(*MessageWithPackageName)
+		if !ok {
+			return nil, fmt.Errorf("unexpected node type %T returned from MessageWithPackageNameMutation", v)
+		}
+		node = nv
 	}
 	return node, err
 }
@@ -74,10 +86,23 @@ func (mwpnc *MessageWithPackageNameCreate) SaveX(ctx context.Context) *MessageWi
 	return v
 }
 
+// Exec executes the query.
+func (mwpnc *MessageWithPackageNameCreate) Exec(ctx context.Context) error {
+	_, err := mwpnc.Save(ctx)
+	return err
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (mwpnc *MessageWithPackageNameCreate) ExecX(ctx context.Context) {
+	if err := mwpnc.Exec(ctx); err != nil {
+		panic(err)
+	}
+}
+
 // check runs all checks and user-defined validators on the builder.
 func (mwpnc *MessageWithPackageNameCreate) check() error {
 	if _, ok := mwpnc.mutation.Name(); !ok {
-		return &ValidationError{Name: "name", err: errors.New("ent: missing required field \"name\"")}
+		return &ValidationError{Name: "name", err: errors.New(`ent: missing required field "MessageWithPackageName.name"`)}
 	}
 	return nil
 }
@@ -85,8 +110,8 @@ func (mwpnc *MessageWithPackageNameCreate) check() error {
 func (mwpnc *MessageWithPackageNameCreate) sqlSave(ctx context.Context) (*MessageWithPackageName, error) {
 	_node, _spec := mwpnc.createSpec()
 	if err := sqlgraph.CreateNode(ctx, mwpnc.driver, _spec); err != nil {
-		if cerr, ok := isSQLConstraintError(err); ok {
-			err = cerr
+		if sqlgraph.IsConstraintError(err) {
+			err = &ConstraintError{err.Error(), err}
 		}
 		return nil, err
 	}
@@ -145,19 +170,23 @@ func (mwpncb *MessageWithPackageNameCreateBulk) Save(ctx context.Context) ([]*Me
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, mwpncb.builders[i+1].mutation)
 				} else {
+					spec := &sqlgraph.BatchCreateSpec{Nodes: specs}
 					// Invoke the actual operation on the latest mutation in the chain.
-					if err = sqlgraph.BatchCreate(ctx, mwpncb.driver, &sqlgraph.BatchCreateSpec{Nodes: specs}); err != nil {
-						if cerr, ok := isSQLConstraintError(err); ok {
-							err = cerr
+					if err = sqlgraph.BatchCreate(ctx, mwpncb.driver, spec); err != nil {
+						if sqlgraph.IsConstraintError(err) {
+							err = &ConstraintError{err.Error(), err}
 						}
 					}
 				}
-				mutation.done = true
 				if err != nil {
 					return nil, err
 				}
-				id := specs[i].ID.Value.(int64)
-				nodes[i].ID = int(id)
+				mutation.id = &nodes[i].ID
+				if specs[i].ID.Value != nil {
+					id := specs[i].ID.Value.(int64)
+					nodes[i].ID = int(id)
+				}
+				mutation.done = true
 				return nodes[i], nil
 			})
 			for i := len(builder.hooks) - 1; i >= 0; i-- {
@@ -181,4 +210,17 @@ func (mwpncb *MessageWithPackageNameCreateBulk) SaveX(ctx context.Context) []*Me
 		panic(err)
 	}
 	return v
+}
+
+// Exec executes the query.
+func (mwpncb *MessageWithPackageNameCreateBulk) Exec(ctx context.Context) error {
+	_, err := mwpncb.Save(ctx)
+	return err
+}
+
+// ExecX is like Exec, but panics if an error occurs.
+func (mwpncb *MessageWithPackageNameCreateBulk) ExecX(ctx context.Context) {
+	if err := mwpncb.Exec(ctx); err != nil {
+		panic(err)
+	}
 }

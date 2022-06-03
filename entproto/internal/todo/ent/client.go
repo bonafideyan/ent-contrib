@@ -8,8 +8,15 @@ import (
 	"log"
 
 	"entgo.io/contrib/entproto/internal/todo/ent/migrate"
+	"github.com/google/uuid"
 
+	"entgo.io/contrib/entproto/internal/todo/ent/attachment"
 	"entgo.io/contrib/entproto/internal/todo/ent/group"
+	"entgo.io/contrib/entproto/internal/todo/ent/multiwordschema"
+	"entgo.io/contrib/entproto/internal/todo/ent/nilexample"
+	"entgo.io/contrib/entproto/internal/todo/ent/pet"
+	"entgo.io/contrib/entproto/internal/todo/ent/pony"
+	"entgo.io/contrib/entproto/internal/todo/ent/skipedgeexample"
 	"entgo.io/contrib/entproto/internal/todo/ent/todo"
 	"entgo.io/contrib/entproto/internal/todo/ent/user"
 
@@ -23,8 +30,20 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
+	// Attachment is the client for interacting with the Attachment builders.
+	Attachment *AttachmentClient
 	// Group is the client for interacting with the Group builders.
 	Group *GroupClient
+	// MultiWordSchema is the client for interacting with the MultiWordSchema builders.
+	MultiWordSchema *MultiWordSchemaClient
+	// NilExample is the client for interacting with the NilExample builders.
+	NilExample *NilExampleClient
+	// Pet is the client for interacting with the Pet builders.
+	Pet *PetClient
+	// Pony is the client for interacting with the Pony builders.
+	Pony *PonyClient
+	// SkipEdgeExample is the client for interacting with the SkipEdgeExample builders.
+	SkipEdgeExample *SkipEdgeExampleClient
 	// Todo is the client for interacting with the Todo builders.
 	Todo *TodoClient
 	// User is the client for interacting with the User builders.
@@ -42,7 +61,13 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
+	c.Attachment = NewAttachmentClient(c.config)
 	c.Group = NewGroupClient(c.config)
+	c.MultiWordSchema = NewMultiWordSchemaClient(c.config)
+	c.NilExample = NewNilExampleClient(c.config)
+	c.Pet = NewPetClient(c.config)
+	c.Pony = NewPonyClient(c.config)
+	c.SkipEdgeExample = NewSkipEdgeExampleClient(c.config)
 	c.Todo = NewTodoClient(c.config)
 	c.User = NewUserClient(c.config)
 }
@@ -76,11 +101,17 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:    ctx,
-		config: cfg,
-		Group:  NewGroupClient(cfg),
-		Todo:   NewTodoClient(cfg),
-		User:   NewUserClient(cfg),
+		ctx:             ctx,
+		config:          cfg,
+		Attachment:      NewAttachmentClient(cfg),
+		Group:           NewGroupClient(cfg),
+		MultiWordSchema: NewMultiWordSchemaClient(cfg),
+		NilExample:      NewNilExampleClient(cfg),
+		Pet:             NewPetClient(cfg),
+		Pony:            NewPonyClient(cfg),
+		SkipEdgeExample: NewSkipEdgeExampleClient(cfg),
+		Todo:            NewTodoClient(cfg),
+		User:            NewUserClient(cfg),
 	}, nil
 }
 
@@ -98,17 +129,24 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		config: cfg,
-		Group:  NewGroupClient(cfg),
-		Todo:   NewTodoClient(cfg),
-		User:   NewUserClient(cfg),
+		ctx:             ctx,
+		config:          cfg,
+		Attachment:      NewAttachmentClient(cfg),
+		Group:           NewGroupClient(cfg),
+		MultiWordSchema: NewMultiWordSchemaClient(cfg),
+		NilExample:      NewNilExampleClient(cfg),
+		Pet:             NewPetClient(cfg),
+		Pony:            NewPonyClient(cfg),
+		SkipEdgeExample: NewSkipEdgeExampleClient(cfg),
+		Todo:            NewTodoClient(cfg),
+		User:            NewUserClient(cfg),
 	}, nil
 }
 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		Group.
+//		Attachment.
 //		Query().
 //		Count(ctx)
 //
@@ -131,9 +169,137 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
+	c.Attachment.Use(hooks...)
 	c.Group.Use(hooks...)
+	c.MultiWordSchema.Use(hooks...)
+	c.NilExample.Use(hooks...)
+	c.Pet.Use(hooks...)
+	c.Pony.Use(hooks...)
+	c.SkipEdgeExample.Use(hooks...)
 	c.Todo.Use(hooks...)
 	c.User.Use(hooks...)
+}
+
+// AttachmentClient is a client for the Attachment schema.
+type AttachmentClient struct {
+	config
+}
+
+// NewAttachmentClient returns a client for the Attachment from the given config.
+func NewAttachmentClient(c config) *AttachmentClient {
+	return &AttachmentClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `attachment.Hooks(f(g(h())))`.
+func (c *AttachmentClient) Use(hooks ...Hook) {
+	c.hooks.Attachment = append(c.hooks.Attachment, hooks...)
+}
+
+// Create returns a builder for creating a Attachment entity.
+func (c *AttachmentClient) Create() *AttachmentCreate {
+	mutation := newAttachmentMutation(c.config, OpCreate)
+	return &AttachmentCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Attachment entities.
+func (c *AttachmentClient) CreateBulk(builders ...*AttachmentCreate) *AttachmentCreateBulk {
+	return &AttachmentCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Attachment.
+func (c *AttachmentClient) Update() *AttachmentUpdate {
+	mutation := newAttachmentMutation(c.config, OpUpdate)
+	return &AttachmentUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *AttachmentClient) UpdateOne(a *Attachment) *AttachmentUpdateOne {
+	mutation := newAttachmentMutation(c.config, OpUpdateOne, withAttachment(a))
+	return &AttachmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *AttachmentClient) UpdateOneID(id uuid.UUID) *AttachmentUpdateOne {
+	mutation := newAttachmentMutation(c.config, OpUpdateOne, withAttachmentID(id))
+	return &AttachmentUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Attachment.
+func (c *AttachmentClient) Delete() *AttachmentDelete {
+	mutation := newAttachmentMutation(c.config, OpDelete)
+	return &AttachmentDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *AttachmentClient) DeleteOne(a *Attachment) *AttachmentDeleteOne {
+	return c.DeleteOneID(a.ID)
+}
+
+// DeleteOne returns a builder for deleting the given entity by its id.
+func (c *AttachmentClient) DeleteOneID(id uuid.UUID) *AttachmentDeleteOne {
+	builder := c.Delete().Where(attachment.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &AttachmentDeleteOne{builder}
+}
+
+// Query returns a query builder for Attachment.
+func (c *AttachmentClient) Query() *AttachmentQuery {
+	return &AttachmentQuery{
+		config: c.config,
+	}
+}
+
+// Get returns a Attachment entity by its id.
+func (c *AttachmentClient) Get(ctx context.Context, id uuid.UUID) (*Attachment, error) {
+	return c.Query().Where(attachment.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *AttachmentClient) GetX(ctx context.Context, id uuid.UUID) *Attachment {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a Attachment.
+func (c *AttachmentClient) QueryUser(a *Attachment) *UserQuery {
+	query := &UserQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := a.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(attachment.Table, attachment.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, true, attachment.UserTable, attachment.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(a.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryRecipients queries the recipients edge of a Attachment.
+func (c *AttachmentClient) QueryRecipients(a *Attachment) *UserQuery {
+	query := &UserQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := a.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(attachment.Table, attachment.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, false, attachment.RecipientsTable, attachment.RecipientsPrimaryKey...),
+		)
+		fromV = sqlgraph.Neighbors(a.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *AttachmentClient) Hooks() []Hook {
+	return c.hooks.Attachment
 }
 
 // GroupClient is a client for the Group schema.
@@ -152,7 +318,7 @@ func (c *GroupClient) Use(hooks ...Hook) {
 	c.hooks.Group = append(c.hooks.Group, hooks...)
 }
 
-// Create returns a create builder for Group.
+// Create returns a builder for creating a Group entity.
 func (c *GroupClient) Create() *GroupCreate {
 	mutation := newGroupMutation(c.config, OpCreate)
 	return &GroupCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
@@ -187,12 +353,12 @@ func (c *GroupClient) Delete() *GroupDelete {
 	return &GroupDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
-// DeleteOne returns a delete builder for the given entity.
+// DeleteOne returns a builder for deleting the given entity.
 func (c *GroupClient) DeleteOne(gr *Group) *GroupDeleteOne {
 	return c.DeleteOneID(gr.ID)
 }
 
-// DeleteOneID returns a delete builder for the given id.
+// DeleteOne returns a builder for deleting the given entity by its id.
 func (c *GroupClient) DeleteOneID(id int) *GroupDeleteOne {
 	builder := c.Delete().Where(group.ID(id))
 	builder.mutation.id = &id
@@ -202,7 +368,9 @@ func (c *GroupClient) DeleteOneID(id int) *GroupDeleteOne {
 
 // Query returns a query builder for Group.
 func (c *GroupClient) Query() *GroupQuery {
-	return &GroupQuery{config: c.config}
+	return &GroupQuery{
+		config: c.config,
+	}
 }
 
 // Get returns a Group entity by its id.
@@ -240,6 +408,504 @@ func (c *GroupClient) Hooks() []Hook {
 	return c.hooks.Group
 }
 
+// MultiWordSchemaClient is a client for the MultiWordSchema schema.
+type MultiWordSchemaClient struct {
+	config
+}
+
+// NewMultiWordSchemaClient returns a client for the MultiWordSchema from the given config.
+func NewMultiWordSchemaClient(c config) *MultiWordSchemaClient {
+	return &MultiWordSchemaClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `multiwordschema.Hooks(f(g(h())))`.
+func (c *MultiWordSchemaClient) Use(hooks ...Hook) {
+	c.hooks.MultiWordSchema = append(c.hooks.MultiWordSchema, hooks...)
+}
+
+// Create returns a builder for creating a MultiWordSchema entity.
+func (c *MultiWordSchemaClient) Create() *MultiWordSchemaCreate {
+	mutation := newMultiWordSchemaMutation(c.config, OpCreate)
+	return &MultiWordSchemaCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of MultiWordSchema entities.
+func (c *MultiWordSchemaClient) CreateBulk(builders ...*MultiWordSchemaCreate) *MultiWordSchemaCreateBulk {
+	return &MultiWordSchemaCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for MultiWordSchema.
+func (c *MultiWordSchemaClient) Update() *MultiWordSchemaUpdate {
+	mutation := newMultiWordSchemaMutation(c.config, OpUpdate)
+	return &MultiWordSchemaUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MultiWordSchemaClient) UpdateOne(mws *MultiWordSchema) *MultiWordSchemaUpdateOne {
+	mutation := newMultiWordSchemaMutation(c.config, OpUpdateOne, withMultiWordSchema(mws))
+	return &MultiWordSchemaUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MultiWordSchemaClient) UpdateOneID(id int) *MultiWordSchemaUpdateOne {
+	mutation := newMultiWordSchemaMutation(c.config, OpUpdateOne, withMultiWordSchemaID(id))
+	return &MultiWordSchemaUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for MultiWordSchema.
+func (c *MultiWordSchemaClient) Delete() *MultiWordSchemaDelete {
+	mutation := newMultiWordSchemaMutation(c.config, OpDelete)
+	return &MultiWordSchemaDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MultiWordSchemaClient) DeleteOne(mws *MultiWordSchema) *MultiWordSchemaDeleteOne {
+	return c.DeleteOneID(mws.ID)
+}
+
+// DeleteOne returns a builder for deleting the given entity by its id.
+func (c *MultiWordSchemaClient) DeleteOneID(id int) *MultiWordSchemaDeleteOne {
+	builder := c.Delete().Where(multiwordschema.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MultiWordSchemaDeleteOne{builder}
+}
+
+// Query returns a query builder for MultiWordSchema.
+func (c *MultiWordSchemaClient) Query() *MultiWordSchemaQuery {
+	return &MultiWordSchemaQuery{
+		config: c.config,
+	}
+}
+
+// Get returns a MultiWordSchema entity by its id.
+func (c *MultiWordSchemaClient) Get(ctx context.Context, id int) (*MultiWordSchema, error) {
+	return c.Query().Where(multiwordschema.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MultiWordSchemaClient) GetX(ctx context.Context, id int) *MultiWordSchema {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *MultiWordSchemaClient) Hooks() []Hook {
+	return c.hooks.MultiWordSchema
+}
+
+// NilExampleClient is a client for the NilExample schema.
+type NilExampleClient struct {
+	config
+}
+
+// NewNilExampleClient returns a client for the NilExample from the given config.
+func NewNilExampleClient(c config) *NilExampleClient {
+	return &NilExampleClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `nilexample.Hooks(f(g(h())))`.
+func (c *NilExampleClient) Use(hooks ...Hook) {
+	c.hooks.NilExample = append(c.hooks.NilExample, hooks...)
+}
+
+// Create returns a builder for creating a NilExample entity.
+func (c *NilExampleClient) Create() *NilExampleCreate {
+	mutation := newNilExampleMutation(c.config, OpCreate)
+	return &NilExampleCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of NilExample entities.
+func (c *NilExampleClient) CreateBulk(builders ...*NilExampleCreate) *NilExampleCreateBulk {
+	return &NilExampleCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for NilExample.
+func (c *NilExampleClient) Update() *NilExampleUpdate {
+	mutation := newNilExampleMutation(c.config, OpUpdate)
+	return &NilExampleUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *NilExampleClient) UpdateOne(ne *NilExample) *NilExampleUpdateOne {
+	mutation := newNilExampleMutation(c.config, OpUpdateOne, withNilExample(ne))
+	return &NilExampleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *NilExampleClient) UpdateOneID(id int) *NilExampleUpdateOne {
+	mutation := newNilExampleMutation(c.config, OpUpdateOne, withNilExampleID(id))
+	return &NilExampleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for NilExample.
+func (c *NilExampleClient) Delete() *NilExampleDelete {
+	mutation := newNilExampleMutation(c.config, OpDelete)
+	return &NilExampleDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *NilExampleClient) DeleteOne(ne *NilExample) *NilExampleDeleteOne {
+	return c.DeleteOneID(ne.ID)
+}
+
+// DeleteOne returns a builder for deleting the given entity by its id.
+func (c *NilExampleClient) DeleteOneID(id int) *NilExampleDeleteOne {
+	builder := c.Delete().Where(nilexample.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &NilExampleDeleteOne{builder}
+}
+
+// Query returns a query builder for NilExample.
+func (c *NilExampleClient) Query() *NilExampleQuery {
+	return &NilExampleQuery{
+		config: c.config,
+	}
+}
+
+// Get returns a NilExample entity by its id.
+func (c *NilExampleClient) Get(ctx context.Context, id int) (*NilExample, error) {
+	return c.Query().Where(nilexample.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *NilExampleClient) GetX(ctx context.Context, id int) *NilExample {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *NilExampleClient) Hooks() []Hook {
+	return c.hooks.NilExample
+}
+
+// PetClient is a client for the Pet schema.
+type PetClient struct {
+	config
+}
+
+// NewPetClient returns a client for the Pet from the given config.
+func NewPetClient(c config) *PetClient {
+	return &PetClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `pet.Hooks(f(g(h())))`.
+func (c *PetClient) Use(hooks ...Hook) {
+	c.hooks.Pet = append(c.hooks.Pet, hooks...)
+}
+
+// Create returns a builder for creating a Pet entity.
+func (c *PetClient) Create() *PetCreate {
+	mutation := newPetMutation(c.config, OpCreate)
+	return &PetCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Pet entities.
+func (c *PetClient) CreateBulk(builders ...*PetCreate) *PetCreateBulk {
+	return &PetCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Pet.
+func (c *PetClient) Update() *PetUpdate {
+	mutation := newPetMutation(c.config, OpUpdate)
+	return &PetUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *PetClient) UpdateOne(pe *Pet) *PetUpdateOne {
+	mutation := newPetMutation(c.config, OpUpdateOne, withPet(pe))
+	return &PetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *PetClient) UpdateOneID(id int) *PetUpdateOne {
+	mutation := newPetMutation(c.config, OpUpdateOne, withPetID(id))
+	return &PetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Pet.
+func (c *PetClient) Delete() *PetDelete {
+	mutation := newPetMutation(c.config, OpDelete)
+	return &PetDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *PetClient) DeleteOne(pe *Pet) *PetDeleteOne {
+	return c.DeleteOneID(pe.ID)
+}
+
+// DeleteOne returns a builder for deleting the given entity by its id.
+func (c *PetClient) DeleteOneID(id int) *PetDeleteOne {
+	builder := c.Delete().Where(pet.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &PetDeleteOne{builder}
+}
+
+// Query returns a query builder for Pet.
+func (c *PetClient) Query() *PetQuery {
+	return &PetQuery{
+		config: c.config,
+	}
+}
+
+// Get returns a Pet entity by its id.
+func (c *PetClient) Get(ctx context.Context, id int) (*Pet, error) {
+	return c.Query().Where(pet.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *PetClient) GetX(ctx context.Context, id int) *Pet {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryOwner queries the owner edge of a Pet.
+func (c *PetClient) QueryOwner(pe *Pet) *UserQuery {
+	query := &UserQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := pe.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(pet.Table, pet.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, true, pet.OwnerTable, pet.OwnerColumn),
+		)
+		fromV = sqlgraph.Neighbors(pe.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAttachment queries the attachment edge of a Pet.
+func (c *PetClient) QueryAttachment(pe *Pet) *AttachmentQuery {
+	query := &AttachmentQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := pe.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(pet.Table, pet.FieldID, id),
+			sqlgraph.To(attachment.Table, attachment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, pet.AttachmentTable, pet.AttachmentColumn),
+		)
+		fromV = sqlgraph.Neighbors(pe.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *PetClient) Hooks() []Hook {
+	return c.hooks.Pet
+}
+
+// PonyClient is a client for the Pony schema.
+type PonyClient struct {
+	config
+}
+
+// NewPonyClient returns a client for the Pony from the given config.
+func NewPonyClient(c config) *PonyClient {
+	return &PonyClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `pony.Hooks(f(g(h())))`.
+func (c *PonyClient) Use(hooks ...Hook) {
+	c.hooks.Pony = append(c.hooks.Pony, hooks...)
+}
+
+// Create returns a builder for creating a Pony entity.
+func (c *PonyClient) Create() *PonyCreate {
+	mutation := newPonyMutation(c.config, OpCreate)
+	return &PonyCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Pony entities.
+func (c *PonyClient) CreateBulk(builders ...*PonyCreate) *PonyCreateBulk {
+	return &PonyCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Pony.
+func (c *PonyClient) Update() *PonyUpdate {
+	mutation := newPonyMutation(c.config, OpUpdate)
+	return &PonyUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *PonyClient) UpdateOne(po *Pony) *PonyUpdateOne {
+	mutation := newPonyMutation(c.config, OpUpdateOne, withPony(po))
+	return &PonyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *PonyClient) UpdateOneID(id int) *PonyUpdateOne {
+	mutation := newPonyMutation(c.config, OpUpdateOne, withPonyID(id))
+	return &PonyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Pony.
+func (c *PonyClient) Delete() *PonyDelete {
+	mutation := newPonyMutation(c.config, OpDelete)
+	return &PonyDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *PonyClient) DeleteOne(po *Pony) *PonyDeleteOne {
+	return c.DeleteOneID(po.ID)
+}
+
+// DeleteOne returns a builder for deleting the given entity by its id.
+func (c *PonyClient) DeleteOneID(id int) *PonyDeleteOne {
+	builder := c.Delete().Where(pony.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &PonyDeleteOne{builder}
+}
+
+// Query returns a query builder for Pony.
+func (c *PonyClient) Query() *PonyQuery {
+	return &PonyQuery{
+		config: c.config,
+	}
+}
+
+// Get returns a Pony entity by its id.
+func (c *PonyClient) Get(ctx context.Context, id int) (*Pony, error) {
+	return c.Query().Where(pony.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *PonyClient) GetX(ctx context.Context, id int) *Pony {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *PonyClient) Hooks() []Hook {
+	return c.hooks.Pony
+}
+
+// SkipEdgeExampleClient is a client for the SkipEdgeExample schema.
+type SkipEdgeExampleClient struct {
+	config
+}
+
+// NewSkipEdgeExampleClient returns a client for the SkipEdgeExample from the given config.
+func NewSkipEdgeExampleClient(c config) *SkipEdgeExampleClient {
+	return &SkipEdgeExampleClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `skipedgeexample.Hooks(f(g(h())))`.
+func (c *SkipEdgeExampleClient) Use(hooks ...Hook) {
+	c.hooks.SkipEdgeExample = append(c.hooks.SkipEdgeExample, hooks...)
+}
+
+// Create returns a builder for creating a SkipEdgeExample entity.
+func (c *SkipEdgeExampleClient) Create() *SkipEdgeExampleCreate {
+	mutation := newSkipEdgeExampleMutation(c.config, OpCreate)
+	return &SkipEdgeExampleCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SkipEdgeExample entities.
+func (c *SkipEdgeExampleClient) CreateBulk(builders ...*SkipEdgeExampleCreate) *SkipEdgeExampleCreateBulk {
+	return &SkipEdgeExampleCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SkipEdgeExample.
+func (c *SkipEdgeExampleClient) Update() *SkipEdgeExampleUpdate {
+	mutation := newSkipEdgeExampleMutation(c.config, OpUpdate)
+	return &SkipEdgeExampleUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SkipEdgeExampleClient) UpdateOne(see *SkipEdgeExample) *SkipEdgeExampleUpdateOne {
+	mutation := newSkipEdgeExampleMutation(c.config, OpUpdateOne, withSkipEdgeExample(see))
+	return &SkipEdgeExampleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SkipEdgeExampleClient) UpdateOneID(id int) *SkipEdgeExampleUpdateOne {
+	mutation := newSkipEdgeExampleMutation(c.config, OpUpdateOne, withSkipEdgeExampleID(id))
+	return &SkipEdgeExampleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SkipEdgeExample.
+func (c *SkipEdgeExampleClient) Delete() *SkipEdgeExampleDelete {
+	mutation := newSkipEdgeExampleMutation(c.config, OpDelete)
+	return &SkipEdgeExampleDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SkipEdgeExampleClient) DeleteOne(see *SkipEdgeExample) *SkipEdgeExampleDeleteOne {
+	return c.DeleteOneID(see.ID)
+}
+
+// DeleteOne returns a builder for deleting the given entity by its id.
+func (c *SkipEdgeExampleClient) DeleteOneID(id int) *SkipEdgeExampleDeleteOne {
+	builder := c.Delete().Where(skipedgeexample.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SkipEdgeExampleDeleteOne{builder}
+}
+
+// Query returns a query builder for SkipEdgeExample.
+func (c *SkipEdgeExampleClient) Query() *SkipEdgeExampleQuery {
+	return &SkipEdgeExampleQuery{
+		config: c.config,
+	}
+}
+
+// Get returns a SkipEdgeExample entity by its id.
+func (c *SkipEdgeExampleClient) Get(ctx context.Context, id int) (*SkipEdgeExample, error) {
+	return c.Query().Where(skipedgeexample.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SkipEdgeExampleClient) GetX(ctx context.Context, id int) *SkipEdgeExample {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryUser queries the user edge of a SkipEdgeExample.
+func (c *SkipEdgeExampleClient) QueryUser(see *SkipEdgeExample) *UserQuery {
+	query := &UserQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := see.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(skipedgeexample.Table, skipedgeexample.FieldID, id),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, true, skipedgeexample.UserTable, skipedgeexample.UserColumn),
+		)
+		fromV = sqlgraph.Neighbors(see.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *SkipEdgeExampleClient) Hooks() []Hook {
+	return c.hooks.SkipEdgeExample
+}
+
 // TodoClient is a client for the Todo schema.
 type TodoClient struct {
 	config
@@ -256,7 +922,7 @@ func (c *TodoClient) Use(hooks ...Hook) {
 	c.hooks.Todo = append(c.hooks.Todo, hooks...)
 }
 
-// Create returns a create builder for Todo.
+// Create returns a builder for creating a Todo entity.
 func (c *TodoClient) Create() *TodoCreate {
 	mutation := newTodoMutation(c.config, OpCreate)
 	return &TodoCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
@@ -291,12 +957,12 @@ func (c *TodoClient) Delete() *TodoDelete {
 	return &TodoDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
-// DeleteOne returns a delete builder for the given entity.
+// DeleteOne returns a builder for deleting the given entity.
 func (c *TodoClient) DeleteOne(t *Todo) *TodoDeleteOne {
 	return c.DeleteOneID(t.ID)
 }
 
-// DeleteOneID returns a delete builder for the given id.
+// DeleteOne returns a builder for deleting the given entity by its id.
 func (c *TodoClient) DeleteOneID(id int) *TodoDeleteOne {
 	builder := c.Delete().Where(todo.ID(id))
 	builder.mutation.id = &id
@@ -306,7 +972,9 @@ func (c *TodoClient) DeleteOneID(id int) *TodoDeleteOne {
 
 // Query returns a query builder for Todo.
 func (c *TodoClient) Query() *TodoQuery {
-	return &TodoQuery{config: c.config}
+	return &TodoQuery{
+		config: c.config,
+	}
 }
 
 // Get returns a Todo entity by its id.
@@ -360,7 +1028,7 @@ func (c *UserClient) Use(hooks ...Hook) {
 	c.hooks.User = append(c.hooks.User, hooks...)
 }
 
-// Create returns a create builder for User.
+// Create returns a builder for creating a User entity.
 func (c *UserClient) Create() *UserCreate {
 	mutation := newUserMutation(c.config, OpCreate)
 	return &UserCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
@@ -395,12 +1063,12 @@ func (c *UserClient) Delete() *UserDelete {
 	return &UserDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
 }
 
-// DeleteOne returns a delete builder for the given entity.
+// DeleteOne returns a builder for deleting the given entity.
 func (c *UserClient) DeleteOne(u *User) *UserDeleteOne {
 	return c.DeleteOneID(u.ID)
 }
 
-// DeleteOneID returns a delete builder for the given id.
+// DeleteOne returns a builder for deleting the given entity by its id.
 func (c *UserClient) DeleteOneID(id int) *UserDeleteOne {
 	builder := c.Delete().Where(user.ID(id))
 	builder.mutation.id = &id
@@ -410,7 +1078,9 @@ func (c *UserClient) DeleteOneID(id int) *UserDeleteOne {
 
 // Query returns a query builder for User.
 func (c *UserClient) Query() *UserQuery {
-	return &UserQuery{config: c.config}
+	return &UserQuery{
+		config: c.config,
+	}
 }
 
 // Get returns a User entity by its id.
@@ -436,6 +1106,70 @@ func (c *UserClient) QueryGroup(u *User) *GroupQuery {
 			sqlgraph.From(user.Table, user.FieldID, id),
 			sqlgraph.To(group.Table, group.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, false, user.GroupTable, user.GroupColumn),
+		)
+		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryAttachment queries the attachment edge of a User.
+func (c *UserClient) QueryAttachment(u *User) *AttachmentQuery {
+	query := &AttachmentQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := u.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(attachment.Table, attachment.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, user.AttachmentTable, user.AttachmentColumn),
+		)
+		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryReceived1 queries the received_1 edge of a User.
+func (c *UserClient) QueryReceived1(u *User) *AttachmentQuery {
+	query := &AttachmentQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := u.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(attachment.Table, attachment.FieldID),
+			sqlgraph.Edge(sqlgraph.M2M, true, user.Received1Table, user.Received1PrimaryKey...),
+		)
+		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryPet queries the pet edge of a User.
+func (c *UserClient) QueryPet(u *User) *PetQuery {
+	query := &PetQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := u.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(pet.Table, pet.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, user.PetTable, user.PetColumn),
+		)
+		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QuerySkipEdge queries the skip_edge edge of a User.
+func (c *UserClient) QuerySkipEdge(u *User) *SkipEdgeExampleQuery {
+	query := &SkipEdgeExampleQuery{config: c.config}
+	query.path = func(ctx context.Context) (fromV *sql.Selector, _ error) {
+		id := u.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, id),
+			sqlgraph.To(skipedgeexample.Table, skipedgeexample.FieldID),
+			sqlgraph.Edge(sqlgraph.O2O, false, user.SkipEdgeTable, user.SkipEdgeColumn),
 		)
 		fromV = sqlgraph.Neighbors(u.driver.Dialect(), step)
 		return fromV, nil
