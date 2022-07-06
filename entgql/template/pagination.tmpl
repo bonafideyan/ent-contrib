@@ -32,6 +32,9 @@ import (
 	{{- end }}
 	"{{ $.Config.Package }}/predicate"
 
+import (
+	"math"
+	
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/contrib/entgql"
 	"github.com/99designs/gqlgen/graphql"
@@ -101,11 +104,11 @@ func hasCollectedField(ctx context.Context, path ...string) bool {
 }
 
 const (
-	{{- range $field := list "edges" "node" "pageInfo" "totalCount" }}
+	{{- range $field := list "edges" "nodes" "node" "pageInfo" "totalCount" }}
 		{{ $field }}Field = "{{ $field }}"
 	{{- end }}
 )
-
+ 
 func paginateLimit(first, last *int) int {
 	var limit int
 	if first != nil {
@@ -140,6 +143,15 @@ type {{ $conn }} struct {
 	Edges []*{{ $edge }} `json:"edges"`
 	PageInfo PageInfo    `json:"pageInfo"`
 	TotalCount int       `json:"totalCount"`
+}
+
+{{ $connJump := print $name "Page" -}}
+// {{ $connJump }} is for traditional pagination to {{ $name }}.
+type {{ $connJump }} struct {
+	Nodes []*{{ $name }} `json:"nodes"`
+	Current int    `json:"current"`
+	TotalCount int       `json:"totalCount"`
+	Append map[string]interface{}	`json:"append"`
 }
 
 {{ $pager := print (camel $name) "Pager" }}
@@ -468,6 +480,93 @@ func ({{ $r }} *{{ $query }}) Paginate(
 		{{ template "gql_pagination/helper/paginate" . }}
 	{{- end -}}
 }
+
+// PaginateJump executes the query and returns a traditional pagination connection to {{ $name }}.
+func ({{ $r }} *{{ $query }}) PaginateJump(
+	ctx context.Context, pageIndex *int,
+	pageLength *int, opts ...{{ $opt }},
+) (*{{ $connJump }}, error) { 
+
+	if pageIndex == nil {
+		t := 0
+		pageIndex = &t
+		//glog.Warning("no pageIndex specified in paginaging jump")
+	}
+	if pageLength == nil {
+		t := math.MaxInt16
+		pageLength = &t
+		//glog.Warning("no pageLength specified in paginaging jump, assign math.MaxInt16")
+	}
+
+	pager, err := {{ $newPager }}(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	if {{ $r }}, err = pager.applyFilter({{ $r }}); err != nil {
+		return nil, err
+	}
+
+	conn := &{{ $connJump }}{Nodes: []*{{ $name }}{}, Current: *pageIndex}
+	if !hasCollectedField(ctx, nodesField)  {
+		if hasCollectedField(ctx, totalCountField) {
+			count, err := {{ $r }}.Count(ctx)
+			if err != nil {
+				return nil, err
+			}
+			conn.TotalCount = count 
+			if count == 0 {
+				*pageIndex = 0
+			} else {
+				if *pageIndex * *pageLength > count {
+					*pageIndex = count / *pageLength
+				}
+				if *pageIndex * *pageLength == count {
+					*pageIndex = *pageIndex - 1
+				}
+			}
+			conn.Current = *pageIndex
+		}
+		return conn, nil
+	}
+
+	if  hasCollectedField(ctx, totalCountField) {
+		count, err := {{ $r }}.Clone().Count(ctx)
+		if err != nil {
+			return nil, err
+		}
+		conn.TotalCount = count
+		if count == 0 {
+			*pageIndex = 0
+		} else {
+			if *pageIndex * *pageLength > count {
+				*pageIndex = count / *pageLength
+			}
+			if *pageIndex * *pageLength == count {
+				*pageIndex = *pageIndex - 1
+			}
+		}
+		conn.Current = *pageIndex
+	}
+ 
+	{{ $r }} = pager.applyOrder({{ $r }}, false)
+	{{ $r }} = {{ $r }}.Limit(*pageLength).Offset(*pageIndex * *pageLength)
+
+
+	if field := collectedField(ctx, nodesField); field != nil { 
+		if err := {{ $r }}.collectField(ctx, graphql.GetOperationContext(ctx), *field, []string{nodesField}); err != nil {
+			return nil, err
+		}
+	}
+
+	nodes, err := {{ $r }}.All(ctx)
+	if err != nil || len(nodes) == 0 {
+		return conn, err
+	} 
+	conn.Nodes = nodes 
+	return conn, nil
+}
+
 
 {{ $orderField := $names.OrderField -}}
 {{- if $orderFields }}

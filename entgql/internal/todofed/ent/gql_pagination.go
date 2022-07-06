@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"strconv"
 
 	"entgo.io/contrib/entgql"
@@ -98,6 +99,7 @@ func hasCollectedField(ctx context.Context, path ...string) bool {
 
 const (
 	edgesField      = "edges"
+	nodesField      = "nodes"
 	nodeField       = "node"
 	pageInfoField   = "pageInfo"
 	totalCountField = "totalCount"
@@ -124,6 +126,14 @@ type CategoryConnection struct {
 	Edges      []*CategoryEdge `json:"edges"`
 	PageInfo   PageInfo        `json:"pageInfo"`
 	TotalCount int             `json:"totalCount"`
+}
+
+// CategoryPage is for traditional pagination to Category.
+type CategoryPage struct {
+	Nodes      []*Category            `json:"nodes"`
+	Current    int                    `json:"current"`
+	TotalCount int                    `json:"totalCount"`
+	Append     map[string]interface{} `json:"append"`
 }
 
 func (c *CategoryConnection) build(nodes []*Category, pager *categoryPager, after *Cursor, first *int, before *Cursor, last *int) {
@@ -321,6 +331,91 @@ func (c *CategoryQuery) Paginate(
 	return conn, nil
 }
 
+// PaginateJump executes the query and returns a traditional pagination connection to Category.
+func (c *CategoryQuery) PaginateJump(
+	ctx context.Context, pageIndex *int,
+	pageLength *int, opts ...CategoryPaginateOption,
+) (*CategoryPage, error) {
+
+	if pageIndex == nil {
+		t := 0
+		pageIndex = &t
+		//glog.Warning("no pageIndex specified in paginaging jump")
+	}
+	if pageLength == nil {
+		t := math.MaxInt16
+		pageLength = &t
+		//glog.Warning("no pageLength specified in paginaging jump, assign math.MaxInt16")
+	}
+
+	pager, err := newCategoryPager(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	if c, err = pager.applyFilter(c); err != nil {
+		return nil, err
+	}
+
+	conn := &CategoryPage{Nodes: []*Category{}, Current: *pageIndex}
+	if !hasCollectedField(ctx, nodesField) {
+		if hasCollectedField(ctx, totalCountField) {
+			count, err := c.Count(ctx)
+			if err != nil {
+				return nil, err
+			}
+			conn.TotalCount = count
+			if count == 0 {
+				*pageIndex = 0
+			} else {
+				if *pageIndex**pageLength > count {
+					*pageIndex = count / *pageLength
+				}
+				if *pageIndex**pageLength == count {
+					*pageIndex = *pageIndex - 1
+				}
+			}
+			conn.Current = *pageIndex
+		}
+		return conn, nil
+	}
+
+	if hasCollectedField(ctx, totalCountField) {
+		count, err := c.Clone().Count(ctx)
+		if err != nil {
+			return nil, err
+		}
+		conn.TotalCount = count
+		if count == 0 {
+			*pageIndex = 0
+		} else {
+			if *pageIndex**pageLength > count {
+				*pageIndex = count / *pageLength
+			}
+			if *pageIndex**pageLength == count {
+				*pageIndex = *pageIndex - 1
+			}
+		}
+		conn.Current = *pageIndex
+	}
+
+	c = pager.applyOrder(c, false)
+	c = c.Limit(*pageLength).Offset(*pageIndex * *pageLength)
+
+	if field := collectedField(ctx, nodesField); field != nil {
+		if err := c.collectField(ctx, graphql.GetOperationContext(ctx), *field, []string{nodesField}); err != nil {
+			return nil, err
+		}
+	}
+
+	nodes, err := c.All(ctx)
+	if err != nil || len(nodes) == 0 {
+		return conn, err
+	}
+	conn.Nodes = nodes
+	return conn, nil
+}
+
 var (
 	// CategoryOrderFieldText orders Category by text.
 	CategoryOrderFieldText = &CategoryOrderField{
@@ -438,6 +533,14 @@ type TodoConnection struct {
 	Edges      []*TodoEdge `json:"edges"`
 	PageInfo   PageInfo    `json:"pageInfo"`
 	TotalCount int         `json:"totalCount"`
+}
+
+// TodoPage is for traditional pagination to Todo.
+type TodoPage struct {
+	Nodes      []*Todo                `json:"nodes"`
+	Current    int                    `json:"current"`
+	TotalCount int                    `json:"totalCount"`
+	Append     map[string]interface{} `json:"append"`
 }
 
 func (c *TodoConnection) build(nodes []*Todo, pager *todoPager, after *Cursor, first *int, before *Cursor, last *int) {
@@ -632,6 +735,91 @@ func (t *TodoQuery) Paginate(
 		return nil, err
 	}
 	conn.build(nodes, pager, after, first, before, last)
+	return conn, nil
+}
+
+// PaginateJump executes the query and returns a traditional pagination connection to Todo.
+func (t *TodoQuery) PaginateJump(
+	ctx context.Context, pageIndex *int,
+	pageLength *int, opts ...TodoPaginateOption,
+) (*TodoPage, error) {
+
+	if pageIndex == nil {
+		t := 0
+		pageIndex = &t
+		//glog.Warning("no pageIndex specified in paginaging jump")
+	}
+	if pageLength == nil {
+		t := math.MaxInt16
+		pageLength = &t
+		//glog.Warning("no pageLength specified in paginaging jump, assign math.MaxInt16")
+	}
+
+	pager, err := newTodoPager(opts)
+	if err != nil {
+		return nil, err
+	}
+
+	if t, err = pager.applyFilter(t); err != nil {
+		return nil, err
+	}
+
+	conn := &TodoPage{Nodes: []*Todo{}, Current: *pageIndex}
+	if !hasCollectedField(ctx, nodesField) {
+		if hasCollectedField(ctx, totalCountField) {
+			count, err := t.Count(ctx)
+			if err != nil {
+				return nil, err
+			}
+			conn.TotalCount = count
+			if count == 0 {
+				*pageIndex = 0
+			} else {
+				if *pageIndex**pageLength > count {
+					*pageIndex = count / *pageLength
+				}
+				if *pageIndex**pageLength == count {
+					*pageIndex = *pageIndex - 1
+				}
+			}
+			conn.Current = *pageIndex
+		}
+		return conn, nil
+	}
+
+	if hasCollectedField(ctx, totalCountField) {
+		count, err := t.Clone().Count(ctx)
+		if err != nil {
+			return nil, err
+		}
+		conn.TotalCount = count
+		if count == 0 {
+			*pageIndex = 0
+		} else {
+			if *pageIndex**pageLength > count {
+				*pageIndex = count / *pageLength
+			}
+			if *pageIndex**pageLength == count {
+				*pageIndex = *pageIndex - 1
+			}
+		}
+		conn.Current = *pageIndex
+	}
+
+	t = pager.applyOrder(t, false)
+	t = t.Limit(*pageLength).Offset(*pageIndex * *pageLength)
+
+	if field := collectedField(ctx, nodesField); field != nil {
+		if err := t.collectField(ctx, graphql.GetOperationContext(ctx), *field, []string{nodesField}); err != nil {
+			return nil, err
+		}
+	}
+
+	nodes, err := t.All(ctx)
+	if err != nil || len(nodes) == 0 {
+		return conn, err
+	}
+	conn.Nodes = nodes
 	return conn, nil
 }
 

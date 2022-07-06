@@ -504,6 +504,17 @@ func sourceData(filename string) string {
 	return string(data)
 }
 
+//go:embed "todo.graphql"
+var sourcesFS embed.FS
+
+func sourceData(filename string) string {
+	data, err := sourcesFS.ReadFile(filename)
+	if err != nil {
+		panic(fmt.Sprintf("codegen problem: %s not available", filename))
+	}
+	return string(data)
+}
+
 var sources = []*ast.Source{
 	{Name: "todo.graphql", Input: sourceData("todo.graphql"), BuiltIn: false},
 	{Name: "federation/directives.graphql", Input: `
