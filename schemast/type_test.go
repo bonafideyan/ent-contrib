@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,7 +17,7 @@ package schemast
 import (
 	"bytes"
 	"go/printer"
-	"io/ioutil"
+	"os"
 	"path"
 	"testing"
 
@@ -60,7 +60,7 @@ func TestContext_RemoveType(t *testing.T) {
 	removed = tt.getType("NewType")
 	require.Nil(t, removed)
 
-	file, err := ioutil.ReadFile(path.Join(tt.schemaDir(), "user.go"))
+	file, err := os.ReadFile(path.Join(tt.schemaDir(), "user.go"))
 	require.NoError(t, err)
 	require.NotContains(t, string(file), "// Message holds the schema definition for the Message entity.")
 }

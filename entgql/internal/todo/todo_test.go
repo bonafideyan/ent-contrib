@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -29,6 +29,7 @@ import (
 
 	"entgo.io/ent/dialect/sql"
 
+	"github.com/AlekSi/pointer"
 	"github.com/stretchr/testify/require"
 
 	"entgo.io/contrib/entgql"
@@ -42,7 +43,6 @@ import (
 	"github.com/99designs/gqlgen/client"
 	"github.com/99designs/gqlgen/graphql"
 	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/AlekSi/pointer"
 	"github.com/stretchr/testify/suite"
 	"github.com/vektah/gqlparser/v2/gqlerror"
 
@@ -75,7 +75,7 @@ const (
 		}
 	}`
 	maxTodos = 32
-	idOffset = 3 << 32
+	idOffset = 4 << 32
 )
 
 func (s *todoTestSuite) SetupTest() {
@@ -133,12 +133,12 @@ type response struct {
 		TotalCount int
 		Edges      []struct {
 			Node struct {
-				ID        string
-				CreatedAt string
-				Priority  int
-				Status    todo.Status
-				Text      string
-				Parent    struct {
+				ID            string
+				CreatedAt     string
+				PriorityOrder int
+				Status        todo.Status
+				Text          string
+				Parent        struct {
 					ID string
 				}
 			}
@@ -353,7 +353,7 @@ func (s *todoTestSuite) TestPaginationOrder() {
 					node {
 						id
 						createdAt
-						priority
+						priorityOrder
 						status
 						text
 					}
@@ -453,7 +453,7 @@ func (s *todoTestSuite) TestPaginationOrder() {
 				client.Var("before", rsp.Todos.PageInfo.StartCursor),
 				client.Var("last", step),
 				client.Var("direction", "ASC"),
-				client.Var("field", "PRIORITY"),
+				client.Var("field", "PRIORITY_ORDER"),
 			)
 			s.Require().NoError(err)
 			s.Require().Equal(maxTodos, rsp.Todos.TotalCount)
@@ -465,7 +465,7 @@ func (s *todoTestSuite) TestPaginationOrder() {
 				s.Require().False(rsp.Todos.PageInfo.HasPreviousPage)
 			}
 			s.Require().True(sort.SliceIsSorted(rsp.Todos.Edges, func(i, j int) bool {
-				return rsp.Todos.Edges[i].Node.Priority < rsp.Todos.Edges[j].Node.Priority
+				return rsp.Todos.Edges[i].Node.PriorityOrder < rsp.Todos.Edges[j].Node.PriorityOrder
 			}))
 			s.Require().NotNil(rsp.Todos.PageInfo.StartCursor)
 			start := rsp.Todos.Edges[0]
@@ -474,9 +474,9 @@ func (s *todoTestSuite) TestPaginationOrder() {
 			end := rsp.Todos.Edges[len(rsp.Todos.Edges)-1]
 			s.Require().Equal(*rsp.Todos.PageInfo.EndCursor, end.Cursor)
 			if i > 0 {
-				s.Require().Greater(startPriority, end.Node.Priority)
+				s.Require().Greater(startPriority, end.Node.PriorityOrder)
 			}
-			startPriority = start.Node.Priority
+			startPriority = start.Node.PriorityOrder
 		}
 	})
 	s.Run("BackwardDescending", func() {
@@ -603,6 +603,7 @@ func (s *todoTestSuite) TestPaginationFiltering() {
 		s.Require().NoError(err)
 		s.Require().Equal(0, rsp.Todos.TotalCount)
 	})
+
 	s.Run("WithCategory", func() {
 		ctx := context.Background()
 		id := s.ent.Todo.Query().Order(ent.Asc(todo.FieldID)).FirstIDX(ctx)
@@ -622,6 +623,48 @@ func (s *todoTestSuite) TestPaginationFiltering() {
 		err = s.Post(query, &rsp, client.Var("duration", time.Second*2))
 		s.NoError(err)
 		s.Zero(rsp.Todos.TotalCount)
+	})
+
+	s.Run("EmptyFilter", func() {
+		var (
+			rsp   response
+			query = `query() {
+				todos(where:{}) {
+					totalCount
+				}
+			}`
+		)
+		err := s.Post(query, &rsp)
+		s.NoError(err)
+		s.Equal(s.ent.Todo.Query().CountX(context.Background()), rsp.Todos.TotalCount)
+	})
+
+	s.Run("Zero first", func() {
+		var (
+			rsp   response
+			query = `query() {
+				todos(first: 0) {
+					totalCount
+				}
+			}`
+		)
+		err := s.Post(query, &rsp)
+		s.NoError(err)
+		s.Equal(s.ent.Todo.Query().CountX(context.Background()), rsp.Todos.TotalCount)
+	})
+
+	s.Run("Zero last", func() {
+		var (
+			rsp   response
+			query = `query() {
+				todos(last: 0) {
+					totalCount
+				}
+			}`
+		)
+		err := s.Post(query, &rsp)
+		s.NoError(err)
+		s.Equal(s.ent.Todo.Query().CountX(context.Background()), rsp.Todos.TotalCount)
 	})
 }
 
@@ -784,12 +827,12 @@ func (s *todoTestSuite) TestNode() {
 		query = `query($id: ID!) {
 			todo: node(id: $id) {
 				... on Todo {
-					priority
+					priorityOrder
 				}
 			}
 		}`
 	)
-	var rsp struct{ Todo struct{ Priority int } }
+	var rsp struct{ Todo struct{ PriorityOrder int } }
 	err := s.Post(query, &rsp, client.Var("id", idOffset+maxTodos))
 	s.Require().NoError(err)
 	err = s.Post(query, &rsp, client.Var("id", -1))
@@ -1051,15 +1094,15 @@ func (s *todoTestSuite) TestMutationFieldCollection() {
 			}
 		}
 	}
-	err := s.Post(`mutation {
-		createTodo(input: { status: IN_PROGRESS, priority: 0, text: "OKE", parentID: 12884901889 }) {
+	err := s.Post(`mutation ($parentID: ID!) {
+		createTodo(input: { status: IN_PROGRESS, priority: 0, text: "OKE", parentID: $parentID }) {
 			parent {
 				id
 				text
 			}
 			text
 		}
-	}`, &rsp, client.Var("text", s.T().Name()))
+	}`, &rsp, client.Var("parentID", strconv.Itoa(idOffset+1)))
 	s.Require().NoError(err)
 	s.Require().Equal("OKE", rsp.CreateTodo.Text)
 	s.Require().Equal(strconv.Itoa(idOffset+1), rsp.CreateTodo.Parent.ID)
@@ -1227,7 +1270,7 @@ func TestPageInfo(t *testing.T) {
 	require.True(t, rsp.Todos.PageInfo.HasNextPage)
 	require.True(t, rsp.Todos.PageInfo.HasPreviousPage)
 
-	err = gqlc.Post(query, &rsp, append(descOrder, client.Var("before", rsp.Todos.PageInfo.StartCursor))...)
+	err = gqlc.Post(query, &rsp, append(descOrder, client.Var("last", 2), client.Var("before", rsp.Todos.PageInfo.StartCursor))...)
 	require.NoError(t, err)
 	require.Equal(t, []string{"5", "4"}, texts())
 	require.Equal(t, 5, rsp.Todos.TotalCount)
@@ -1270,6 +1313,7 @@ func TestNestedConnection(t *testing.T) {
 		bulkU[i] = ec.User.Create().SetName(fmt.Sprintf("user-%d", i)).AddGroups(groups[:len(groups)-i]...)
 	}
 	users := ec.User.CreateBulk(bulkU...).SaveX(ctx)
+	users[0].Update().AddFriends(users[1:]...).SaveX(ctx)
 
 	t.Run("TotalCount", func(t *testing.T) {
 		var (
@@ -1281,6 +1325,13 @@ func TestNestedConnection(t *testing.T) {
 							name
 							groups {
 								totalCount
+							}
+							friends {
+								edges {
+									node {
+										name
+									}
+								}
 							}
 						}
 					}
@@ -1295,6 +1346,13 @@ func TestNestedConnection(t *testing.T) {
 							Groups struct {
 								TotalCount int
 							}
+							Friends struct {
+								Edges []struct {
+									Node struct {
+										Name string
+									}
+								}
+							}
 						}
 					}
 				}
@@ -1305,8 +1363,9 @@ func TestNestedConnection(t *testing.T) {
 		require.NoError(t, err)
 		// One query for loading all users, and one for getting the groups of each user.
 		// The totalCount of the root query can be inferred from the length of the user edges.
-		require.EqualValues(t, 2, count.value())
+		require.EqualValues(t, 3, count.value())
 		require.Equal(t, 10, rsp.Users.TotalCount)
+		require.Equal(t, 9, len(rsp.Users.Edges[0].Node.Friends.Edges))
 
 		for n := 1; n <= 10; n++ {
 			count.reset()
@@ -1314,7 +1373,7 @@ func TestNestedConnection(t *testing.T) {
 			require.NoError(t, err)
 			// Two queries for getting the users and their totalCount.
 			// And another one for getting the totalCount of each user.
-			require.EqualValues(t, 3, count.value())
+			require.EqualValues(t, 4, count.value())
 			require.Equal(t, 10, rsp.Users.TotalCount)
 			for i, e := range rsp.Users.Edges {
 				require.Equal(t, users[i].Name, e.Node.Name)
@@ -1508,5 +1567,560 @@ func TestNestedConnection(t *testing.T) {
 			}
 			require.EqualValues(t, 3, count.value())
 		}
+	})
+
+	t.Run("Node-cursor", func(t *testing.T) {
+		var (
+			query = `query ($id: ID!, $cursor: Cursor) {
+				group: node(id: $id) {
+					... on Group {
+						name
+						users(last: 1, before: $cursor) {
+							totalCount
+							edges {
+								cursor
+								node {
+									name
+								}
+							}
+						}
+					}
+				}
+			}`
+			rsp struct {
+				Group struct {
+					Name  string
+					Users struct {
+						TotalCount int
+						Edges      []struct {
+							Cursor string
+							Node   struct {
+								Name string
+							}
+						}
+					}
+				}
+			}
+		)
+		// One query to trigger the loading of the ent_types content.
+		err = gqlc.Post(query, &rsp,
+			client.Var("id", groups[0].ID),
+			client.Var("cursor", "gaFp0wAAAAUAAAAJ"),
+		)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(rsp.Group.Users.Edges))
+		require.Equal(t, "gaFp0wAAAAUAAAAI", rsp.Group.Users.Edges[0].Cursor)
+	})
+}
+
+func TestEdgesFiltering(t *testing.T) {
+	ctx := context.Background()
+	drv, err := sql.Open(dialect.SQLite, fmt.Sprintf("file:%s?mode=memory&cache=shared&_fk=1", t.Name()))
+	require.NoError(t, err)
+	count := &queryCount{Driver: drv}
+	ec := enttest.NewClient(t,
+		enttest.WithOptions(ent.Driver(count)),
+		enttest.WithMigrateOptions(migrate.WithGlobalUniqueID(true)),
+	)
+	srv := handler.NewDefaultServer(gen.NewSchema(ec))
+	gqlc := client.New(srv)
+
+	root := ec.Todo.CreateBulk(
+		ec.Todo.Create().SetText("t0.1").SetStatus(todo.StatusInProgress),
+		ec.Todo.Create().SetText("t0.2").SetStatus(todo.StatusInProgress),
+		ec.Todo.Create().SetText("t0.3").SetStatus(todo.StatusCompleted),
+	).SaveX(ctx)
+
+	child := ec.Todo.CreateBulk(
+		ec.Todo.Create().SetText("t1.1").SetParent(root[0]).SetStatus(todo.StatusInProgress),
+		ec.Todo.Create().SetText("t1.2").SetParent(root[0]).SetStatus(todo.StatusCompleted),
+		ec.Todo.Create().SetText("t1.3").SetParent(root[0]).SetStatus(todo.StatusCompleted),
+	).SaveX(ctx)
+
+	grandchild := ec.Todo.CreateBulk(
+		ec.Todo.Create().SetText("t2.1").SetParent(child[0]).SetStatus(todo.StatusCompleted),
+		ec.Todo.Create().SetText("t2.2").SetParent(child[0]).SetStatus(todo.StatusCompleted),
+		ec.Todo.Create().SetText("t2.3").SetParent(child[0]).SetStatus(todo.StatusInProgress),
+		ec.Todo.Create().SetText("t2.4").SetParent(child[1]).SetStatus(todo.StatusInProgress),
+		ec.Todo.Create().SetText("t2.5").SetParent(child[1]).SetStatus(todo.StatusInProgress),
+	).SaveX(ctx)
+
+	ec.Todo.CreateBulk(
+		ec.Todo.Create().SetText("t3.1").SetParent(grandchild[0]).SetStatus(todo.StatusInProgress),
+		ec.Todo.Create().SetText("t3.2").SetParent(grandchild[0]).SetStatus(todo.StatusInProgress),
+		ec.Todo.Create().SetText("t3.3").SetParent(grandchild[0]).SetStatus(todo.StatusCompleted),
+		ec.Todo.Create().SetText("t3.4").SetParent(grandchild[1]).SetStatus(todo.StatusInProgress),
+		ec.Todo.Create().SetText("t3.5").SetParent(grandchild[1]).SetStatus(todo.StatusInProgress),
+		ec.Todo.Create().SetText("t3.6").SetParent(grandchild[1]).SetStatus(todo.StatusCompleted),
+		ec.Todo.Create().SetText("t3.7").SetParent(grandchild[1]).SetStatus(todo.StatusCompleted),
+	).ExecX(ctx)
+
+	query := `query todos($id: ID!, $lv2Status: TodoStatus!) {
+		todos(where:{id: $id}) {
+			edges {
+				node {
+					children(where: {statusNEQ: COMPLETED}) {
+						totalCount
+						edges {
+							node {
+								text
+								children(where: {statusNEQ: $lv2Status}) {
+									totalCount
+									edges {
+										node {
+											text
+											children {
+												totalCount
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}`
+
+	var rsp struct {
+		Todos struct {
+			Edges []struct {
+				Node struct {
+					Children struct {
+						TotalCount int
+						Edges      []struct {
+							Node struct {
+								Text     string
+								Children struct {
+									TotalCount int
+									Edges      []struct {
+										Node struct {
+											Text     string
+											Children struct {
+												TotalCount int
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	t.Run("query level 2 NEQ IN_PROGRESS", func(t *testing.T) {
+		count.reset()
+		err := gqlc.Post(query, &rsp, client.Var("id", root[0].ID), client.Var("lv2Status", "IN_PROGRESS"))
+		require.NoError(t, err)
+
+		require.Equal(t, 1, rsp.Todos.Edges[0].Node.Children.TotalCount)
+		require.Equal(t, child[0].Text, rsp.Todos.Edges[0].Node.Children.Edges[0].Node.Text)
+
+		n := rsp.Todos.Edges[0].Node.Children.Edges[0].Node
+		require.Equal(t, 2, n.Children.TotalCount)
+		require.Equal(t, grandchild[0].Text, n.Children.Edges[0].Node.Text)
+		require.Equal(t, 3, n.Children.Edges[0].Node.Children.TotalCount)
+		require.Equal(t, grandchild[1].Text, n.Children.Edges[1].Node.Text)
+		require.Equal(t, 4, n.Children.Edges[1].Node.Children.TotalCount)
+
+		// Top-level todos, children, grand-children and totalCount of great-children.
+		require.EqualValues(t, 4, count.n)
+	})
+
+	t.Run("query level 2 NEQ COMPLETED", func(t *testing.T) {
+		count.reset()
+		err := gqlc.Post(query, &rsp, client.Var("id", root[0].ID), client.Var("lv2Status", "COMPLETED"))
+		require.NoError(t, err)
+
+		require.Equal(t, 1, rsp.Todos.Edges[0].Node.Children.TotalCount)
+		require.Equal(t, child[0].Text, rsp.Todos.Edges[0].Node.Children.Edges[0].Node.Text)
+
+		n := rsp.Todos.Edges[0].Node.Children.Edges[0].Node
+		require.Equal(t, 1, n.Children.TotalCount)
+		require.Equal(t, grandchild[2].Text, n.Children.Edges[0].Node.Text)
+		require.Zero(t, n.Children.Edges[0].Node.Children.TotalCount)
+
+		// Top-level todos, children, grand-children and totalCount of great-children.
+		require.EqualValues(t, 4, count.n)
+	})
+
+	query = `query todos($id: ID!) {
+		todos(where:{id: $id}) {
+			edges {
+				node {
+					completed: children(where: {status: COMPLETED}) {
+						totalCount
+						edges {
+							node {
+								text
+							}
+						}
+					}
+					inProgress: children(where: {statusNEQ: COMPLETED}) {
+						totalCount
+						edges {
+							node {
+								text
+							}
+						}
+					}
+				}
+			}
+		}
+	}`
+
+	var rsp2 struct {
+		Todos struct {
+			Edges []struct {
+				Node struct {
+					Completed struct {
+						TotalCount int
+						Edges      []struct {
+							Node struct {
+								Text string
+							}
+						}
+					}
+					InProgress struct {
+						TotalCount int
+						Edges      []struct {
+							Node struct {
+								Text string
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	t.Run("filter connection with alias", func(t *testing.T) {
+		count.reset()
+		err := gqlc.Post(query, &rsp2, client.Var("id", root[0].ID), client.Var("lv2Status", "IN_PROGRESS"))
+		require.NoError(t, err)
+
+		require.Equal(t, 2, rsp2.Todos.Edges[0].Node.Completed.TotalCount)
+		n := rsp2.Todos.Edges[0].Node.Completed
+		require.Equal(t, "t1.2", n.Edges[0].Node.Text)
+		require.Equal(t, "t1.3", n.Edges[1].Node.Text)
+
+		require.Equal(t, 1, rsp2.Todos.Edges[0].Node.InProgress.TotalCount)
+		n = rsp2.Todos.Edges[0].Node.InProgress
+		require.Equal(t, "t1.1", n.Edges[0].Node.Text)
+	})
+}
+
+func TestMutation_CreateCategory(t *testing.T) {
+	ec := enttest.Open(t, dialect.SQLite,
+		fmt.Sprintf("file:%s?mode=memory&cache=shared&_fk=1", t.Name()),
+		enttest.WithMigrateOptions(migrate.WithGlobalUniqueID(true)),
+	)
+	srv := handler.NewDefaultServer(gen.NewSchema(ec))
+	srv.Use(entgql.Transactioner{TxOpener: ec})
+	gqlc := client.New(srv)
+
+	// Create a category.
+	var rsp struct {
+		CreateCategory struct {
+			ID     string
+			Text   string
+			Status string
+			Todos  struct {
+				TotalCount int
+				Edges      []struct {
+					Node struct {
+						Text   string
+						Status string
+					}
+				}
+			}
+		}
+	}
+	err := gqlc.Post(`
+	mutation createCategory {
+		createCategory(input: {
+			text: "cate1"
+			status: ENABLED
+			createTodos: [
+				{ status: IN_PROGRESS, text: "c1.t1" },
+				{ status: IN_PROGRESS, text: "c1.t2" }
+			]
+		}) {
+			id
+			text
+			status
+			todos {
+				totalCount
+				edges {
+					node {
+						text
+						status
+					}
+				}
+			}
+		}
+	}
+	`, &rsp)
+	require.NoError(t, err)
+
+	require.Equal(t, 2, rsp.CreateCategory.Todos.TotalCount)
+	n := rsp.CreateCategory.Todos
+	require.Equal(t, "c1.t1", n.Edges[0].Node.Text)
+	require.Equal(t, "c1.t2", n.Edges[1].Node.Text)
+}
+
+func TestMutation_ClearChildren(t *testing.T) {
+	ec := enttest.Open(t, dialect.SQLite,
+		fmt.Sprintf("file:%s?mode=memory&cache=shared&_fk=1", t.Name()),
+		enttest.WithMigrateOptions(migrate.WithGlobalUniqueID(true)),
+	)
+	srv := handler.NewDefaultServer(gen.NewSchema(ec))
+	srv.Use(entgql.Transactioner{TxOpener: ec})
+	gqlc := client.New(srv)
+
+	ctx := context.Background()
+	root := ec.Todo.Create().SetText("t0.1").SetStatus(todo.StatusInProgress).SaveX(ctx)
+	ec.Todo.CreateBulk(
+		ec.Todo.Create().SetText("t1.1").SetParent(root).SetStatus(todo.StatusInProgress),
+		ec.Todo.Create().SetText("t1.2").SetParent(root).SetStatus(todo.StatusCompleted),
+		ec.Todo.Create().SetText("t1.3").SetParent(root).SetStatus(todo.StatusCompleted),
+	).ExecX(ctx)
+	require.True(t, root.QueryChildren().ExistX(ctx))
+
+	var rsp struct {
+		UpdateTodo struct {
+			ID string
+		}
+	}
+	err := gqlc.Post(`
+	mutation cleanChildren($id: ID!){
+		updateTodo(id: $id, input: {clearChildren: true}) {
+			id
+		}
+	}
+	`, &rsp, client.Var("id", root.ID))
+	require.NoError(t, err)
+	require.Equal(t, strconv.Itoa(root.ID), rsp.UpdateTodo.ID)
+	require.False(t, root.QueryChildren().ExistX(ctx))
+}
+
+func TestDescendingIDs(t *testing.T) {
+	ctx := context.Background()
+	ec := enttest.Open(t, dialect.SQLite,
+		fmt.Sprintf("file:%s?mode=memory&_fk=1", t.Name()),
+		enttest.WithMigrateOptions(migrate.WithGlobalUniqueID(true)),
+	)
+	srv := handler.NewDefaultServer(gen.NewSchema(ec))
+	srv.Use(entgql.Transactioner{TxOpener: ec})
+	ec.Category.CreateBulk(
+		ec.Category.Create().SetID(1).SetText("c1").SetStatus(category.StatusEnabled),
+		ec.Category.Create().SetID(2).SetText("c2").SetStatus(category.StatusEnabled),
+		ec.Category.Create().SetID(3).SetText("c3").SetStatus(category.StatusEnabled),
+	).SaveX(ctx)
+
+	var (
+		gqlc = client.New(srv)
+		// language=GraphQL
+		query = `query ($after: Cursor){
+		  categories(orderBy: [{direction: DESC, field: ID}], first: 2, after: $after) {
+		    edges {
+		      node {
+		        id
+		      }
+		      cursor
+		    }
+		  }
+		}`
+		rsp struct {
+			Categories struct {
+				Edges []struct {
+					Node struct {
+						ID string
+					}
+					Cursor string
+				}
+			}
+		}
+		after any
+	)
+	err := gqlc.Post(query, &rsp, client.Var("after", after))
+	require.NoError(t, err)
+	require.Equal(t, "3", rsp.Categories.Edges[0].Node.ID)
+	require.Equal(t, "2", rsp.Categories.Edges[1].Node.ID)
+	after = rsp.Categories.Edges[1].Cursor
+
+	err = gqlc.Post(query, &rsp, client.Var("after", after))
+	require.NoError(t, err)
+	require.Len(t, rsp.Categories.Edges, 1)
+	require.Equal(t, "1", rsp.Categories.Edges[0].Node.ID)
+	after = rsp.Categories.Edges[0].Cursor
+
+	err = gqlc.Post(query, &rsp, client.Var("after", after))
+	require.NoError(t, err)
+	require.Empty(t, rsp.Categories.Edges)
+}
+
+func TestMultiFieldsOrder(t *testing.T) {
+	ctx := context.Background()
+	ec := enttest.Open(t, dialect.SQLite,
+		fmt.Sprintf("file:%s?mode=memory&_fk=1", t.Name()),
+		enttest.WithMigrateOptions(migrate.WithGlobalUniqueID(true)),
+	)
+	srv := handler.NewDefaultServer(gen.NewSchema(ec))
+	srv.Use(entgql.Transactioner{TxOpener: ec})
+	cats := ec.Category.CreateBulk(
+		ec.Category.Create().SetID(1).SetText("category-1").SetCount(2).SetStatus(category.StatusDisabled),
+		ec.Category.Create().SetID(2).SetText("category-1").SetCount(1).SetStatus(category.StatusDisabled),
+		ec.Category.Create().SetID(3).SetText("category-2").SetCount(2).SetStatus(category.StatusDisabled),
+		ec.Category.Create().SetID(4).SetText("category-2").SetCount(1).SetStatus(category.StatusDisabled),
+		ec.Category.Create().SetID(5).SetText("category-3").SetCount(2).SetStatus(category.StatusDisabled),
+		ec.Category.Create().SetID(6).SetText("category-3").SetCount(1).SetStatus(category.StatusDisabled),
+	).SaveX(ctx)
+	require.Len(t, cats, 6)
+
+	var (
+		gqlc = client.New(srv)
+		// language=GraphQL
+		query = `query ($after: Cursor, $before: Cursor, $first: Int, $last: Int, $textDirection: OrderDirection = ASC, $countDirection: OrderDirection = ASC){
+		  categories(
+			after: $after,
+			before: $before,
+			first: $first,
+			last: $last,
+		  	orderBy: [{field: TEXT, direction: $textDirection}, {field: COUNT, direction: $countDirection}],
+		  ) {
+		    edges {
+		      node {
+		        id
+		      }
+		      cursor
+		    }
+		    pageInfo {
+		      hasNextPage
+		      hasPreviousPage
+		      startCursor
+		      endCursor				
+		    }
+		  }
+		}`
+		rsp struct {
+			Categories struct {
+				Edges []struct {
+					Node struct {
+						ID string
+					}
+					Cursor string
+				}
+				PageInfo struct {
+					HasNextPage     bool
+					HasPreviousPage bool
+					StartCursor     *string
+					EndCursor       *string
+				}
+			}
+		}
+		ids = func() (s []string) {
+			for _, n := range rsp.Categories.Edges {
+				s = append(s, n.Node.ID)
+			}
+			return
+		}
+		after, before any
+	)
+	t.Run("CountAsc", func(t *testing.T) {
+		err := gqlc.Post(query, &rsp, client.Var("after", after), client.Var("before", before), client.Var("first", 3))
+		require.NoError(t, err)
+		require.Len(t, rsp.Categories.Edges, 3)
+		// cats[1], cats[0], cats[3].
+		require.Equal(t, []string{"2", "1", "4"}, ids())
+		require.True(t, rsp.Categories.PageInfo.HasNextPage)
+
+		after = rsp.Categories.PageInfo.EndCursor
+		err = gqlc.Post(query, &rsp, client.Var("after", after), client.Var("first", 3))
+		require.NoError(t, err)
+		require.Len(t, rsp.Categories.Edges, 3)
+		// cats[2], cats[5], cats[4].
+		require.Equal(t, []string{"3", "6", "5"}, ids())
+		require.False(t, rsp.Categories.PageInfo.HasNextPage)
+
+		after = rsp.Categories.PageInfo.EndCursor
+		err = gqlc.Post(query, &rsp, client.Var("after", after))
+		require.NoError(t, err)
+		require.Empty(t, rsp.Categories.Edges)
+		require.False(t, rsp.Categories.PageInfo.HasNextPage)
+	})
+
+	t.Run("CountDesc", func(t *testing.T) {
+		err := gqlc.Post(query, &rsp, client.Var("countDirection", "DESC"), client.Var("first", 3))
+		require.NoError(t, err)
+		require.Len(t, rsp.Categories.Edges, 3)
+		// cats[0], cats[1], cats[2].
+		require.Equal(t, []string{"1", "2", "3"}, ids())
+		require.True(t, rsp.Categories.PageInfo.HasNextPage)
+
+		after = rsp.Categories.PageInfo.EndCursor
+		err = gqlc.Post(query, &rsp, client.Var("after", after), client.Var("countDirection", "DESC"), client.Var("first", 3))
+		require.NoError(t, err)
+		require.Len(t, rsp.Categories.Edges, 3)
+		// cats[3], cats[4], cats[5].
+		require.Equal(t, []string{"4", "5", "6"}, ids())
+		require.False(t, rsp.Categories.PageInfo.HasNextPage)
+
+		after = rsp.Categories.PageInfo.EndCursor
+		err = gqlc.Post(query, &rsp, client.Var("after", after), client.Var("countDirection", "DESC"))
+		require.NoError(t, err)
+		require.Empty(t, rsp.Categories.Edges)
+		require.False(t, rsp.Categories.PageInfo.HasNextPage)
+	})
+
+	t.Run("TextCountDesc", func(t *testing.T) {
+		// Page forward.
+		err := gqlc.Post(query, &rsp, client.Var("textDirection", "DESC"), client.Var("countDirection", "DESC"), client.Var("first", 3))
+		require.NoError(t, err)
+		require.Len(t, rsp.Categories.Edges, 3)
+		// cats[4], cats[5], cats[2].
+		require.Equal(t, []string{"5", "6", "3"}, ids())
+		require.True(t, rsp.Categories.PageInfo.HasNextPage)
+
+		after = rsp.Categories.PageInfo.EndCursor
+		err = gqlc.Post(query, &rsp, client.Var("after", after), client.Var("textDirection", "DESC"), client.Var("countDirection", "DESC"), client.Var("first", 3))
+		require.NoError(t, err)
+		require.Len(t, rsp.Categories.Edges, 3)
+		// cats[3], cats[0], cats[1].
+		require.Equal(t, []string{"4", "1", "2"}, ids())
+		require.False(t, rsp.Categories.PageInfo.HasNextPage)
+
+		after = rsp.Categories.PageInfo.EndCursor
+		err = gqlc.Post(query, &rsp, client.Var("after", after), client.Var("textDirection", "DESC"), client.Var("countDirection", "DESC"))
+		require.NoError(t, err)
+		require.Empty(t, rsp.Categories.Edges)
+		require.False(t, rsp.Categories.PageInfo.HasNextPage)
+
+		// All categories.
+		err = gqlc.Post(query, &rsp, client.Var("textDirection", "DESC"), client.Var("countDirection", "DESC"))
+		require.NoError(t, err)
+		require.Len(t, rsp.Categories.Edges, 6)
+		// cats[4], cats[5], cats[2], cats[3], cats[0], cats[1].
+		require.Equal(t, []string{"5", "6", "3", "4", "1", "2"}, ids())
+		require.False(t, rsp.Categories.PageInfo.HasNextPage)
+
+		// Page backward.
+		err = gqlc.Post(query, &rsp, client.Var("textDirection", "DESC"), client.Var("countDirection", "DESC"), client.Var("last", 3))
+		require.NoError(t, err)
+		require.Len(t, rsp.Categories.Edges, 3)
+		// cats[3], cats[0], cats[1].
+		require.Equal(t, []string{"4", "1", "2"}, ids())
+		require.True(t, rsp.Categories.PageInfo.HasPreviousPage)
+
+		before = rsp.Categories.PageInfo.StartCursor
+		err = gqlc.Post(query, &rsp, client.Var("before", before), client.Var("textDirection", "DESC"), client.Var("countDirection", "DESC"), client.Var("last", 3))
+		require.NoError(t, err)
+		require.Len(t, rsp.Categories.Edges, 3)
+		// cats[4], cats[5], cats[2].
+		require.Equal(t, []string{"5", "6", "3"}, ids())
+		require.False(t, rsp.Categories.PageInfo.HasPreviousPage)
 	})
 }

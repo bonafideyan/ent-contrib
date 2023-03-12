@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -45,7 +45,9 @@ type GroupEdges struct {
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [1]bool
 	// totalCount holds the count of the edges above.
-	totalCount [1]*int
+	totalCount [1]map[string]int
+
+	namedUsers map[string][]*User
 }
 
 // UsersOrErr returns the Users value or an error if the edge
@@ -58,8 +60,8 @@ func (e GroupEdges) UsersOrErr() ([]*User, error) {
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
-func (*Group) scanValues(columns []string) ([]interface{}, error) {
-	values := make([]interface{}, len(columns))
+func (*Group) scanValues(columns []string) ([]any, error) {
+	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
 		case group.FieldName:
@@ -75,7 +77,7 @@ func (*Group) scanValues(columns []string) ([]interface{}, error) {
 
 // assignValues assigns the values that were returned from sql.Rows (after scanning)
 // to the Group fields.
-func (gr *Group) assignValues(columns []string, values []interface{}) error {
+func (gr *Group) assignValues(columns []string, values []any) error {
 	if m, n := len(values), len(columns); m < n {
 		return fmt.Errorf("mismatch number of scan values: %d != %d", m, n)
 	}
@@ -100,24 +102,24 @@ func (gr *Group) assignValues(columns []string, values []interface{}) error {
 
 // QueryUsers queries the "users" edge of the Group entity.
 func (gr *Group) QueryUsers() *UserQuery {
-	return (&GroupClient{config: gr.config}).QueryUsers(gr)
+	return NewGroupClient(gr.config).QueryUsers(gr)
 }
 
 // Update returns a builder for updating this Group.
 // Note that you need to call Group.Unwrap() before calling this method if this Group
 // was returned from a transaction, and the transaction was committed or rolled back.
 func (gr *Group) Update() *GroupUpdateOne {
-	return (&GroupClient{config: gr.config}).UpdateOne(gr)
+	return NewGroupClient(gr.config).UpdateOne(gr)
 }
 
 // Unwrap unwraps the Group entity that was returned from a transaction after it was closed,
 // so that all future queries will be executed through the driver which created the transaction.
 func (gr *Group) Unwrap() *Group {
-	tx, ok := gr.config.driver.(*txDriver)
+	_tx, ok := gr.config.driver.(*txDriver)
 	if !ok {
 		panic("ent: Group is not a transactional entity")
 	}
-	gr.config.driver = tx.drv
+	gr.config.driver = _tx.drv
 	return gr
 }
 
@@ -130,6 +132,30 @@ func (gr *Group) String() string {
 	builder.WriteString(gr.Name)
 	builder.WriteByte(')')
 	return builder.String()
+}
+
+// NamedUsers returns the Users named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (gr *Group) NamedUsers(name string) ([]*User, error) {
+	if gr.Edges.namedUsers == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := gr.Edges.namedUsers[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (gr *Group) appendNamedUsers(name string, edges ...*User) {
+	if gr.Edges.namedUsers == nil {
+		gr.Edges.namedUsers = make(map[string][]*User)
+	}
+	if len(edges) == 0 {
+		gr.Edges.namedUsers[name] = []*User{}
+	} else {
+		gr.Edges.namedUsers[name] = append(gr.Edges.namedUsers[name], edges...)
+	}
 }
 
 // Groups is a parsable slice of Group.

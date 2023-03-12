@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -126,11 +126,18 @@ func schemas(g *gen.Graph, spec *ogen.Spec) error {
 // addSchemaFields adds the given gen.Field slice to the ogen.Schema.
 func addSchemaFields(s *ogen.Schema, fs []*gen.Field) error {
 	for _, f := range fs {
+		ant, err := FieldAnnotation(f)
+		if err != nil {
+			return err
+		}
+		if ant.Skip {
+			continue
+		}
 		p, err := property(f)
 		if err != nil {
 			return err
 		}
-		addProperty(s, p, !f.Optional)
+		addProperty(s, p, !(f.Optional || f.Nillable))
 	}
 	return nil
 }
@@ -413,6 +420,10 @@ func deleteOp(spec *ogen.Spec, n *gen.Type) (*ogen.Operation, error) {
 
 // listOp returns a spec.OperationConfig for a list operation on the given node.
 func listOp(spec *ogen.Spec, n *gen.Type) (*ogen.Operation, error) {
+	cfg, err := GetConfig(n.Config)
+	if err != nil {
+		return nil, err
+	}
 	vn, err := ViewName(n, OpList)
 	if err != nil {
 		return nil, err
@@ -427,12 +438,15 @@ func listOp(spec *ogen.Spec, n *gen.Type) (*ogen.Operation, error) {
 				InQuery().
 				SetName("page").
 				SetDescription("what page to render").
-				SetSchema(ogen.Int()),
+				SetSchema(ogen.Int().SetMinimum(&one)),
 			ogen.NewParameter().
 				InQuery().
 				SetName("itemsPerPage").
 				SetDescription("item count to render per page").
-				SetSchema(ogen.Int()),
+				SetSchema(ogen.Int().
+					SetMinimum(&cfg.MinItemsPerPage).
+					SetMaximum(&cfg.MaxItemsPerPage),
+				),
 		).
 		AddResponse(
 			strconv.Itoa(http.StatusOK),
@@ -506,6 +520,7 @@ func property(f *gen.Field) (*ogen.Property, error) {
 
 var (
 	zero   int64
+	one    int64 = 1
 	min8   int64 = math.MinInt8
 	max8   int64 = math.MaxInt8
 	maxu8  int64 = math.MaxUint8
@@ -678,7 +693,10 @@ func reqBody(n *gen.Type, op Operation) (*ogen.RequestBody, error) {
 		if err != nil {
 			return nil, err
 		}
-		if (a != nil && !a.ReadOnly) && (op == OpCreate || !f.Immutable) {
+		if a.ReadOnly || a.Skip {
+			continue
+		}
+		if op == OpCreate || !f.Immutable {
 			p, err := property(f)
 			if err != nil {
 				return nil, err

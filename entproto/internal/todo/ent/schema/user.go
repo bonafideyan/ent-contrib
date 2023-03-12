@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -45,6 +45,7 @@ func (User) Annotations() []schema.Annotation {
 // Fields of the User.
 func (User) Fields() []ent.Field {
 	return []ent.Field{
+		field.Uint32("id").StorageKey("user_id").Annotations(entproto.Field(1)),
 		field.String("user_name").
 			Unique().
 			Annotations(entproto.Field(2)),
@@ -117,6 +118,28 @@ func (User) Fields() []ent.Field {
 			Optional().
 			Annotations(
 				entproto.Field(24),
+			),
+		field.Enum("device_type").
+			Values("GLOWY9000", "SPEEDY300").
+			Default("GLOWY9000").
+			Annotations(
+				entproto.Field(100),
+				entproto.Enum(map[string]int32{
+					"GLOWY9000": 0,
+					"SPEEDY300": 1,
+				}),
+			),
+		field.Enum("omit_prefix").
+			Values("foo", "bar").
+			Annotations(
+				entproto.Field(103),
+				entproto.Enum(
+					map[string]int32{
+						"foo": 1,
+						"bar": 2,
+					},
+					entproto.OmitFieldPrefix(),
+				),
 			),
 	}
 }

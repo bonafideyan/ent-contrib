@@ -1,3 +1,5 @@
+directive @hasPermissions(permissions: [String!]!) on OBJECT | FIELD_DEFINITION
+
 type CategoryConfig {
   maxMembers: Int
 }
@@ -6,9 +8,8 @@ input CategoryConfigInput {
   maxMembers: Int
 }
 
-scalar Time
 scalar Duration
-scalar Uint64
+scalar UUID
 
 extend input TodoWhereInput {
   createdToday: Boolean
@@ -22,6 +23,16 @@ extend type Query {
 }
 
 type Mutation {
+  createCategory(input: CreateCategoryInput!): Category!
   createTodo(input: CreateTodoInput!): Todo!
+  updateTodo(id: ID!, input: UpdateTodoInput!): Todo!
   clearTodos: Int!
+}
+
+type Custom {
+  info: String!
+}
+
+extend input CreateCategoryInput {
+  createTodos: [CreateTodoInput!]
 }

@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -41,6 +41,9 @@ var (
 
 	// NodeTemplate implements the Relay Node interface for all types.
 	NodeTemplate = parseT("template/node.tmpl")
+
+	// NodeDescriptorTemplate implements the Node descriptor API for all types.
+	NodeDescriptorTemplate = parseT("template/node_descriptor.tmpl")
 
 	// PaginationTemplate adds pagination support according to the GraphQL Cursor Connections Spec.
 	// More info can be found in the following link: https://relay.dev/graphql/connections.htm.
@@ -89,7 +92,7 @@ var (
 	}
 
 	//go:embed template/*
-	templates embed.FS
+	_templates embed.FS
 
 	marshalerType   = reflect.TypeOf((*graphql.Marshaler)(nil)).Elem()
 	unmarshalerType = reflect.TypeOf((*graphql.Unmarshaler)(nil)).Elem()
@@ -98,7 +101,7 @@ var (
 func parseT(path string) *gen.Template {
 	return gen.MustParse(gen.NewTemplate(path).
 		Funcs(TemplateFuncs).
-		ParseFS(templates, path))
+		ParseFS(_templates, path))
 }
 
 // idType is returned by the gqlIDType below to describe the
@@ -179,10 +182,6 @@ func fieldCollections(edges []*gen.Edge) ([]*fieldCollection, error) {
 			collect = append(collect, &fieldCollection{Edge: e, Mapping: ant.Mapping})
 		case !ant.Unbind:
 			mapping := []string{camel(e.Name)}
-			// TODO(@giautm): remove this backwards compatibility when we release v0.12
-			if mapping[0] != e.Name {
-				mapping = append(mapping, e.Name)
-			}
 			collect = append(collect, &fieldCollection{Edge: e, Mapping: mapping})
 		}
 	}
@@ -221,15 +220,20 @@ func (m *MutationDescriptor) Builders() []string {
 // It's shared between GQL and Go types.
 type InputFieldDescriptor struct {
 	*gen.Field
-	// Nullable indicates if the field is nullable.
-	Nullable bool
+	// AppendOp indicates if the field has the Append operator
+	AppendOp bool
 	// ClearOp indicates if the field has the Clear operator
 	ClearOp bool
+	// Nullable indicates if the field is nullable.
+	Nullable bool
 }
 
 // IsPointer returns true if the Go type should be a pointer
 func (f *InputFieldDescriptor) IsPointer() bool {
-	return f.Nullable && !f.Type.RType.IsPtr()
+	if f.Type.Nillable || f.Type.RType.IsPtr() {
+		return false
+	}
+	return f.Nullable
 }
 
 // InputFields returns the list of fields in the input type.
@@ -240,16 +244,15 @@ func (m *MutationDescriptor) InputFields() ([]*InputFieldDescriptor, error) {
 		if err != nil {
 			return nil, err
 		}
-		if (m.IsCreate && ant.Skip.Is(SkipMutationCreateInput)) ||
-			(!m.IsCreate && (f.Immutable || ant.Skip.Is(SkipMutationUpdateInput)) ||
-				f.IsEdgeField()) {
+		if f.IsEdgeField() || m.skip(f.Immutable, ant.Skip) {
 			continue
 		}
 
 		fields = append(fields, &InputFieldDescriptor{
 			Field:    f,
-			Nullable: !m.IsCreate || f.Optional || f.Default || f.DefaultFunc(),
+			AppendOp: !m.IsCreate && f.SupportsMutationAppend(),
 			ClearOp:  !m.IsCreate && f.Optional,
+			Nullable: !m.IsCreate || f.Optional || f.Default || f.DefaultFunc(),
 		})
 	}
 
@@ -267,13 +270,19 @@ func (m *MutationDescriptor) InputEdges() ([]*gen.Edge, error) {
 		if err != nil {
 			return nil, err
 		}
-		if (m.IsCreate && ant.Skip.Is(SkipMutationCreateInput)) ||
-			(!m.IsCreate && ant.Skip.Is(SkipMutationUpdateInput)) {
+		if e.Type.IsEdgeSchema() || m.skip(e.Immutable, ant.Skip) {
 			continue
 		}
 		edges = append(edges, e)
 	}
 	return edges, nil
+}
+
+func (m *MutationDescriptor) skip(immutable bool, skip SkipMode) bool {
+	if m.IsCreate {
+		return skip.Is(SkipMutationCreateInput)
+	}
+	return immutable || skip.Is(SkipMutationUpdateInput)
 }
 
 // mutationInputs returns the list of input types for the mutation.
@@ -304,7 +313,7 @@ func mutationInputs(nodes []*gen.Type) ([]*MutationDescriptor, error) {
 func filterNodes(nodes []*gen.Type, skip SkipMode) ([]*gen.Type, error) {
 	filteredNodes := make([]*gen.Type, 0, len(nodes))
 	for _, n := range nodes {
-		if n.IsEdgeSchema() {
+		if n.HasCompositeID() {
 			continue
 		}
 		ant, err := annotation(n.Annotations)
@@ -322,7 +331,7 @@ func filterNodes(nodes []*gen.Type, skip SkipMode) ([]*gen.Type, error) {
 func filterEdges(edges []*gen.Edge, skip SkipMode) ([]*gen.Edge, error) {
 	filteredEdges := make([]*gen.Edge, 0, len(edges))
 	for _, e := range edges {
-		if e.Type.IsEdgeSchema() {
+		if e.Type.HasCompositeID() {
 			continue
 		}
 		antE, err := annotation(e.Annotations)
@@ -357,8 +366,14 @@ func filterFields(fields []*gen.Field, skip SkipMode) ([]*gen.Field, error) {
 
 // orderFields returns the fields of the given node with the `OrderField` annotation.
 func orderFields(n *gen.Type) ([]*gen.Field, error) {
-	var ordered []*gen.Field
-	for _, f := range n.Fields {
+	var (
+		ordered []*gen.Field
+		fields  = n.Fields
+	)
+	if n.HasOneFieldID() {
+		fields = append([]*gen.Field{n.ID}, fields...)
+	}
+	for _, f := range fields {
 		ant, err := annotation(f.Annotations)
 		if err != nil {
 			return nil, err
@@ -389,22 +404,27 @@ func hasWhereInput(n *gen.Edge) (v bool, err error) {
 }
 
 // skipModeFromString returns SkipFlag from a string
-func skipModeFromString(s string) (SkipMode, error) {
-	switch s {
-	case "type":
-		return SkipType, nil
-	case "enum_field":
-		return SkipEnumField, nil
-	case "order_field":
-		return SkipOrderField, nil
-	case "where_input":
-		return SkipWhereInput, nil
-	case "mutation_create_input":
-		return SkipMutationCreateInput, nil
-	case "mutation_update_input":
-		return SkipMutationUpdateInput, nil
+func skipModeFromString(modes ...string) (SkipMode, error) {
+	var m SkipMode
+	for _, s := range modes {
+		switch s {
+		case "type":
+			m |= SkipType
+		case "enum_field":
+			m |= SkipEnumField
+		case "order_field":
+			m |= SkipOrderField
+		case "where_input":
+			m |= SkipWhereInput
+		case "mutation_create_input":
+			m |= SkipMutationCreateInput
+		case "mutation_update_input":
+			m |= SkipMutationUpdateInput
+		default:
+			return 0, fmt.Errorf("invalid skip mode: %s", s)
+		}
 	}
-	return 0, fmt.Errorf("invalid skip mode: %s", s)
+	return m, nil
 }
 
 func isSkipMode(antSkip interface{}, m string) (bool, error) {
@@ -488,7 +508,7 @@ func (p *PaginationNames) OrderInputDef() *ast.Definition {
 		Fields: ast.FieldList{
 			{
 				Name: "direction",
-				Type: ast.NonNullNamedType(OrderDirection, nil),
+				Type: ast.NonNullNamedType(OrderDirectionEnum, nil),
 				DefaultValue: &ast.Value{
 					Raw:  "ASC",
 					Kind: ast.EnumValue,
@@ -504,7 +524,7 @@ func (p *PaginationNames) OrderInputDef() *ast.Definition {
 	}
 }
 
-func (p *PaginationNames) ConnectionField(name string, hasOrderBy, hasWhereInput bool) *ast.FieldDefinition {
+func (p *PaginationNames) ConnectionField(name string, hasOrderBy, multiOrder, hasWhereInput bool) *ast.FieldDefinition {
 	def := &ast.FieldDefinition{
 		Name: name,
 		Type: ast.NonNullNamedType(p.Connection, nil),
@@ -532,9 +552,13 @@ func (p *PaginationNames) ConnectionField(name string, hasOrderBy, hasWhereInput
 		},
 	}
 	if hasOrderBy {
+		orderT := ast.NamedType(p.Order, nil)
+		if multiOrder {
+			orderT = ast.ListType(ast.NonNullNamedType(p.Order, nil), nil)
+		}
 		def.Arguments = append(def.Arguments, &ast.ArgumentDefinition{
 			Name:        "orderBy",
-			Type:        ast.NamedType(p.Order, nil),
+			Type:        orderT,
 			Description: fmt.Sprintf("Ordering options for %s returned from the connection.", plural(p.Node)),
 		})
 	}

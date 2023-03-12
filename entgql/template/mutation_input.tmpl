@@ -9,6 +9,14 @@
 
 {{ template "import" $ }}
 
+{{ $gqlNodes := filterNodes $.Nodes (skipMode "mutation_create_input" "mutation_update_input") }}
+import (
+    {{- range $n := $gqlNodes }}
+        {{- template "import/types" $n }}
+        "{{ $.Config.Package }}/{{ $n.Package }}"
+    {{- end }}
+)
+
 {{- range $n := mutationInputs $.Nodes }}
     {{- $names := nodePaginationNames $n.Type }}
     {{- $input := $n.Input }}
@@ -25,12 +33,15 @@
                 {{ print "Clear" $f.StructField }} bool
             {{- end }}
             {{ $f.StructField }} {{ if $f.IsPointer }}*{{ end }}{{ $f.Type }}
+            {{- if $f.AppendOp }}
+                {{ $f.MutationAppend }} {{ if $f.IsPointer }}*{{ end }}{{ $f.Type }}
+            {{- end }}
         {{- end }}
         {{- range $e := $edges }}
+            {{- if not $n.IsCreate }}
+                {{ $e.MutationClear }} bool
+            {{- end }}
             {{- if $e.Unique }}
-                {{- if not $n.IsCreate }}
-                    {{ $e.MutationClear }} bool
-                {{- end }}
                 {{- $structField := print (pascal $e.Name) "ID" }}
                 {{ $structField }} {{ if or (not $n.IsCreate) $e.Optional }}*{{ end }}{{ $e.Type.ID.Type }}
             {{- else }}
@@ -47,27 +58,33 @@
 
     // Mutate applies the {{ $input }} on the {{ $n.MutationName }} builder.
     func (i *{{ $input }}) Mutate(m *{{ $n.MutationName }}) {
+        {{- /* The order of the operators is purposefully sorted: Clear, Set and Append */}}
         {{- range $f := $fields }}
             {{- if $f.ClearOp }}
                 if i.{{ print "Clear" $f.StructField }} {
                     m.{{ print "Clear" $f.StructField }}()
                 }
             {{- end }}
-            {{- if $f.IsPointer }}
+            {{- if or $f.Type.Nillable $f.IsPointer }}
                 if v := i.{{ $f.StructField }}; v != nil {
-                    m.{{ $f.MutationSet }}(*v)
+                    m.{{ $f.MutationSet }}({{ if $f.IsPointer }}*{{ end }}v)
                 }
             {{- else }}
                 m.{{ $f.MutationSet }}(i.{{ $f.StructField }})
             {{- end }}
+            {{- if $f.AppendOp }}
+                if i.{{ $f.MutationAppend }} != nil {
+                    m.{{ $f.MutationAppend }}({{ if $f.IsPointer }}*{{ end }}i.{{ $f.StructField }})
+                }
+            {{- end }}
         {{- end }}
         {{- range $e := $edges }}
+           {{- if not $n.IsCreate }}
+                if i.{{ $e.MutationClear }} {
+                    m.{{ $e.MutationClear }}()
+                }
+            {{- end }}
             {{- if $e.Unique }}
-                {{- if not $n.IsCreate }}
-                    if i.{{ $e.MutationClear }} {
-                        m.{{ $e.MutationClear }}()
-                    }
-                {{- end }}
                 {{- $structField := print (pascal $e.Name) "ID" }}
                 {{- if or (not $n.IsCreate) $e.Optional }}
                     if v := i.{{ $structField }}; v != nil {

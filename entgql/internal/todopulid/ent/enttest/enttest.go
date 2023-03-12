@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -23,6 +23,7 @@ import (
 	// required by schema hooks.
 	_ "entgo.io/contrib/entgql/internal/todopulid/ent/runtime"
 
+	"entgo.io/contrib/entgql/internal/todopulid/ent/migrate"
 	"entgo.io/ent/dialect/sql/schema"
 )
 
@@ -31,7 +32,7 @@ type (
 	// testing.T and testing.B and used by enttest.
 	TestingT interface {
 		FailNow()
-		Error(...interface{})
+		Error(...any)
 	}
 
 	// Option configures client creation.
@@ -73,10 +74,7 @@ func Open(t TestingT, driverName, dataSourceName string, opts ...Option) *ent.Cl
 		t.Error(err)
 		t.FailNow()
 	}
-	if err := c.Schema.Create(context.Background(), o.migrateOpts...); err != nil {
-		t.Error(err)
-		t.FailNow()
-	}
+	migrateSchema(t, c, o)
 	return c
 }
 
@@ -84,9 +82,17 @@ func Open(t TestingT, driverName, dataSourceName string, opts ...Option) *ent.Cl
 func NewClient(t TestingT, opts ...Option) *ent.Client {
 	o := newOptions(opts)
 	c := ent.NewClient(o.opts...)
-	if err := c.Schema.Create(context.Background(), o.migrateOpts...); err != nil {
+	migrateSchema(t, c, o)
+	return c
+}
+func migrateSchema(t TestingT, c *ent.Client, o *options) {
+	tables, err := schema.CopyTables(migrate.Tables)
+	if err != nil {
 		t.Error(err)
 		t.FailNow()
 	}
-	return c
+	if err := migrate.Create(context.Background(), c.Schema, tables, o.migrateOpts...); err != nil {
+		t.Error(err)
+		t.FailNow()
+	}
 }

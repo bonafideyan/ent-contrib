@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,6 +19,6 @@ package runtime
 // The schema-stitching logic is generated in entgo.io/contrib/entgql/internal/todouuid/ent/runtime.go
 
 const (
-	Version = "v0.10.2-0.20220528091257-0917701f9114"           // Version of ent codegen.
-	Sum     = "h1:BJ3c7WialDUYIM+lzdbON5UO8nWAgcccWde6AaqlK68=" // Sum of ent codegen.
+	Version = "v0.11.6"                                         // Version of ent codegen.
+	Sum     = "h1:fMQwhuzbPv12AXdrAGyHoOcgh9r0D9F8WEsCRoUWxVc=" // Sum of ent codegen.
 )

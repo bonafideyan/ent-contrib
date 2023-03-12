@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,10 +17,12 @@
 package ent
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
+	"entgo.io/contrib/entgql/internal/todo/ent/schema/customstruct"
 	"entgo.io/contrib/entgql/internal/todopulid/ent/category"
 	"entgo.io/contrib/entgql/internal/todopulid/ent/schema/pulid"
 	"entgo.io/contrib/entgql/internal/todopulid/ent/todo"
@@ -43,6 +45,12 @@ type Todo struct {
 	Text string `json:"text,omitempty"`
 	// Blob holds the value of the "blob" field.
 	Blob []byte `json:"blob,omitempty"`
+	// Init holds the value of the "init" field.
+	Init map[string]interface{} `json:"init,omitempty"`
+	// Custom holds the value of the "custom" field.
+	Custom []customstruct.Custom `json:"custom,omitempty"`
+	// Customp holds the value of the "customp" field.
+	Customp []*customstruct.Custom `json:"customp,omitempty"`
 	// CategoryID holds the value of the "category_id" field.
 	CategoryID pulid.ID `json:"category_id,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
@@ -66,7 +74,9 @@ type TodoEdges struct {
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [4]bool
 	// totalCount holds the count of the edges above.
-	totalCount [3]*int
+	totalCount [3]map[string]int
+
+	namedChildren map[string][]*Todo
 }
 
 // ParentOrErr returns the Parent value or an error if the edge
@@ -74,8 +84,7 @@ type TodoEdges struct {
 func (e TodoEdges) ParentOrErr() (*Todo, error) {
 	if e.loadedTypes[0] {
 		if e.Parent == nil {
-			// The edge parent was loaded in eager-loading,
-			// but was not found.
+			// Edge was loaded but was not found.
 			return nil, &NotFoundError{label: todo.Label}
 		}
 		return e.Parent, nil
@@ -97,8 +106,7 @@ func (e TodoEdges) ChildrenOrErr() ([]*Todo, error) {
 func (e TodoEdges) CategoryOrErr() (*Category, error) {
 	if e.loadedTypes[2] {
 		if e.Category == nil {
-			// The edge category was loaded in eager-loading,
-			// but was not found.
+			// Edge was loaded but was not found.
 			return nil, &NotFoundError{label: category.Label}
 		}
 		return e.Category, nil
@@ -111,8 +119,7 @@ func (e TodoEdges) CategoryOrErr() (*Category, error) {
 func (e TodoEdges) SecretOrErr() (*VerySecret, error) {
 	if e.loadedTypes[3] {
 		if e.Secret == nil {
-			// The edge secret was loaded in eager-loading,
-			// but was not found.
+			// Edge was loaded but was not found.
 			return nil, &NotFoundError{label: verysecret.Label}
 		}
 		return e.Secret, nil
@@ -121,11 +128,11 @@ func (e TodoEdges) SecretOrErr() (*VerySecret, error) {
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
-func (*Todo) scanValues(columns []string) ([]interface{}, error) {
-	values := make([]interface{}, len(columns))
+func (*Todo) scanValues(columns []string) ([]any, error) {
+	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case todo.FieldBlob:
+		case todo.FieldBlob, todo.FieldInit, todo.FieldCustom, todo.FieldCustomp:
 			values[i] = new([]byte)
 		case todo.FieldID, todo.FieldCategoryID:
 			values[i] = new(pulid.ID)
@@ -148,7 +155,7 @@ func (*Todo) scanValues(columns []string) ([]interface{}, error) {
 
 // assignValues assigns the values that were returned from sql.Rows (after scanning)
 // to the Todo fields.
-func (t *Todo) assignValues(columns []string, values []interface{}) error {
+func (t *Todo) assignValues(columns []string, values []any) error {
 	if m, n := len(values), len(columns); m < n {
 		return fmt.Errorf("mismatch number of scan values: %d != %d", m, n)
 	}
@@ -190,6 +197,30 @@ func (t *Todo) assignValues(columns []string, values []interface{}) error {
 			} else if value != nil {
 				t.Blob = *value
 			}
+		case todo.FieldInit:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field init", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &t.Init); err != nil {
+					return fmt.Errorf("unmarshal field init: %w", err)
+				}
+			}
+		case todo.FieldCustom:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field custom", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &t.Custom); err != nil {
+					return fmt.Errorf("unmarshal field custom: %w", err)
+				}
+			}
+		case todo.FieldCustomp:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field customp", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &t.Customp); err != nil {
+					return fmt.Errorf("unmarshal field customp: %w", err)
+				}
+			}
 		case todo.FieldCategoryID:
 			if value, ok := values[i].(*pulid.ID); !ok {
 				return fmt.Errorf("unexpected type %T for field category_id", values[i])
@@ -217,39 +248,39 @@ func (t *Todo) assignValues(columns []string, values []interface{}) error {
 
 // QueryParent queries the "parent" edge of the Todo entity.
 func (t *Todo) QueryParent() *TodoQuery {
-	return (&TodoClient{config: t.config}).QueryParent(t)
+	return NewTodoClient(t.config).QueryParent(t)
 }
 
 // QueryChildren queries the "children" edge of the Todo entity.
 func (t *Todo) QueryChildren() *TodoQuery {
-	return (&TodoClient{config: t.config}).QueryChildren(t)
+	return NewTodoClient(t.config).QueryChildren(t)
 }
 
 // QueryCategory queries the "category" edge of the Todo entity.
 func (t *Todo) QueryCategory() *CategoryQuery {
-	return (&TodoClient{config: t.config}).QueryCategory(t)
+	return NewTodoClient(t.config).QueryCategory(t)
 }
 
 // QuerySecret queries the "secret" edge of the Todo entity.
 func (t *Todo) QuerySecret() *VerySecretQuery {
-	return (&TodoClient{config: t.config}).QuerySecret(t)
+	return NewTodoClient(t.config).QuerySecret(t)
 }
 
 // Update returns a builder for updating this Todo.
 // Note that you need to call Todo.Unwrap() before calling this method if this Todo
 // was returned from a transaction, and the transaction was committed or rolled back.
 func (t *Todo) Update() *TodoUpdateOne {
-	return (&TodoClient{config: t.config}).UpdateOne(t)
+	return NewTodoClient(t.config).UpdateOne(t)
 }
 
 // Unwrap unwraps the Todo entity that was returned from a transaction after it was closed,
 // so that all future queries will be executed through the driver which created the transaction.
 func (t *Todo) Unwrap() *Todo {
-	tx, ok := t.config.driver.(*txDriver)
+	_tx, ok := t.config.driver.(*txDriver)
 	if !ok {
 		panic("ent: Todo is not a transactional entity")
 	}
-	t.config.driver = tx.drv
+	t.config.driver = _tx.drv
 	return t
 }
 
@@ -273,10 +304,43 @@ func (t *Todo) String() string {
 	builder.WriteString("blob=")
 	builder.WriteString(fmt.Sprintf("%v", t.Blob))
 	builder.WriteString(", ")
+	builder.WriteString("init=")
+	builder.WriteString(fmt.Sprintf("%v", t.Init))
+	builder.WriteString(", ")
+	builder.WriteString("custom=")
+	builder.WriteString(fmt.Sprintf("%v", t.Custom))
+	builder.WriteString(", ")
+	builder.WriteString("customp=")
+	builder.WriteString(fmt.Sprintf("%v", t.Customp))
+	builder.WriteString(", ")
 	builder.WriteString("category_id=")
 	builder.WriteString(fmt.Sprintf("%v", t.CategoryID))
 	builder.WriteByte(')')
 	return builder.String()
+}
+
+// NamedChildren returns the Children named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (t *Todo) NamedChildren(name string) ([]*Todo, error) {
+	if t.Edges.namedChildren == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := t.Edges.namedChildren[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (t *Todo) appendNamedChildren(name string, edges ...*Todo) {
+	if t.Edges.namedChildren == nil {
+		t.Edges.namedChildren = make(map[string][]*Todo)
+	}
+	if len(edges) == 0 {
+		t.Edges.namedChildren[name] = []*Todo{}
+	} else {
+		t.Edges.namedChildren[name] = append(t.Edges.namedChildren[name], edges...)
+	}
 }
 
 // Todos is a parsable slice of Todo.

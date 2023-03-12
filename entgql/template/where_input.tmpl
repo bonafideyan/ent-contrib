@@ -13,9 +13,19 @@ in the LICENSE file in the root directory of this source tree.
         {{ template "header" . }}
 {{- end }}
 
+
+{{ $gqlNodes := filterNodes $.Nodes (skipMode "where_input") }}
+
+import (
+    "{{ $.Config.Package }}/predicate"
+	{{- range $n := $gqlNodes }}
+        {{- template "import/types" $n }}
+		"{{ $.Config.Package }}/{{ $n.Package }}"
+	{{- end }}
+)
 {{ template "import" $ }}
 
-{{ range $n := filterNodes $.Nodes (skipMode "where_input") }}
+{{ range $n := $gqlNodes }}
     {{ $comparableFields := list $n.ID }}
     {{ $names := nodePaginationNames $n }}
     {{ with $annotation := $n.ID.Annotations.EntGQL }}
@@ -77,6 +87,8 @@ in the LICENSE file in the root directory of this source tree.
         i.Predicates = append(i.Predicates, predicates...)
     }
 
+    {{ $err := printf "ErrEmpty%s" $input }}
+
     // Filter applies the {{ $input }} filter on the {{ $n.QueryName }} builder.
     func (i *{{ $input }}) Filter(q *{{ $n.QueryName }}) (*{{ $n.QueryName }}, error) {
         if i == nil {
@@ -84,10 +96,17 @@ in the LICENSE file in the root directory of this source tree.
         }
         p, err := i.P()
         if err != nil {
+            {{- /* Skip errors only for top-level empty predicates. The rest are invalid. */}}
+            if err == {{ $err }} {
+               return q, nil
+            }
             return nil, err
         }
         return q.Where(p), nil
     }
+
+    // {{ $err }} is returned in case the {{ $input }} is empty.
+    var {{ $err }} = errors.New("{{ base $.Config.Package }}: empty predicate {{ $input }}")
 
     // P returns a predicate for filtering {{ plural $n.Name | lower }}.
     // An error is returned if the input is empty or invalid.
@@ -96,7 +115,7 @@ in the LICENSE file in the root directory of this source tree.
         if i.Not != nil {
             p, err := i.Not.P()
             if err != nil {
-                return nil, err
+                return nil, fmt.Errorf("%w: field 'not'", err)
             }
             predicates = append(predicates, {{ $n.Package }}.Not(p))
         }
@@ -104,7 +123,7 @@ in the LICENSE file in the root directory of this source tree.
         case n == 1:
             p, err := i.Or[0].P()
             if err != nil {
-                return nil, err
+                return nil, fmt.Errorf("%w: field 'or'", err)
             }
             predicates = append(predicates, p)
         case n > 1:
@@ -112,7 +131,7 @@ in the LICENSE file in the root directory of this source tree.
             for _, w := range i.Or {
                 p, err := w.P()
                 if err != nil {
-                    return nil, err
+                    return nil, fmt.Errorf("%w: field 'or'", err)
                 }
                 or = append(or, p)
             }
@@ -122,7 +141,7 @@ in the LICENSE file in the root directory of this source tree.
         case n == 1:
             p, err := i.And[0].P()
             if err != nil {
-                return nil, err
+                return nil, fmt.Errorf("%w: field 'and'", err)
             }
             predicates = append(predicates, p)
         case n > 1:
@@ -130,7 +149,7 @@ in the LICENSE file in the root directory of this source tree.
             for _, w := range i.And {
                 p, err := w.P()
                 if err != nil {
-                    return nil, err
+                    return nil, fmt.Errorf("%w: field 'and'", err)
                 }
                 and = append(and, p)
             }
@@ -177,7 +196,7 @@ in the LICENSE file in the root directory of this source tree.
                 for _, w := range i.{{ $func }} {
                     p, err := w.P()
                     if err != nil {
-                        return nil, err
+                        return nil, fmt.Errorf("%w: field '{{ $func }}'", err)
                     }
                     with = append(with, p)
                 }
@@ -186,7 +205,7 @@ in the LICENSE file in the root directory of this source tree.
         {{- end }}
         switch len(predicates) {
         case 0:
-            return nil, fmt.Errorf("empty predicate {{ $input }}")
+            return nil, {{ $err }}
         case 1:
             return predicates[0], nil
         default:

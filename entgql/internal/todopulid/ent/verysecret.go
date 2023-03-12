@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -35,8 +35,8 @@ type VerySecret struct {
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
-func (*VerySecret) scanValues(columns []string) ([]interface{}, error) {
-	values := make([]interface{}, len(columns))
+func (*VerySecret) scanValues(columns []string) ([]any, error) {
+	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
 		case verysecret.FieldID:
@@ -52,7 +52,7 @@ func (*VerySecret) scanValues(columns []string) ([]interface{}, error) {
 
 // assignValues assigns the values that were returned from sql.Rows (after scanning)
 // to the VerySecret fields.
-func (vs *VerySecret) assignValues(columns []string, values []interface{}) error {
+func (vs *VerySecret) assignValues(columns []string, values []any) error {
 	if m, n := len(values), len(columns); m < n {
 		return fmt.Errorf("mismatch number of scan values: %d != %d", m, n)
 	}
@@ -79,17 +79,17 @@ func (vs *VerySecret) assignValues(columns []string, values []interface{}) error
 // Note that you need to call VerySecret.Unwrap() before calling this method if this VerySecret
 // was returned from a transaction, and the transaction was committed or rolled back.
 func (vs *VerySecret) Update() *VerySecretUpdateOne {
-	return (&VerySecretClient{config: vs.config}).UpdateOne(vs)
+	return NewVerySecretClient(vs.config).UpdateOne(vs)
 }
 
 // Unwrap unwraps the VerySecret entity that was returned from a transaction after it was closed,
 // so that all future queries will be executed through the driver which created the transaction.
 func (vs *VerySecret) Unwrap() *VerySecret {
-	tx, ok := vs.config.driver.(*txDriver)
+	_tx, ok := vs.config.driver.(*txDriver)
 	if !ok {
 		panic("ent: VerySecret is not a transactional entity")
 	}
-	vs.config.driver = tx.drv
+	vs.config.driver = _tx.drv
 	return vs
 }
 

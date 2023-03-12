@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -62,6 +62,20 @@ func (fc *FriendshipCreate) SetFriendID(u uuid.UUID) *FriendshipCreate {
 	return fc
 }
 
+// SetID sets the "id" field.
+func (fc *FriendshipCreate) SetID(u uuid.UUID) *FriendshipCreate {
+	fc.mutation.SetID(u)
+	return fc
+}
+
+// SetNillableID sets the "id" field if the given value is not nil.
+func (fc *FriendshipCreate) SetNillableID(u *uuid.UUID) *FriendshipCreate {
+	if u != nil {
+		fc.SetID(*u)
+	}
+	return fc
+}
+
 // SetUser sets the "user" edge to the User entity.
 func (fc *FriendshipCreate) SetUser(u *User) *FriendshipCreate {
 	return fc.SetUserID(u.ID)
@@ -79,50 +93,8 @@ func (fc *FriendshipCreate) Mutation() *FriendshipMutation {
 
 // Save creates the Friendship in the database.
 func (fc *FriendshipCreate) Save(ctx context.Context) (*Friendship, error) {
-	var (
-		err  error
-		node *Friendship
-	)
 	fc.defaults()
-	if len(fc.hooks) == 0 {
-		if err = fc.check(); err != nil {
-			return nil, err
-		}
-		node, err = fc.sqlSave(ctx)
-	} else {
-		var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-			mutation, ok := m.(*FriendshipMutation)
-			if !ok {
-				return nil, fmt.Errorf("unexpected mutation type %T", m)
-			}
-			if err = fc.check(); err != nil {
-				return nil, err
-			}
-			fc.mutation = mutation
-			if node, err = fc.sqlSave(ctx); err != nil {
-				return nil, err
-			}
-			mutation.id = &node.ID
-			mutation.done = true
-			return node, err
-		})
-		for i := len(fc.hooks) - 1; i >= 0; i-- {
-			if fc.hooks[i] == nil {
-				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
-			}
-			mut = fc.hooks[i](mut)
-		}
-		v, err := mut.Mutate(ctx, fc.mutation)
-		if err != nil {
-			return nil, err
-		}
-		nv, ok := v.(*Friendship)
-		if !ok {
-			return nil, fmt.Errorf("unexpected node type %T returned from FriendshipMutation", v)
-		}
-		node = nv
-	}
-	return node, err
+	return withHooks[*Friendship, FriendshipMutation](ctx, fc.sqlSave, fc.mutation, fc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -153,6 +125,10 @@ func (fc *FriendshipCreate) defaults() {
 		v := friendship.DefaultCreatedAt()
 		fc.mutation.SetCreatedAt(v)
 	}
+	if _, ok := fc.mutation.ID(); !ok {
+		v := friendship.DefaultID()
+		fc.mutation.SetID(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -176,15 +152,25 @@ func (fc *FriendshipCreate) check() error {
 }
 
 func (fc *FriendshipCreate) sqlSave(ctx context.Context) (*Friendship, error) {
+	if err := fc.check(); err != nil {
+		return nil, err
+	}
 	_node, _spec := fc.createSpec()
 	if err := sqlgraph.CreateNode(ctx, fc.driver, _spec); err != nil {
 		if sqlgraph.IsConstraintError(err) {
-			err = &ConstraintError{err.Error(), err}
+			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
 		return nil, err
 	}
-	id := _spec.ID.Value.(int64)
-	_node.ID = int(id)
+	if _spec.ID.Value != nil {
+		if id, ok := _spec.ID.Value.(*uuid.UUID); ok {
+			_node.ID = *id
+		} else if err := _node.ID.Scan(_spec.ID.Value); err != nil {
+			return nil, err
+		}
+	}
+	fc.mutation.id = &_node.ID
+	fc.mutation.done = true
 	return _node, nil
 }
 
@@ -194,17 +180,17 @@ func (fc *FriendshipCreate) createSpec() (*Friendship, *sqlgraph.CreateSpec) {
 		_spec = &sqlgraph.CreateSpec{
 			Table: friendship.Table,
 			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
+				Type:   field.TypeUUID,
 				Column: friendship.FieldID,
 			},
 		}
 	)
+	if id, ok := fc.mutation.ID(); ok {
+		_node.ID = id
+		_spec.ID.Value = &id
+	}
 	if value, ok := fc.mutation.CreatedAt(); ok {
-		_spec.Fields = append(_spec.Fields, &sqlgraph.FieldSpec{
-			Type:   field.TypeTime,
-			Value:  value,
-			Column: friendship.FieldCreatedAt,
-		})
+		_spec.SetField(friendship.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
 	}
 	if nodes := fc.mutation.UserIDs(); len(nodes) > 0 {
@@ -283,7 +269,7 @@ func (fcb *FriendshipCreateBulk) Save(ctx context.Context) ([]*Friendship, error
 					// Invoke the actual operation on the latest mutation in the chain.
 					if err = sqlgraph.BatchCreate(ctx, fcb.driver, spec); err != nil {
 						if sqlgraph.IsConstraintError(err) {
-							err = &ConstraintError{err.Error(), err}
+							err = &ConstraintError{msg: err.Error(), wrap: err}
 						}
 					}
 				}
@@ -291,10 +277,6 @@ func (fcb *FriendshipCreateBulk) Save(ctx context.Context) ([]*Friendship, error
 					return nil, err
 				}
 				mutation.id = &nodes[i].ID
-				if specs[i].ID.Value != nil {
-					id := specs[i].ID.Value.(int64)
-					nodes[i].ID = int(id)
-				}
 				mutation.done = true
 				return nodes[i], nil
 			})

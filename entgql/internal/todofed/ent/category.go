@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -57,7 +57,9 @@ type CategoryEdges struct {
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [1]bool
 	// totalCount holds the count of the edges above.
-	totalCount [1]*int
+	totalCount [1]map[string]int
+
+	namedTodos map[string][]*Todo
 }
 
 // TodosOrErr returns the Todos value or an error if the edge
@@ -70,8 +72,8 @@ func (e CategoryEdges) TodosOrErr() ([]*Todo, error) {
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
-func (*Category) scanValues(columns []string) ([]interface{}, error) {
-	values := make([]interface{}, len(columns))
+func (*Category) scanValues(columns []string) ([]any, error) {
+	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
 		case category.FieldStrings:
@@ -91,7 +93,7 @@ func (*Category) scanValues(columns []string) ([]interface{}, error) {
 
 // assignValues assigns the values that were returned from sql.Rows (after scanning)
 // to the Category fields.
-func (c *Category) assignValues(columns []string, values []interface{}) error {
+func (c *Category) assignValues(columns []string, values []any) error {
 	if m, n := len(values), len(columns); m < n {
 		return fmt.Errorf("mismatch number of scan values: %d != %d", m, n)
 	}
@@ -148,24 +150,24 @@ func (c *Category) assignValues(columns []string, values []interface{}) error {
 
 // QueryTodos queries the "todos" edge of the Category entity.
 func (c *Category) QueryTodos() *TodoQuery {
-	return (&CategoryClient{config: c.config}).QueryTodos(c)
+	return NewCategoryClient(c.config).QueryTodos(c)
 }
 
 // Update returns a builder for updating this Category.
 // Note that you need to call Category.Unwrap() before calling this method if this Category
 // was returned from a transaction, and the transaction was committed or rolled back.
 func (c *Category) Update() *CategoryUpdateOne {
-	return (&CategoryClient{config: c.config}).UpdateOne(c)
+	return NewCategoryClient(c.config).UpdateOne(c)
 }
 
 // Unwrap unwraps the Category entity that was returned from a transaction after it was closed,
 // so that all future queries will be executed through the driver which created the transaction.
 func (c *Category) Unwrap() *Category {
-	tx, ok := c.config.driver.(*txDriver)
+	_tx, ok := c.config.driver.(*txDriver)
 	if !ok {
 		panic("ent: Category is not a transactional entity")
 	}
-	c.config.driver = tx.drv
+	c.config.driver = _tx.drv
 	return c
 }
 
@@ -197,6 +199,30 @@ func (c *Category) String() string {
 
 // IsEntity implement fedruntime.Entity
 func (c Category) IsEntity() {}
+
+// NamedTodos returns the Todos named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (c *Category) NamedTodos(name string) ([]*Todo, error) {
+	if c.Edges.namedTodos == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := c.Edges.namedTodos[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (c *Category) appendNamedTodos(name string, edges ...*Todo) {
+	if c.Edges.namedTodos == nil {
+		c.Edges.namedTodos = make(map[string][]*Todo)
+	}
+	if len(edges) == 0 {
+		c.Edges.namedTodos[name] = []*Todo{}
+	} else {
+		c.Edges.namedTodos[name] = append(c.Edges.namedTodos[name], edges...)
+	}
+}
 
 // Categories is a parsable slice of Category.
 type Categories []*Category

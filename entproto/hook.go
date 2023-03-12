@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,7 +17,6 @@ package entproto
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -31,11 +30,12 @@ import (
 
 // Hook returns a gen.Hook that invokes Generate.
 // To use it programatically:
-//   entc.Generate("./ent/schema", &gen.Config{
-//     Hooks: []gen.Hook{
-//       entproto.Hook(),
-//     },
-//   })
+//
+//	entc.Generate("./ent/schema", &gen.Config{
+//	  Hooks: []gen.Hook{
+//	    entproto.Hook(),
+//	  },
+//	})
 func Hook() gen.Hook {
 	return func(next gen.Generator) gen.Generator {
 		return gen.GenerateFunc(func(g *gen.Graph) error {
@@ -89,7 +89,7 @@ func Generate(g *gen.Graph) error {
 		genGoPath := filepath.Join(dir, "generate.go")
 		if !fileExists(genGoPath) {
 			contents := protocGenerateGo(fd)
-			if err := ioutil.WriteFile(genGoPath, []byte(contents), 0600); err != nil {
+			if err := os.WriteFile(genGoPath, []byte(contents), 0600); err != nil {
 				return fmt.Errorf("entproto: failed generating generate.go file for %q: %w", protoFilePath, err)
 			}
 		}

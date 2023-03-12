@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,6 +19,7 @@ package ent
 import (
 	"context"
 
+	"entgo.io/contrib/entgql"
 	"entgo.io/ent/dialect/sql"
 	"github.com/99designs/gqlgen/graphql"
 )
@@ -35,19 +36,22 @@ func (c *CategoryQuery) CollectFields(ctx context.Context, satisfies ...string) 
 	return c, nil
 }
 
-func (c *CategoryQuery) collectField(ctx context.Context, op *graphql.OperationContext, field graphql.CollectedField, path []string, satisfies ...string) error {
+func (c *CategoryQuery) collectField(ctx context.Context, opCtx *graphql.OperationContext, field graphql.CollectedField, path []string, satisfies ...string) error {
 	path = append([]string(nil), path...)
-	for _, field := range graphql.CollectFields(op, field.Selections, satisfies) {
+	for _, field := range graphql.CollectFields(opCtx, field.Selections, satisfies) {
 		switch field.Name {
 		case "todos":
 			var (
-				path  = append(path, field.Name)
-				query = &TodoQuery{config: c.config}
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&TodoClient{config: c.config}).Query()
 			)
-			if err := query.collectField(ctx, op, field, path, satisfies...); err != nil {
+			if err := query.collectField(ctx, opCtx, field, path, satisfies...); err != nil {
 				return err
 			}
-			c.withTodos = query
+			c.WithNamedTodos(alias, func(wq *TodoQuery) {
+				*wq = *query
+			})
 		}
 	}
 	return nil
@@ -81,7 +85,7 @@ func newCategoryPaginateArgs(rv map[string]interface{}) *categoryPaginateArgs {
 		case map[string]interface{}:
 			var (
 				err1, err2 error
-				order      = &CategoryOrder{Field: &CategoryOrderField{}}
+				order      = &CategoryOrder{Field: &CategoryOrderField{}, Direction: entgql.OrderDirectionAsc}
 			)
 			if d, ok := v[directionField]; ok {
 				err1 = order.Direction.UnmarshalGQL(d)
@@ -113,34 +117,39 @@ func (t *TodoQuery) CollectFields(ctx context.Context, satisfies ...string) (*To
 	return t, nil
 }
 
-func (t *TodoQuery) collectField(ctx context.Context, op *graphql.OperationContext, field graphql.CollectedField, path []string, satisfies ...string) error {
+func (t *TodoQuery) collectField(ctx context.Context, opCtx *graphql.OperationContext, field graphql.CollectedField, path []string, satisfies ...string) error {
 	path = append([]string(nil), path...)
-	for _, field := range graphql.CollectFields(op, field.Selections, satisfies) {
+	for _, field := range graphql.CollectFields(opCtx, field.Selections, satisfies) {
 		switch field.Name {
 		case "parent":
 			var (
-				path  = append(path, field.Name)
-				query = &TodoQuery{config: t.config}
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&TodoClient{config: t.config}).Query()
 			)
-			if err := query.collectField(ctx, op, field, path, satisfies...); err != nil {
+			if err := query.collectField(ctx, opCtx, field, path, satisfies...); err != nil {
 				return err
 			}
 			t.withParent = query
 		case "children":
 			var (
-				path  = append(path, field.Name)
-				query = &TodoQuery{config: t.config}
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&TodoClient{config: t.config}).Query()
 			)
-			if err := query.collectField(ctx, op, field, path, satisfies...); err != nil {
+			if err := query.collectField(ctx, opCtx, field, path, satisfies...); err != nil {
 				return err
 			}
-			t.withChildren = query
+			t.WithNamedChildren(alias, func(wq *TodoQuery) {
+				*wq = *query
+			})
 		case "category":
 			var (
-				path  = append(path, field.Name)
-				query = &CategoryQuery{config: t.config}
+				alias = field.Alias
+				path  = append(path, alias)
+				query = (&CategoryClient{config: t.config}).Query()
 			)
-			if err := query.collectField(ctx, op, field, path, satisfies...); err != nil {
+			if err := query.collectField(ctx, opCtx, field, path, satisfies...); err != nil {
 				return err
 			}
 			t.withCategory = query
@@ -177,7 +186,7 @@ func newTodoPaginateArgs(rv map[string]interface{}) *todoPaginateArgs {
 		case map[string]interface{}:
 			var (
 				err1, err2 error
-				order      = &TodoOrder{Field: &TodoOrderField{}}
+				order      = &TodoOrder{Field: &TodoOrderField{}, Direction: entgql.OrderDirectionAsc}
 			)
 			if d, ok := v[directionField]; ok {
 				err1 = order.Direction.UnmarshalGQL(d)
@@ -217,7 +226,7 @@ func fieldArgs(ctx context.Context, whereInput interface{}, path ...string) map[
 	for _, name := range path {
 		var field *graphql.CollectedField
 		for _, f := range graphql.CollectFields(oc, fc.Field.Selections, nil) {
-			if f.Name == name {
+			if f.Alias == name {
 				field = &f
 				break
 			}
@@ -254,7 +263,7 @@ func unmarshalArgs(ctx context.Context, whereInput interface{}, args map[string]
 		}
 		c := &Cursor{}
 		if c.UnmarshalGQL(v) == nil {
-			args[k] = &c
+			args[k] = c
 		}
 	}
 	if v, ok := args[whereField]; ok && whereInput != nil {

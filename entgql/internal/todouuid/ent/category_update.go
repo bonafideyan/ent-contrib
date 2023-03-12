@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -28,6 +28,7 @@ import (
 	"entgo.io/contrib/entgql/internal/todouuid/ent/todo"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 )
@@ -129,6 +130,12 @@ func (cu *CategoryUpdate) SetStrings(s []string) *CategoryUpdate {
 	return cu
 }
 
+// AppendStrings appends s to the "strings" field.
+func (cu *CategoryUpdate) AppendStrings(s []string) *CategoryUpdate {
+	cu.mutation.AppendStrings(s)
+	return cu
+}
+
 // ClearStrings clears the value of the "strings" field.
 func (cu *CategoryUpdate) ClearStrings() *CategoryUpdate {
 	cu.mutation.ClearStrings()
@@ -148,6 +155,21 @@ func (cu *CategoryUpdate) AddTodos(t ...*Todo) *CategoryUpdate {
 		ids[i] = t[i].ID
 	}
 	return cu.AddTodoIDs(ids...)
+}
+
+// AddSubCategoryIDs adds the "sub_categories" edge to the Category entity by IDs.
+func (cu *CategoryUpdate) AddSubCategoryIDs(ids ...uuid.UUID) *CategoryUpdate {
+	cu.mutation.AddSubCategoryIDs(ids...)
+	return cu
+}
+
+// AddSubCategories adds the "sub_categories" edges to the Category entity.
+func (cu *CategoryUpdate) AddSubCategories(c ...*Category) *CategoryUpdate {
+	ids := make([]uuid.UUID, len(c))
+	for i := range c {
+		ids[i] = c[i].ID
+	}
+	return cu.AddSubCategoryIDs(ids...)
 }
 
 // Mutation returns the CategoryMutation object of the builder.
@@ -176,42 +198,30 @@ func (cu *CategoryUpdate) RemoveTodos(t ...*Todo) *CategoryUpdate {
 	return cu.RemoveTodoIDs(ids...)
 }
 
+// ClearSubCategories clears all "sub_categories" edges to the Category entity.
+func (cu *CategoryUpdate) ClearSubCategories() *CategoryUpdate {
+	cu.mutation.ClearSubCategories()
+	return cu
+}
+
+// RemoveSubCategoryIDs removes the "sub_categories" edge to Category entities by IDs.
+func (cu *CategoryUpdate) RemoveSubCategoryIDs(ids ...uuid.UUID) *CategoryUpdate {
+	cu.mutation.RemoveSubCategoryIDs(ids...)
+	return cu
+}
+
+// RemoveSubCategories removes "sub_categories" edges to Category entities.
+func (cu *CategoryUpdate) RemoveSubCategories(c ...*Category) *CategoryUpdate {
+	ids := make([]uuid.UUID, len(c))
+	for i := range c {
+		ids[i] = c[i].ID
+	}
+	return cu.RemoveSubCategoryIDs(ids...)
+}
+
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (cu *CategoryUpdate) Save(ctx context.Context) (int, error) {
-	var (
-		err      error
-		affected int
-	)
-	if len(cu.hooks) == 0 {
-		if err = cu.check(); err != nil {
-			return 0, err
-		}
-		affected, err = cu.sqlSave(ctx)
-	} else {
-		var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-			mutation, ok := m.(*CategoryMutation)
-			if !ok {
-				return nil, fmt.Errorf("unexpected mutation type %T", m)
-			}
-			if err = cu.check(); err != nil {
-				return 0, err
-			}
-			cu.mutation = mutation
-			affected, err = cu.sqlSave(ctx)
-			mutation.done = true
-			return affected, err
-		})
-		for i := len(cu.hooks) - 1; i >= 0; i-- {
-			if cu.hooks[i] == nil {
-				return 0, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
-			}
-			mut = cu.hooks[i](mut)
-		}
-		if _, err := mut.Mutate(ctx, cu.mutation); err != nil {
-			return 0, err
-		}
-	}
-	return affected, err
+	return withHooks[int, CategoryMutation](ctx, cu.sqlSave, cu.mutation, cu.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -252,6 +262,9 @@ func (cu *CategoryUpdate) check() error {
 }
 
 func (cu *CategoryUpdate) sqlSave(ctx context.Context) (n int, err error) {
+	if err := cu.check(); err != nil {
+		return n, err
+	}
 	_spec := &sqlgraph.UpdateSpec{
 		Node: &sqlgraph.NodeSpec{
 			Table:   category.Table,
@@ -270,84 +283,45 @@ func (cu *CategoryUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 	}
 	if value, ok := cu.mutation.Text(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: category.FieldText,
-		})
+		_spec.SetField(category.FieldText, field.TypeString, value)
 	}
 	if value, ok := cu.mutation.Status(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeEnum,
-			Value:  value,
-			Column: category.FieldStatus,
-		})
+		_spec.SetField(category.FieldStatus, field.TypeEnum, value)
 	}
 	if value, ok := cu.mutation.Config(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeOther,
-			Value:  value,
-			Column: category.FieldConfig,
-		})
+		_spec.SetField(category.FieldConfig, field.TypeOther, value)
 	}
 	if cu.mutation.ConfigCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeOther,
-			Column: category.FieldConfig,
-		})
+		_spec.ClearField(category.FieldConfig, field.TypeOther)
 	}
 	if value, ok := cu.mutation.Duration(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: category.FieldDuration,
-		})
+		_spec.SetField(category.FieldDuration, field.TypeInt64, value)
 	}
 	if value, ok := cu.mutation.AddedDuration(); ok {
-		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: category.FieldDuration,
-		})
+		_spec.AddField(category.FieldDuration, field.TypeInt64, value)
 	}
 	if cu.mutation.DurationCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Column: category.FieldDuration,
-		})
+		_spec.ClearField(category.FieldDuration, field.TypeInt64)
 	}
 	if value, ok := cu.mutation.Count(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeUint64,
-			Value:  value,
-			Column: category.FieldCount,
-		})
+		_spec.SetField(category.FieldCount, field.TypeUint64, value)
 	}
 	if value, ok := cu.mutation.AddedCount(); ok {
-		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
-			Type:   field.TypeUint64,
-			Value:  value,
-			Column: category.FieldCount,
-		})
+		_spec.AddField(category.FieldCount, field.TypeUint64, value)
 	}
 	if cu.mutation.CountCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeUint64,
-			Column: category.FieldCount,
-		})
+		_spec.ClearField(category.FieldCount, field.TypeUint64)
 	}
 	if value, ok := cu.mutation.Strings(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeJSON,
-			Value:  value,
-			Column: category.FieldStrings,
+		_spec.SetField(category.FieldStrings, field.TypeJSON, value)
+	}
+	if value, ok := cu.mutation.AppendedStrings(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, category.FieldStrings, value)
 		})
 	}
 	if cu.mutation.StringsCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeJSON,
-			Column: category.FieldStrings,
-		})
+		_spec.ClearField(category.FieldStrings, field.TypeJSON)
 	}
 	if cu.mutation.TodosCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -403,14 +377,69 @@ func (cu *CategoryUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if cu.mutation.SubCategoriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: false,
+			Table:   category.SubCategoriesTable,
+			Columns: category.SubCategoriesPrimaryKey,
+			Bidi:    true,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: category.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := cu.mutation.RemovedSubCategoriesIDs(); len(nodes) > 0 && !cu.mutation.SubCategoriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: false,
+			Table:   category.SubCategoriesTable,
+			Columns: category.SubCategoriesPrimaryKey,
+			Bidi:    true,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: category.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := cu.mutation.SubCategoriesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: false,
+			Table:   category.SubCategoriesTable,
+			Columns: category.SubCategoriesPrimaryKey,
+			Bidi:    true,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: category.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if n, err = sqlgraph.UpdateNodes(ctx, cu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{category.Label}
 		} else if sqlgraph.IsConstraintError(err) {
-			err = &ConstraintError{err.Error(), err}
+			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
 		return 0, err
 	}
+	cu.mutation.done = true
 	return n, nil
 }
 
@@ -506,6 +535,12 @@ func (cuo *CategoryUpdateOne) SetStrings(s []string) *CategoryUpdateOne {
 	return cuo
 }
 
+// AppendStrings appends s to the "strings" field.
+func (cuo *CategoryUpdateOne) AppendStrings(s []string) *CategoryUpdateOne {
+	cuo.mutation.AppendStrings(s)
+	return cuo
+}
+
 // ClearStrings clears the value of the "strings" field.
 func (cuo *CategoryUpdateOne) ClearStrings() *CategoryUpdateOne {
 	cuo.mutation.ClearStrings()
@@ -525,6 +560,21 @@ func (cuo *CategoryUpdateOne) AddTodos(t ...*Todo) *CategoryUpdateOne {
 		ids[i] = t[i].ID
 	}
 	return cuo.AddTodoIDs(ids...)
+}
+
+// AddSubCategoryIDs adds the "sub_categories" edge to the Category entity by IDs.
+func (cuo *CategoryUpdateOne) AddSubCategoryIDs(ids ...uuid.UUID) *CategoryUpdateOne {
+	cuo.mutation.AddSubCategoryIDs(ids...)
+	return cuo
+}
+
+// AddSubCategories adds the "sub_categories" edges to the Category entity.
+func (cuo *CategoryUpdateOne) AddSubCategories(c ...*Category) *CategoryUpdateOne {
+	ids := make([]uuid.UUID, len(c))
+	for i := range c {
+		ids[i] = c[i].ID
+	}
+	return cuo.AddSubCategoryIDs(ids...)
 }
 
 // Mutation returns the CategoryMutation object of the builder.
@@ -553,6 +603,27 @@ func (cuo *CategoryUpdateOne) RemoveTodos(t ...*Todo) *CategoryUpdateOne {
 	return cuo.RemoveTodoIDs(ids...)
 }
 
+// ClearSubCategories clears all "sub_categories" edges to the Category entity.
+func (cuo *CategoryUpdateOne) ClearSubCategories() *CategoryUpdateOne {
+	cuo.mutation.ClearSubCategories()
+	return cuo
+}
+
+// RemoveSubCategoryIDs removes the "sub_categories" edge to Category entities by IDs.
+func (cuo *CategoryUpdateOne) RemoveSubCategoryIDs(ids ...uuid.UUID) *CategoryUpdateOne {
+	cuo.mutation.RemoveSubCategoryIDs(ids...)
+	return cuo
+}
+
+// RemoveSubCategories removes "sub_categories" edges to Category entities.
+func (cuo *CategoryUpdateOne) RemoveSubCategories(c ...*Category) *CategoryUpdateOne {
+	ids := make([]uuid.UUID, len(c))
+	for i := range c {
+		ids[i] = c[i].ID
+	}
+	return cuo.RemoveSubCategoryIDs(ids...)
+}
+
 // Select allows selecting one or more fields (columns) of the returned entity.
 // The default is selecting all fields defined in the entity schema.
 func (cuo *CategoryUpdateOne) Select(field string, fields ...string) *CategoryUpdateOne {
@@ -562,46 +633,7 @@ func (cuo *CategoryUpdateOne) Select(field string, fields ...string) *CategoryUp
 
 // Save executes the query and returns the updated Category entity.
 func (cuo *CategoryUpdateOne) Save(ctx context.Context) (*Category, error) {
-	var (
-		err  error
-		node *Category
-	)
-	if len(cuo.hooks) == 0 {
-		if err = cuo.check(); err != nil {
-			return nil, err
-		}
-		node, err = cuo.sqlSave(ctx)
-	} else {
-		var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
-			mutation, ok := m.(*CategoryMutation)
-			if !ok {
-				return nil, fmt.Errorf("unexpected mutation type %T", m)
-			}
-			if err = cuo.check(); err != nil {
-				return nil, err
-			}
-			cuo.mutation = mutation
-			node, err = cuo.sqlSave(ctx)
-			mutation.done = true
-			return node, err
-		})
-		for i := len(cuo.hooks) - 1; i >= 0; i-- {
-			if cuo.hooks[i] == nil {
-				return nil, fmt.Errorf("ent: uninitialized hook (forgotten import ent/runtime?)")
-			}
-			mut = cuo.hooks[i](mut)
-		}
-		v, err := mut.Mutate(ctx, cuo.mutation)
-		if err != nil {
-			return nil, err
-		}
-		nv, ok := v.(*Category)
-		if !ok {
-			return nil, fmt.Errorf("unexpected node type %T returned from CategoryMutation", v)
-		}
-		node = nv
-	}
-	return node, err
+	return withHooks[*Category, CategoryMutation](ctx, cuo.sqlSave, cuo.mutation, cuo.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -642,6 +674,9 @@ func (cuo *CategoryUpdateOne) check() error {
 }
 
 func (cuo *CategoryUpdateOne) sqlSave(ctx context.Context) (_node *Category, err error) {
+	if err := cuo.check(); err != nil {
+		return _node, err
+	}
 	_spec := &sqlgraph.UpdateSpec{
 		Node: &sqlgraph.NodeSpec{
 			Table:   category.Table,
@@ -677,84 +712,45 @@ func (cuo *CategoryUpdateOne) sqlSave(ctx context.Context) (_node *Category, err
 		}
 	}
 	if value, ok := cuo.mutation.Text(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeString,
-			Value:  value,
-			Column: category.FieldText,
-		})
+		_spec.SetField(category.FieldText, field.TypeString, value)
 	}
 	if value, ok := cuo.mutation.Status(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeEnum,
-			Value:  value,
-			Column: category.FieldStatus,
-		})
+		_spec.SetField(category.FieldStatus, field.TypeEnum, value)
 	}
 	if value, ok := cuo.mutation.Config(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeOther,
-			Value:  value,
-			Column: category.FieldConfig,
-		})
+		_spec.SetField(category.FieldConfig, field.TypeOther, value)
 	}
 	if cuo.mutation.ConfigCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeOther,
-			Column: category.FieldConfig,
-		})
+		_spec.ClearField(category.FieldConfig, field.TypeOther)
 	}
 	if value, ok := cuo.mutation.Duration(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: category.FieldDuration,
-		})
+		_spec.SetField(category.FieldDuration, field.TypeInt64, value)
 	}
 	if value, ok := cuo.mutation.AddedDuration(); ok {
-		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Value:  value,
-			Column: category.FieldDuration,
-		})
+		_spec.AddField(category.FieldDuration, field.TypeInt64, value)
 	}
 	if cuo.mutation.DurationCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeInt64,
-			Column: category.FieldDuration,
-		})
+		_spec.ClearField(category.FieldDuration, field.TypeInt64)
 	}
 	if value, ok := cuo.mutation.Count(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeUint64,
-			Value:  value,
-			Column: category.FieldCount,
-		})
+		_spec.SetField(category.FieldCount, field.TypeUint64, value)
 	}
 	if value, ok := cuo.mutation.AddedCount(); ok {
-		_spec.Fields.Add = append(_spec.Fields.Add, &sqlgraph.FieldSpec{
-			Type:   field.TypeUint64,
-			Value:  value,
-			Column: category.FieldCount,
-		})
+		_spec.AddField(category.FieldCount, field.TypeUint64, value)
 	}
 	if cuo.mutation.CountCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeUint64,
-			Column: category.FieldCount,
-		})
+		_spec.ClearField(category.FieldCount, field.TypeUint64)
 	}
 	if value, ok := cuo.mutation.Strings(); ok {
-		_spec.Fields.Set = append(_spec.Fields.Set, &sqlgraph.FieldSpec{
-			Type:   field.TypeJSON,
-			Value:  value,
-			Column: category.FieldStrings,
+		_spec.SetField(category.FieldStrings, field.TypeJSON, value)
+	}
+	if value, ok := cuo.mutation.AppendedStrings(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, category.FieldStrings, value)
 		})
 	}
 	if cuo.mutation.StringsCleared() {
-		_spec.Fields.Clear = append(_spec.Fields.Clear, &sqlgraph.FieldSpec{
-			Type:   field.TypeJSON,
-			Column: category.FieldStrings,
-		})
+		_spec.ClearField(category.FieldStrings, field.TypeJSON)
 	}
 	if cuo.mutation.TodosCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -810,6 +806,60 @@ func (cuo *CategoryUpdateOne) sqlSave(ctx context.Context) (_node *Category, err
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if cuo.mutation.SubCategoriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: false,
+			Table:   category.SubCategoriesTable,
+			Columns: category.SubCategoriesPrimaryKey,
+			Bidi:    true,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: category.FieldID,
+				},
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := cuo.mutation.RemovedSubCategoriesIDs(); len(nodes) > 0 && !cuo.mutation.SubCategoriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: false,
+			Table:   category.SubCategoriesTable,
+			Columns: category.SubCategoriesPrimaryKey,
+			Bidi:    true,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: category.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := cuo.mutation.SubCategoriesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2M,
+			Inverse: false,
+			Table:   category.SubCategoriesTable,
+			Columns: category.SubCategoriesPrimaryKey,
+			Bidi:    true,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: &sqlgraph.FieldSpec{
+					Type:   field.TypeUUID,
+					Column: category.FieldID,
+				},
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	_node = &Category{config: cuo.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
@@ -817,9 +867,10 @@ func (cuo *CategoryUpdateOne) sqlSave(ctx context.Context) (_node *Category, err
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{category.Label}
 		} else if sqlgraph.IsConstraintError(err) {
-			err = &ConstraintError{err.Error(), err}
+			err = &ConstraintError{msg: err.Error(), wrap: err}
 		}
 		return nil, err
 	}
+	cuo.mutation.done = true
 	return _node, nil
 }

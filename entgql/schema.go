@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,12 +17,14 @@ package entgql
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"reflect"
 	"strings"
 
 	"entgo.io/ent/entc/gen"
 	"entgo.io/ent/schema/field"
 	"github.com/99designs/gqlgen/codegen/config"
+	"github.com/99designs/gqlgen/codegen/templates"
 	"github.com/vektah/gqlparser/v2/ast"
 	"github.com/vektah/gqlparser/v2/formatter"
 )
@@ -30,8 +32,8 @@ import (
 const (
 	// QueryType is the name of the root Query object.
 	QueryType = "Query"
-	// OrderDirection is the name of enum OrderDirection
-	OrderDirection = "OrderDirection"
+	// OrderDirectionEnum is the name of enum OrderDirection
+	OrderDirectionEnum = "OrderDirection"
 	// RelayCursor is the name of the cursor type
 	RelayCursor = "Cursor"
 	// RelayNode is the name of the interface that all nodes implement
@@ -93,6 +95,7 @@ var (
 )
 
 type schemaGenerator struct {
+	path          string
 	relaySpec     bool
 	genSchema     bool
 	genWhereInput bool
@@ -103,16 +106,9 @@ type schemaGenerator struct {
 	schemaHooks []SchemaHook
 }
 
-func newSchemaGenerator() *schemaGenerator {
-	return &schemaGenerator{
-		relaySpec:    true,
-		genMutations: true,
-	}
-}
-
 func (e *schemaGenerator) BuildSchema(g *gen.Graph) (s *ast.Schema, err error) {
 	s = &ast.Schema{
-		Directives: map[string]*ast.DirectiveDefinition{},
+		Directives: make(map[string]*ast.DirectiveDefinition),
 	}
 	if e.genSchema {
 		s.AddTypes(builtinTypes()...)
@@ -132,7 +128,6 @@ func (e *schemaGenerator) BuildSchema(g *gen.Graph) (s *ast.Schema, err error) {
 			return nil, err
 		}
 	}
-
 	return s, nil
 }
 
@@ -143,7 +138,7 @@ func (e *schemaGenerator) buildTypes(g *gen.Graph, s *ast.Schema) error {
 	}
 
 	for _, node := range g.Nodes {
-		if node.IsEdgeSchema() {
+		if node.HasCompositeID() {
 			continue
 		}
 		gqlType, ant, err := gqlTypeFromNode(node)
@@ -162,6 +157,7 @@ func (e *schemaGenerator) buildTypes(g *gen.Graph, s *ast.Schema) error {
 					return fmt.Errorf("found the GQL type conflict for the node %s, please use the entgql.Type() annotation to rename the GQL type", node.Name)
 				}
 				s.AddTypes(def)
+				e.mayAddScalars(s, def)
 			}
 		}
 
@@ -216,15 +212,17 @@ func (e *schemaGenerator) buildTypes(g *gen.Graph, s *ast.Schema) error {
 					_, hasOrderBy := s.Types[names.Order]
 					hasWhereInput := e.genWhereInput && !ant.Skip.Is(SkipWhereInput)
 
-					def := names.ConnectionField(name, hasOrderBy, hasWhereInput)
+					def := names.ConnectionField(name, hasOrderBy, ant.MultiOrder, hasWhereInput)
+					def.Description = ant.QueryField.Description
 					def.Directives = e.buildDirectives(ant.QueryField.Directives)
 					queryFields = append(queryFields, def)
 				}
 			} else if ant.QueryField != nil {
 				name := ant.QueryField.fieldName(gqlType)
 				def := &ast.FieldDefinition{
-					Name: name,
-					Type: listNamedType(gqlType, false),
+					Name:        name,
+					Description: ant.QueryField.Description,
+					Type:        listNamedType(gqlType, false),
 				}
 				def.Directives = e.buildDirectives(ant.QueryField.Directives)
 				queryFields = append(queryFields, def)
@@ -263,6 +261,43 @@ func (e *schemaGenerator) buildTypes(g *gen.Graph, s *ast.Schema) error {
 	return nil
 }
 
+func (e *schemaGenerator) mayAddScalars(s *ast.Schema, def *ast.Definition) {
+	var redeclareErr bool
+	// If there is a config file but the schema there was not loaded.
+	if e.cfg != nil && e.cfg.Schema == nil {
+		// Do not fail in case of error.
+		err := e.cfg.LoadSchema()
+		redeclareErr = err != nil && strings.Contains(err.Error(), "Cannot redeclare type")
+	}
+	for _, f := range def.Fields {
+		switch name := f.Type.Name(); name {
+		case "Time", "Map", "Upload", "Any", "Int32", "Int64", "Uint", "Uint32", "Uint64":
+			// Skip adding it if it was added before, or it exists in other schemas.
+			if s.Types[name] == nil && e.externalType(name) {
+				break
+			}
+			// In case of a declaration error generate builtin types only no external
+			// schemas were found to allow users fix these failures.
+			if !redeclareErr || len(e.cfg.SchemaFilename) == 1 && filepath.Clean(e.cfg.SchemaFilename[0]) == filepath.Clean(e.path) {
+				s.AddTypes(&ast.Definition{
+					Name:        name,
+					Kind:        ast.Scalar,
+					Description: fmt.Sprintf("The builtin %s type", name),
+				})
+			}
+		}
+	}
+}
+
+// externalType indicates if the given type name exists in another schema.
+func (e *schemaGenerator) externalType(name string) bool {
+	if e.cfg == nil || e.cfg.Schema == nil || e.cfg.Schema.Types[name] == nil {
+		return false
+	}
+	def := e.cfg.Schema.Types[name]
+	return def.Position != nil && def.Position.Src != nil && filepath.Clean(def.Position.Src.Name) != filepath.Clean(e.path)
+}
+
 func (e *schemaGenerator) buildType(t *gen.Type, ant *Annotation, gqlType, pkg string) (*ast.Definition, error) {
 	def := &ast.Definition{
 		Name:       gqlType,
@@ -285,16 +320,16 @@ func (e *schemaGenerator) buildType(t *gen.Type, ant *Annotation, gqlType, pkg s
 		if err != nil {
 			return nil, err
 		}
-		if ant.Skip.Is(SkipType) {
+		if ant.Skip.Is(SkipType) || f.Sensitive() {
 			continue
 		}
 
-		f, err := e.fieldDefinition(gqlType, f, ant)
+		fieldDefs, err := e.fieldDefinitions(gqlType, f, ant)
 		if err != nil {
 			return nil, err
 		}
-		if f != nil {
-			def.Fields = append(def.Fields, f)
+		if fieldDefs != nil {
+			def.Fields = append(def.Fields, fieldDefs...)
 		}
 	}
 
@@ -325,27 +360,21 @@ func (e *schemaGenerator) buildType(t *gen.Type, ant *Annotation, gqlType, pkg s
 func (e *schemaGenerator) buildDirectives(directives []Directive) ast.DirectiveList {
 	list := make(ast.DirectiveList, 0, len(directives))
 	for _, d := range directives {
-		args := make(ast.ArgumentList, 0, len(d.Arguments))
-		for _, a := range d.Arguments {
-			args = append(args, &ast.Argument{
-				Name: a.Name,
-				Value: &ast.Value{
-					Raw:  a.Value,
-					Kind: a.Kind,
-				},
-			})
-		}
 		list = append(list, &ast.Directive{
 			Name:      d.Name,
-			Arguments: args,
+			Arguments: d.Arguments,
 		})
 	}
 	return list
 }
 
 func (e *schemaGenerator) enumOrderByValues(t *gen.Type, gqlType string) (*ast.Definition, error) {
-	var enumValues ast.EnumValueList
-	for _, f := range t.Fields {
+	fields, err := orderFields(t)
+	if err != nil {
+		return nil, err
+	}
+	enumValues := make(ast.EnumValueList, 0, len(fields))
+	for _, f := range fields {
 		ant, err := annotation(f.Annotations)
 		if err != nil {
 			return nil, err
@@ -353,7 +382,6 @@ func (e *schemaGenerator) enumOrderByValues(t *gen.Type, gqlType string) (*ast.D
 		if ant.Skip.Is(SkipOrderField) || ant.OrderField == "" {
 			continue
 		}
-
 		enumValues = append(enumValues, &ast.EnumValueDefinition{
 			Name: ant.OrderField,
 		})
@@ -361,7 +389,6 @@ func (e *schemaGenerator) enumOrderByValues(t *gen.Type, gqlType string) (*ast.D
 	if len(enumValues) == 0 {
 		return nil, nil
 	}
-
 	return &ast.Definition{
 		Name:       gqlType,
 		Kind:       ast.Enum,
@@ -386,7 +413,7 @@ func (e *schemaGenerator) buildFieldEnum(f *gen.Field, gqlType, goType string) (
 }
 
 func (e *schemaGenerator) buildEdge(node *gen.Type, edge *gen.Edge, edgeAnt *Annotation) ([]*ast.FieldDefinition, error) {
-	if edge.Type.IsEdgeSchema() {
+	if edge.Type.HasCompositeID() {
 		return nil, nil
 	}
 	gqlType, ant, err := gqlTypeFromNode(edge.Type)
@@ -399,19 +426,23 @@ func (e *schemaGenerator) buildEdge(node *gen.Type, edge *gen.Edge, edgeAnt *Ann
 	}
 
 	var (
-		edgeField = camel(edge.Name)
-		mappings  = []string{edgeField}
+		fields      []*ast.FieldDefinition
+		mappings    = []string{camel(edge.Name)}
+		goFieldName = templates.ToGo(edge.Name)
+		structField = edge.StructField()
 	)
 	if len(edgeAnt.Mapping) > 0 {
 		mappings = edgeAnt.Mapping
 	}
-
-	var fields []*ast.FieldDefinition
 	for _, name := range mappings {
 		fieldDef := &ast.FieldDefinition{Name: name}
 		switch {
 		case edge.Unique:
 			fieldDef.Type = namedType(gqlType, edge.Optional)
+		// Avoid error in case the RelayConnection is defined on the
+		// `Through` edge, but the edge-schema is not a Relay connection.
+		case edgeAnt.RelayConnection && edge.Type.IsEdgeSchema() && !ant.RelayConnection:
+			fieldDef.Type = listNamedType(gqlType, edge.Optional)
 		case edgeAnt.RelayConnection:
 			if !e.relaySpec {
 				return nil, ErrRelaySpecDisabled
@@ -421,7 +452,7 @@ func (e *schemaGenerator) buildEdge(node *gen.Type, edge *gen.Edge, edgeAnt *Ann
 			}
 
 			fieldDef = paginationNames(gqlType).
-				ConnectionField(name, len(orderFields) > 0,
+				ConnectionField(name, len(orderFields) > 0, ant.MultiOrder,
 					e.genWhereInput && !edgeAnt.Skip.Is(SkipWhereInput) && !ant.Skip.Is(SkipWhereInput),
 				)
 		default:
@@ -429,8 +460,8 @@ func (e *schemaGenerator) buildEdge(node *gen.Type, edge *gen.Edge, edgeAnt *Ann
 		}
 
 		fieldDef.Directives = e.buildDirectives(edgeAnt.Directives)
-		if name != edgeField {
-			fieldDef.Directives = append(fieldDef.Directives, goField(edgeField))
+		if goFieldName != templates.ToGo(name) {
+			fieldDef.Directives = append(fieldDef.Directives, goField(structField))
 		}
 		fields = append(fields, fieldDef)
 	}
@@ -438,7 +469,7 @@ func (e *schemaGenerator) buildEdge(node *gen.Type, edge *gen.Edge, edgeAnt *Ann
 	return fields, nil
 }
 
-// buildWhereInput returns the a <T>WhereInput to the given schema type (e.g. User -> UserWhereInput).
+// buildWhereInput returns the <T>WhereInput to the given schema type (e.g. User -> UserWhereInput).
 func (e *schemaGenerator) buildWhereInput(t *gen.Type, nodeGQLType, gqlType string) (*ast.Definition, error) {
 	def := &ast.Definition{
 		Name:        gqlType,
@@ -461,11 +492,14 @@ func (e *schemaGenerator) buildWhereInput(t *gen.Type, nodeGQLType, gqlType stri
 
 	fields := allFields(t)
 	for _, f := range fields {
+		if t.IsEdgeSchema() && f.IsEdgeField() || !f.Type.Comparable() || f.Sensitive() {
+			continue
+		}
 		ant, err := annotation(f.Annotations)
 		if err != nil {
 			return nil, err
 		}
-		if ant.Skip.Is(SkipWhereInput) || !f.Type.Comparable() {
+		if ant.Skip.Is(SkipWhereInput) {
 			continue
 		}
 		for i, op := range f.Ops() {
@@ -477,6 +511,9 @@ func (e *schemaGenerator) buildWhereInput(t *gen.Type, nodeGQLType, gqlType stri
 		}
 	}
 
+	if t.IsEdgeSchema() {
+		return def, nil
+	}
 	edges, err := filterEdges(t.Edges, SkipWhereInput)
 	if err != nil {
 		return nil, err
@@ -521,13 +558,17 @@ func (e *schemaGenerator) buildMutationInputs(t *gen.Type, ant *Annotation, gqlT
 		}
 
 		def := &ast.Definition{
-			Name: name,
-			Kind: ast.InputObject,
+			Name:        name,
+			Kind:        ast.InputObject,
+			Description: i.Description,
 		}
-		if i.IsCreate {
-			def.Description = fmt.Sprintf("%s is used for create %s object.\nInput was generated by ent.", name, gqlType)
-		} else {
-			def.Description = fmt.Sprintf("%s is used for update %s object.\nInput was generated by ent.", name, gqlType)
+
+		if def.Description == "" {
+			if i.IsCreate {
+				def.Description = fmt.Sprintf("%s is used for create %s object.\nInput was generated by ent.", name, gqlType)
+			} else {
+				def.Description = fmt.Sprintf("%s is used for update %s object.\nInput was generated by ent.", name, gqlType)
+			}
 		}
 
 		for _, f := range fields {
@@ -539,46 +580,51 @@ func (e *schemaGenerator) buildMutationInputs(t *gen.Type, ant *Annotation, gqlT
 			if scalar == "" {
 				return nil, fmt.Errorf("%s is not supported as input for %s", f.Name, def.Name)
 			}
+			def.Fields = append(def.Fields, &ast.FieldDefinition{
+				Name:        camel(f.Name),
+				Type:        namedType(scalar, f.Nullable),
+				Description: f.Comment(),
+			})
+			if f.AppendOp {
+				def.Fields = append(def.Fields, &ast.FieldDefinition{
+					Name: "append" + f.StructField(),
+					Type: namedType(scalar, true),
+				})
+			}
 			if f.ClearOp {
 				def.Fields = append(def.Fields, &ast.FieldDefinition{
 					Name: "clear" + f.StructField(),
 					Type: namedType("Boolean", true),
 				})
 			}
-			def.Fields = append(def.Fields, &ast.FieldDefinition{
-				Name:        camel(f.Name),
-				Type:        namedType(scalar, f.Nullable),
-				Description: f.Comment(),
-			})
 		}
 
 		for _, e := range edges {
-			if e.Unique {
-				if !i.IsCreate {
-					def.Fields = append(def.Fields, &ast.FieldDefinition{
-						Name: camel(snake(e.MutationClear())),
-						Type: namedType("Boolean", true),
-					})
-				}
+			switch {
+			case e.Unique:
 				def.Fields = append(def.Fields, &ast.FieldDefinition{
 					Name: camel(e.Name) + "ID",
 					Type: namedType("ID", !i.IsCreate || e.Optional),
 				})
-			} else {
-				if i.IsCreate {
-					def.Fields = append(def.Fields, &ast.FieldDefinition{
-						Name: camel(singular(e.Name)) + "IDs",
-						Type: namedType("[ID!]", e.Optional),
-					})
-				} else {
-					def.Fields = append(def.Fields, &ast.FieldDefinition{
-						Name: "add" + pascal(singular(e.Name)) + "IDs",
-						Type: namedType("[ID!]", true),
-					}, &ast.FieldDefinition{
-						Name: "remove" + pascal(singular(e.Name)) + "IDs",
-						Type: namedType("[ID!]", true),
-					})
-				}
+			case i.IsCreate:
+				def.Fields = append(def.Fields, &ast.FieldDefinition{
+					Name: camel(singular(e.Name)) + "IDs",
+					Type: namedType("[ID!]", e.Optional),
+				})
+			default:
+				def.Fields = append(def.Fields, &ast.FieldDefinition{
+					Name: "add" + pascal(singular(e.Name)) + "IDs",
+					Type: namedType("[ID!]", true),
+				}, &ast.FieldDefinition{
+					Name: "remove" + pascal(singular(e.Name)) + "IDs",
+					Type: namedType("[ID!]", true),
+				})
+			}
+			if !i.IsCreate {
+				def.Fields = append(def.Fields, &ast.FieldDefinition{
+					Name: camel(snake(e.MutationClear())),
+					Type: namedType("Boolean", true),
+				})
 			}
 		}
 		defs = append(defs, def)
@@ -587,18 +633,36 @@ func (e *schemaGenerator) buildMutationInputs(t *gen.Type, ant *Annotation, gqlT
 	return defs, nil
 }
 
-func (e *schemaGenerator) fieldDefinition(gqlType string, f *gen.Field, ant *Annotation) (*ast.FieldDefinition, error) {
+func (e *schemaGenerator) fieldDefinitions(gqlType string, f *gen.Field, ant *Annotation) ([]*ast.FieldDefinition, error) {
 	ft, err := e.typeFromField(gqlType, f, ant)
 	if err != nil {
 		return nil, fmt.Errorf("field(%s): %w", f.Name, err)
 	}
 
-	return &ast.FieldDefinition{
-		Name:        camel(f.Name),
-		Type:        ft,
-		Description: f.Comment(),
-		Directives:  e.buildDirectives(ant.Directives),
-	}, nil
+	var (
+		fields      = []*ast.FieldDefinition{}
+		mappings    = []string{camel(f.Name)}
+		goFieldName = templates.ToGo(f.Name)
+		structField = f.StructField()
+	)
+	if len(ant.Mapping) > 0 {
+		mappings = ant.Mapping
+	}
+	for _, name := range mappings {
+		field := &ast.FieldDefinition{
+			Name:        name,
+			Type:        ft,
+			Description: f.Comment(),
+			Directives:  e.buildDirectives(ant.Directives),
+		}
+		// We check the field name with gqlgen's naming convention.
+		// To avoid unnecessary @goField directives
+		if goFieldName != templates.ToGo(name) {
+			field.Directives = append(field.Directives, goField(structField))
+		}
+		fields = append(fields, field)
+	}
+	return fields, nil
 }
 
 func (e *schemaGenerator) fieldDefinitionOp(gqlType string, f *gen.Field, ant *Annotation, op gen.Op) *ast.FieldDefinition {
@@ -671,6 +735,16 @@ func (e *schemaGenerator) mapScalar(gqlType string, f *gen.Field, ant *Annotatio
 			// Use the GQL type as enum prefix. e.g. Todo.status
 			// will generate an enum named "TodoStatus".
 			scalar = gqlType + scalar
+		}
+		if f.Type.RType != nil && f.Type.RType.Name == "" {
+			switch f.Type.RType.Kind {
+			case reflect.Slice, reflect.Array:
+				if strings.HasPrefix(f.Type.RType.Ident, "[]*") {
+					scalar = "[" + scalar + "]"
+				} else {
+					scalar = "[" + scalar + "!]"
+				}
+			}
 		}
 	case t == field.TypeJSON:
 		scalar = ""
@@ -759,7 +833,7 @@ func entGoType(name, pkg string) string {
 func builtinTypes() []*ast.Definition {
 	return []*ast.Definition{
 		{
-			Name:        OrderDirection,
+			Name:        OrderDirectionEnum,
 			Kind:        ast.Enum,
 			Description: "Possible directions in which to order a list of items when provided an `orderBy` argument.",
 			EnumValues: []*ast.EnumValueDefinition{

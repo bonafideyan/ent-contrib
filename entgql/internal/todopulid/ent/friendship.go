@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -31,7 +31,7 @@ import (
 type Friendship struct {
 	config `json:"-"`
 	// ID of the ent.
-	ID int `json:"id,omitempty"`
+	ID pulid.ID `json:"id,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// UserID holds the value of the "user_id" field.
@@ -53,7 +53,7 @@ type FriendshipEdges struct {
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [2]bool
 	// totalCount holds the count of the edges above.
-	totalCount [2]*int
+	totalCount [2]map[string]int
 }
 
 // UserOrErr returns the User value or an error if the edge
@@ -61,8 +61,7 @@ type FriendshipEdges struct {
 func (e FriendshipEdges) UserOrErr() (*User, error) {
 	if e.loadedTypes[0] {
 		if e.User == nil {
-			// The edge user was loaded in eager-loading,
-			// but was not found.
+			// Edge was loaded but was not found.
 			return nil, &NotFoundError{label: user.Label}
 		}
 		return e.User, nil
@@ -75,8 +74,7 @@ func (e FriendshipEdges) UserOrErr() (*User, error) {
 func (e FriendshipEdges) FriendOrErr() (*User, error) {
 	if e.loadedTypes[1] {
 		if e.Friend == nil {
-			// The edge friend was loaded in eager-loading,
-			// but was not found.
+			// Edge was loaded but was not found.
 			return nil, &NotFoundError{label: user.Label}
 		}
 		return e.Friend, nil
@@ -85,14 +83,12 @@ func (e FriendshipEdges) FriendOrErr() (*User, error) {
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
-func (*Friendship) scanValues(columns []string) ([]interface{}, error) {
-	values := make([]interface{}, len(columns))
+func (*Friendship) scanValues(columns []string) ([]any, error) {
+	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case friendship.FieldUserID, friendship.FieldFriendID:
+		case friendship.FieldID, friendship.FieldUserID, friendship.FieldFriendID:
 			values[i] = new(pulid.ID)
-		case friendship.FieldID:
-			values[i] = new(sql.NullInt64)
 		case friendship.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
 		default:
@@ -104,18 +100,18 @@ func (*Friendship) scanValues(columns []string) ([]interface{}, error) {
 
 // assignValues assigns the values that were returned from sql.Rows (after scanning)
 // to the Friendship fields.
-func (f *Friendship) assignValues(columns []string, values []interface{}) error {
+func (f *Friendship) assignValues(columns []string, values []any) error {
 	if m, n := len(values), len(columns); m < n {
 		return fmt.Errorf("mismatch number of scan values: %d != %d", m, n)
 	}
 	for i := range columns {
 		switch columns[i] {
 		case friendship.FieldID:
-			value, ok := values[i].(*sql.NullInt64)
-			if !ok {
-				return fmt.Errorf("unexpected type %T for field id", value)
+			if value, ok := values[i].(*pulid.ID); !ok {
+				return fmt.Errorf("unexpected type %T for field id", values[i])
+			} else if value != nil {
+				f.ID = *value
 			}
-			f.ID = int(value.Int64)
 		case friendship.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -141,29 +137,29 @@ func (f *Friendship) assignValues(columns []string, values []interface{}) error 
 
 // QueryUser queries the "user" edge of the Friendship entity.
 func (f *Friendship) QueryUser() *UserQuery {
-	return (&FriendshipClient{config: f.config}).QueryUser(f)
+	return NewFriendshipClient(f.config).QueryUser(f)
 }
 
 // QueryFriend queries the "friend" edge of the Friendship entity.
 func (f *Friendship) QueryFriend() *UserQuery {
-	return (&FriendshipClient{config: f.config}).QueryFriend(f)
+	return NewFriendshipClient(f.config).QueryFriend(f)
 }
 
 // Update returns a builder for updating this Friendship.
 // Note that you need to call Friendship.Unwrap() before calling this method if this Friendship
 // was returned from a transaction, and the transaction was committed or rolled back.
 func (f *Friendship) Update() *FriendshipUpdateOne {
-	return (&FriendshipClient{config: f.config}).UpdateOne(f)
+	return NewFriendshipClient(f.config).UpdateOne(f)
 }
 
 // Unwrap unwraps the Friendship entity that was returned from a transaction after it was closed,
 // so that all future queries will be executed through the driver which created the transaction.
 func (f *Friendship) Unwrap() *Friendship {
-	tx, ok := f.config.driver.(*txDriver)
+	_tx, ok := f.config.driver.(*txDriver)
 	if !ok {
 		panic("ent: Friendship is not a transactional entity")
 	}
-	f.config.driver = tx.drv
+	f.config.driver = _tx.drv
 	return f
 }
 

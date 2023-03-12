@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -64,7 +64,9 @@ type TodoEdges struct {
 	// type was loaded (or requested) in eager-loading or not.
 	loadedTypes [4]bool
 	// totalCount holds the count of the edges above.
-	totalCount [3]*int
+	totalCount [3]map[string]int
+
+	namedChildren map[string][]*Todo
 }
 
 // ParentOrErr returns the Parent value or an error if the edge
@@ -72,8 +74,7 @@ type TodoEdges struct {
 func (e TodoEdges) ParentOrErr() (*Todo, error) {
 	if e.loadedTypes[0] {
 		if e.Parent == nil {
-			// The edge parent was loaded in eager-loading,
-			// but was not found.
+			// Edge was loaded but was not found.
 			return nil, &NotFoundError{label: todo.Label}
 		}
 		return e.Parent, nil
@@ -95,8 +96,7 @@ func (e TodoEdges) ChildrenOrErr() ([]*Todo, error) {
 func (e TodoEdges) CategoryOrErr() (*Category, error) {
 	if e.loadedTypes[2] {
 		if e.Category == nil {
-			// The edge category was loaded in eager-loading,
-			// but was not found.
+			// Edge was loaded but was not found.
 			return nil, &NotFoundError{label: category.Label}
 		}
 		return e.Category, nil
@@ -109,8 +109,7 @@ func (e TodoEdges) CategoryOrErr() (*Category, error) {
 func (e TodoEdges) SecretOrErr() (*VerySecret, error) {
 	if e.loadedTypes[3] {
 		if e.Secret == nil {
-			// The edge secret was loaded in eager-loading,
-			// but was not found.
+			// Edge was loaded but was not found.
 			return nil, &NotFoundError{label: verysecret.Label}
 		}
 		return e.Secret, nil
@@ -119,8 +118,8 @@ func (e TodoEdges) SecretOrErr() (*VerySecret, error) {
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
-func (*Todo) scanValues(columns []string) ([]interface{}, error) {
-	values := make([]interface{}, len(columns))
+func (*Todo) scanValues(columns []string) ([]any, error) {
+	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
 		case todo.FieldBlob:
@@ -146,7 +145,7 @@ func (*Todo) scanValues(columns []string) ([]interface{}, error) {
 
 // assignValues assigns the values that were returned from sql.Rows (after scanning)
 // to the Todo fields.
-func (t *Todo) assignValues(columns []string, values []interface{}) error {
+func (t *Todo) assignValues(columns []string, values []any) error {
 	if m, n := len(values), len(columns); m < n {
 		return fmt.Errorf("mismatch number of scan values: %d != %d", m, n)
 	}
@@ -216,39 +215,39 @@ func (t *Todo) assignValues(columns []string, values []interface{}) error {
 
 // QueryParent queries the "parent" edge of the Todo entity.
 func (t *Todo) QueryParent() *TodoQuery {
-	return (&TodoClient{config: t.config}).QueryParent(t)
+	return NewTodoClient(t.config).QueryParent(t)
 }
 
 // QueryChildren queries the "children" edge of the Todo entity.
 func (t *Todo) QueryChildren() *TodoQuery {
-	return (&TodoClient{config: t.config}).QueryChildren(t)
+	return NewTodoClient(t.config).QueryChildren(t)
 }
 
 // QueryCategory queries the "category" edge of the Todo entity.
 func (t *Todo) QueryCategory() *CategoryQuery {
-	return (&TodoClient{config: t.config}).QueryCategory(t)
+	return NewTodoClient(t.config).QueryCategory(t)
 }
 
 // QuerySecret queries the "secret" edge of the Todo entity.
 func (t *Todo) QuerySecret() *VerySecretQuery {
-	return (&TodoClient{config: t.config}).QuerySecret(t)
+	return NewTodoClient(t.config).QuerySecret(t)
 }
 
 // Update returns a builder for updating this Todo.
 // Note that you need to call Todo.Unwrap() before calling this method if this Todo
 // was returned from a transaction, and the transaction was committed or rolled back.
 func (t *Todo) Update() *TodoUpdateOne {
-	return (&TodoClient{config: t.config}).UpdateOne(t)
+	return NewTodoClient(t.config).UpdateOne(t)
 }
 
 // Unwrap unwraps the Todo entity that was returned from a transaction after it was closed,
 // so that all future queries will be executed through the driver which created the transaction.
 func (t *Todo) Unwrap() *Todo {
-	tx, ok := t.config.driver.(*txDriver)
+	_tx, ok := t.config.driver.(*txDriver)
 	if !ok {
 		panic("ent: Todo is not a transactional entity")
 	}
-	t.config.driver = tx.drv
+	t.config.driver = _tx.drv
 	return t
 }
 
@@ -277,6 +276,30 @@ func (t *Todo) String() string {
 
 // IsEntity implement fedruntime.Entity
 func (t Todo) IsEntity() {}
+
+// NamedChildren returns the Children named value or an error if the edge was not
+// loaded in eager-loading with this name.
+func (t *Todo) NamedChildren(name string) ([]*Todo, error) {
+	if t.Edges.namedChildren == nil {
+		return nil, &NotLoadedError{edge: name}
+	}
+	nodes, ok := t.Edges.namedChildren[name]
+	if !ok {
+		return nil, &NotLoadedError{edge: name}
+	}
+	return nodes, nil
+}
+
+func (t *Todo) appendNamedChildren(name string, edges ...*Todo) {
+	if t.Edges.namedChildren == nil {
+		t.Edges.namedChildren = make(map[string][]*Todo)
+	}
+	if len(edges) == 0 {
+		t.Edges.namedChildren[name] = []*Todo{}
+	} else {
+		t.Edges.namedChildren[name] = append(t.Edges.namedChildren[name], edges...)
+	}
+}
 
 // Todos is a parsable slice of Todo.
 type Todos []*Todo

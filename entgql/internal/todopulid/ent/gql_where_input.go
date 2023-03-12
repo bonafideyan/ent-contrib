@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//      http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -17,17 +17,287 @@
 package ent
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
 	"entgo.io/contrib/entgql/internal/todo/ent/schema/schematype"
+	"entgo.io/contrib/entgql/internal/todopulid/ent/billproduct"
 	"entgo.io/contrib/entgql/internal/todopulid/ent/category"
+	"entgo.io/contrib/entgql/internal/todopulid/ent/friendship"
 	"entgo.io/contrib/entgql/internal/todopulid/ent/group"
 	"entgo.io/contrib/entgql/internal/todopulid/ent/predicate"
 	"entgo.io/contrib/entgql/internal/todopulid/ent/schema/pulid"
 	"entgo.io/contrib/entgql/internal/todopulid/ent/todo"
 	"entgo.io/contrib/entgql/internal/todopulid/ent/user"
+	"github.com/google/uuid"
 )
+
+// BillProductWhereInput represents a where input for filtering BillProduct queries.
+type BillProductWhereInput struct {
+	Predicates []predicate.BillProduct  `json:"-"`
+	Not        *BillProductWhereInput   `json:"not,omitempty"`
+	Or         []*BillProductWhereInput `json:"or,omitempty"`
+	And        []*BillProductWhereInput `json:"and,omitempty"`
+
+	// "id" field predicates.
+	ID      *pulid.ID  `json:"id,omitempty"`
+	IDNEQ   *pulid.ID  `json:"idNEQ,omitempty"`
+	IDIn    []pulid.ID `json:"idIn,omitempty"`
+	IDNotIn []pulid.ID `json:"idNotIn,omitempty"`
+	IDGT    *pulid.ID  `json:"idGT,omitempty"`
+	IDGTE   *pulid.ID  `json:"idGTE,omitempty"`
+	IDLT    *pulid.ID  `json:"idLT,omitempty"`
+	IDLTE   *pulid.ID  `json:"idLTE,omitempty"`
+
+	// "name" field predicates.
+	Name             *string  `json:"name,omitempty"`
+	NameNEQ          *string  `json:"nameNEQ,omitempty"`
+	NameIn           []string `json:"nameIn,omitempty"`
+	NameNotIn        []string `json:"nameNotIn,omitempty"`
+	NameGT           *string  `json:"nameGT,omitempty"`
+	NameGTE          *string  `json:"nameGTE,omitempty"`
+	NameLT           *string  `json:"nameLT,omitempty"`
+	NameLTE          *string  `json:"nameLTE,omitempty"`
+	NameContains     *string  `json:"nameContains,omitempty"`
+	NameHasPrefix    *string  `json:"nameHasPrefix,omitempty"`
+	NameHasSuffix    *string  `json:"nameHasSuffix,omitempty"`
+	NameEqualFold    *string  `json:"nameEqualFold,omitempty"`
+	NameContainsFold *string  `json:"nameContainsFold,omitempty"`
+
+	// "sku" field predicates.
+	Sku             *string  `json:"sku,omitempty"`
+	SkuNEQ          *string  `json:"skuNEQ,omitempty"`
+	SkuIn           []string `json:"skuIn,omitempty"`
+	SkuNotIn        []string `json:"skuNotIn,omitempty"`
+	SkuGT           *string  `json:"skuGT,omitempty"`
+	SkuGTE          *string  `json:"skuGTE,omitempty"`
+	SkuLT           *string  `json:"skuLT,omitempty"`
+	SkuLTE          *string  `json:"skuLTE,omitempty"`
+	SkuContains     *string  `json:"skuContains,omitempty"`
+	SkuHasPrefix    *string  `json:"skuHasPrefix,omitempty"`
+	SkuHasSuffix    *string  `json:"skuHasSuffix,omitempty"`
+	SkuEqualFold    *string  `json:"skuEqualFold,omitempty"`
+	SkuContainsFold *string  `json:"skuContainsFold,omitempty"`
+
+	// "quantity" field predicates.
+	Quantity      *uint64  `json:"quantity,omitempty"`
+	QuantityNEQ   *uint64  `json:"quantityNEQ,omitempty"`
+	QuantityIn    []uint64 `json:"quantityIn,omitempty"`
+	QuantityNotIn []uint64 `json:"quantityNotIn,omitempty"`
+	QuantityGT    *uint64  `json:"quantityGT,omitempty"`
+	QuantityGTE   *uint64  `json:"quantityGTE,omitempty"`
+	QuantityLT    *uint64  `json:"quantityLT,omitempty"`
+	QuantityLTE   *uint64  `json:"quantityLTE,omitempty"`
+}
+
+// AddPredicates adds custom predicates to the where input to be used during the filtering phase.
+func (i *BillProductWhereInput) AddPredicates(predicates ...predicate.BillProduct) {
+	i.Predicates = append(i.Predicates, predicates...)
+}
+
+// Filter applies the BillProductWhereInput filter on the BillProductQuery builder.
+func (i *BillProductWhereInput) Filter(q *BillProductQuery) (*BillProductQuery, error) {
+	if i == nil {
+		return q, nil
+	}
+	p, err := i.P()
+	if err != nil {
+		if err == ErrEmptyBillProductWhereInput {
+			return q, nil
+		}
+		return nil, err
+	}
+	return q.Where(p), nil
+}
+
+// ErrEmptyBillProductWhereInput is returned in case the BillProductWhereInput is empty.
+var ErrEmptyBillProductWhereInput = errors.New("ent: empty predicate BillProductWhereInput")
+
+// P returns a predicate for filtering billproducts.
+// An error is returned if the input is empty or invalid.
+func (i *BillProductWhereInput) P() (predicate.BillProduct, error) {
+	var predicates []predicate.BillProduct
+	if i.Not != nil {
+		p, err := i.Not.P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'not'", err)
+		}
+		predicates = append(predicates, billproduct.Not(p))
+	}
+	switch n := len(i.Or); {
+	case n == 1:
+		p, err := i.Or[0].P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'or'", err)
+		}
+		predicates = append(predicates, p)
+	case n > 1:
+		or := make([]predicate.BillProduct, 0, n)
+		for _, w := range i.Or {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'or'", err)
+			}
+			or = append(or, p)
+		}
+		predicates = append(predicates, billproduct.Or(or...))
+	}
+	switch n := len(i.And); {
+	case n == 1:
+		p, err := i.And[0].P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'and'", err)
+		}
+		predicates = append(predicates, p)
+	case n > 1:
+		and := make([]predicate.BillProduct, 0, n)
+		for _, w := range i.And {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'and'", err)
+			}
+			and = append(and, p)
+		}
+		predicates = append(predicates, billproduct.And(and...))
+	}
+	predicates = append(predicates, i.Predicates...)
+	if i.ID != nil {
+		predicates = append(predicates, billproduct.IDEQ(*i.ID))
+	}
+	if i.IDNEQ != nil {
+		predicates = append(predicates, billproduct.IDNEQ(*i.IDNEQ))
+	}
+	if len(i.IDIn) > 0 {
+		predicates = append(predicates, billproduct.IDIn(i.IDIn...))
+	}
+	if len(i.IDNotIn) > 0 {
+		predicates = append(predicates, billproduct.IDNotIn(i.IDNotIn...))
+	}
+	if i.IDGT != nil {
+		predicates = append(predicates, billproduct.IDGT(*i.IDGT))
+	}
+	if i.IDGTE != nil {
+		predicates = append(predicates, billproduct.IDGTE(*i.IDGTE))
+	}
+	if i.IDLT != nil {
+		predicates = append(predicates, billproduct.IDLT(*i.IDLT))
+	}
+	if i.IDLTE != nil {
+		predicates = append(predicates, billproduct.IDLTE(*i.IDLTE))
+	}
+	if i.Name != nil {
+		predicates = append(predicates, billproduct.NameEQ(*i.Name))
+	}
+	if i.NameNEQ != nil {
+		predicates = append(predicates, billproduct.NameNEQ(*i.NameNEQ))
+	}
+	if len(i.NameIn) > 0 {
+		predicates = append(predicates, billproduct.NameIn(i.NameIn...))
+	}
+	if len(i.NameNotIn) > 0 {
+		predicates = append(predicates, billproduct.NameNotIn(i.NameNotIn...))
+	}
+	if i.NameGT != nil {
+		predicates = append(predicates, billproduct.NameGT(*i.NameGT))
+	}
+	if i.NameGTE != nil {
+		predicates = append(predicates, billproduct.NameGTE(*i.NameGTE))
+	}
+	if i.NameLT != nil {
+		predicates = append(predicates, billproduct.NameLT(*i.NameLT))
+	}
+	if i.NameLTE != nil {
+		predicates = append(predicates, billproduct.NameLTE(*i.NameLTE))
+	}
+	if i.NameContains != nil {
+		predicates = append(predicates, billproduct.NameContains(*i.NameContains))
+	}
+	if i.NameHasPrefix != nil {
+		predicates = append(predicates, billproduct.NameHasPrefix(*i.NameHasPrefix))
+	}
+	if i.NameHasSuffix != nil {
+		predicates = append(predicates, billproduct.NameHasSuffix(*i.NameHasSuffix))
+	}
+	if i.NameEqualFold != nil {
+		predicates = append(predicates, billproduct.NameEqualFold(*i.NameEqualFold))
+	}
+	if i.NameContainsFold != nil {
+		predicates = append(predicates, billproduct.NameContainsFold(*i.NameContainsFold))
+	}
+	if i.Sku != nil {
+		predicates = append(predicates, billproduct.SkuEQ(*i.Sku))
+	}
+	if i.SkuNEQ != nil {
+		predicates = append(predicates, billproduct.SkuNEQ(*i.SkuNEQ))
+	}
+	if len(i.SkuIn) > 0 {
+		predicates = append(predicates, billproduct.SkuIn(i.SkuIn...))
+	}
+	if len(i.SkuNotIn) > 0 {
+		predicates = append(predicates, billproduct.SkuNotIn(i.SkuNotIn...))
+	}
+	if i.SkuGT != nil {
+		predicates = append(predicates, billproduct.SkuGT(*i.SkuGT))
+	}
+	if i.SkuGTE != nil {
+		predicates = append(predicates, billproduct.SkuGTE(*i.SkuGTE))
+	}
+	if i.SkuLT != nil {
+		predicates = append(predicates, billproduct.SkuLT(*i.SkuLT))
+	}
+	if i.SkuLTE != nil {
+		predicates = append(predicates, billproduct.SkuLTE(*i.SkuLTE))
+	}
+	if i.SkuContains != nil {
+		predicates = append(predicates, billproduct.SkuContains(*i.SkuContains))
+	}
+	if i.SkuHasPrefix != nil {
+		predicates = append(predicates, billproduct.SkuHasPrefix(*i.SkuHasPrefix))
+	}
+	if i.SkuHasSuffix != nil {
+		predicates = append(predicates, billproduct.SkuHasSuffix(*i.SkuHasSuffix))
+	}
+	if i.SkuEqualFold != nil {
+		predicates = append(predicates, billproduct.SkuEqualFold(*i.SkuEqualFold))
+	}
+	if i.SkuContainsFold != nil {
+		predicates = append(predicates, billproduct.SkuContainsFold(*i.SkuContainsFold))
+	}
+	if i.Quantity != nil {
+		predicates = append(predicates, billproduct.QuantityEQ(*i.Quantity))
+	}
+	if i.QuantityNEQ != nil {
+		predicates = append(predicates, billproduct.QuantityNEQ(*i.QuantityNEQ))
+	}
+	if len(i.QuantityIn) > 0 {
+		predicates = append(predicates, billproduct.QuantityIn(i.QuantityIn...))
+	}
+	if len(i.QuantityNotIn) > 0 {
+		predicates = append(predicates, billproduct.QuantityNotIn(i.QuantityNotIn...))
+	}
+	if i.QuantityGT != nil {
+		predicates = append(predicates, billproduct.QuantityGT(*i.QuantityGT))
+	}
+	if i.QuantityGTE != nil {
+		predicates = append(predicates, billproduct.QuantityGTE(*i.QuantityGTE))
+	}
+	if i.QuantityLT != nil {
+		predicates = append(predicates, billproduct.QuantityLT(*i.QuantityLT))
+	}
+	if i.QuantityLTE != nil {
+		predicates = append(predicates, billproduct.QuantityLTE(*i.QuantityLTE))
+	}
+
+	switch len(predicates) {
+	case 0:
+		return nil, ErrEmptyBillProductWhereInput
+	case 1:
+		return predicates[0], nil
+	default:
+		return billproduct.And(predicates...), nil
+	}
+}
 
 // CategoryWhereInput represents a where input for filtering Category queries.
 type CategoryWhereInput struct {
@@ -106,6 +376,10 @@ type CategoryWhereInput struct {
 	// "todos" edge predicates.
 	HasTodos     *bool             `json:"hasTodos,omitempty"`
 	HasTodosWith []*TodoWhereInput `json:"hasTodosWith,omitempty"`
+
+	// "sub_categories" edge predicates.
+	HasSubCategories     *bool                 `json:"hasSubCategories,omitempty"`
+	HasSubCategoriesWith []*CategoryWhereInput `json:"hasSubCategoriesWith,omitempty"`
 }
 
 // AddPredicates adds custom predicates to the where input to be used during the filtering phase.
@@ -120,10 +394,16 @@ func (i *CategoryWhereInput) Filter(q *CategoryQuery) (*CategoryQuery, error) {
 	}
 	p, err := i.P()
 	if err != nil {
+		if err == ErrEmptyCategoryWhereInput {
+			return q, nil
+		}
 		return nil, err
 	}
 	return q.Where(p), nil
 }
+
+// ErrEmptyCategoryWhereInput is returned in case the CategoryWhereInput is empty.
+var ErrEmptyCategoryWhereInput = errors.New("ent: empty predicate CategoryWhereInput")
 
 // P returns a predicate for filtering categories.
 // An error is returned if the input is empty or invalid.
@@ -132,7 +412,7 @@ func (i *CategoryWhereInput) P() (predicate.Category, error) {
 	if i.Not != nil {
 		p, err := i.Not.P()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: field 'not'", err)
 		}
 		predicates = append(predicates, category.Not(p))
 	}
@@ -140,7 +420,7 @@ func (i *CategoryWhereInput) P() (predicate.Category, error) {
 	case n == 1:
 		p, err := i.Or[0].P()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: field 'or'", err)
 		}
 		predicates = append(predicates, p)
 	case n > 1:
@@ -148,7 +428,7 @@ func (i *CategoryWhereInput) P() (predicate.Category, error) {
 		for _, w := range i.Or {
 			p, err := w.P()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%w: field 'or'", err)
 			}
 			or = append(or, p)
 		}
@@ -158,7 +438,7 @@ func (i *CategoryWhereInput) P() (predicate.Category, error) {
 	case n == 1:
 		p, err := i.And[0].P()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: field 'and'", err)
 		}
 		predicates = append(predicates, p)
 	case n > 1:
@@ -166,7 +446,7 @@ func (i *CategoryWhereInput) P() (predicate.Category, error) {
 		for _, w := range i.And {
 			p, err := w.P()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%w: field 'and'", err)
 			}
 			and = append(and, p)
 		}
@@ -351,19 +631,347 @@ func (i *CategoryWhereInput) P() (predicate.Category, error) {
 		for _, w := range i.HasTodosWith {
 			p, err := w.P()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%w: field 'HasTodosWith'", err)
 			}
 			with = append(with, p)
 		}
 		predicates = append(predicates, category.HasTodosWith(with...))
 	}
+	if i.HasSubCategories != nil {
+		p := category.HasSubCategories()
+		if !*i.HasSubCategories {
+			p = category.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasSubCategoriesWith) > 0 {
+		with := make([]predicate.Category, 0, len(i.HasSubCategoriesWith))
+		for _, w := range i.HasSubCategoriesWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasSubCategoriesWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, category.HasSubCategoriesWith(with...))
+	}
 	switch len(predicates) {
 	case 0:
-		return nil, fmt.Errorf("empty predicate CategoryWhereInput")
+		return nil, ErrEmptyCategoryWhereInput
 	case 1:
 		return predicates[0], nil
 	default:
 		return category.And(predicates...), nil
+	}
+}
+
+// FriendshipWhereInput represents a where input for filtering Friendship queries.
+type FriendshipWhereInput struct {
+	Predicates []predicate.Friendship  `json:"-"`
+	Not        *FriendshipWhereInput   `json:"not,omitempty"`
+	Or         []*FriendshipWhereInput `json:"or,omitempty"`
+	And        []*FriendshipWhereInput `json:"and,omitempty"`
+
+	// "id" field predicates.
+	ID      *pulid.ID  `json:"id,omitempty"`
+	IDNEQ   *pulid.ID  `json:"idNEQ,omitempty"`
+	IDIn    []pulid.ID `json:"idIn,omitempty"`
+	IDNotIn []pulid.ID `json:"idNotIn,omitempty"`
+	IDGT    *pulid.ID  `json:"idGT,omitempty"`
+	IDGTE   *pulid.ID  `json:"idGTE,omitempty"`
+	IDLT    *pulid.ID  `json:"idLT,omitempty"`
+	IDLTE   *pulid.ID  `json:"idLTE,omitempty"`
+
+	// "created_at" field predicates.
+	CreatedAt      *time.Time  `json:"createdAt,omitempty"`
+	CreatedAtNEQ   *time.Time  `json:"createdAtNEQ,omitempty"`
+	CreatedAtIn    []time.Time `json:"createdAtIn,omitempty"`
+	CreatedAtNotIn []time.Time `json:"createdAtNotIn,omitempty"`
+	CreatedAtGT    *time.Time  `json:"createdAtGT,omitempty"`
+	CreatedAtGTE   *time.Time  `json:"createdAtGTE,omitempty"`
+	CreatedAtLT    *time.Time  `json:"createdAtLT,omitempty"`
+	CreatedAtLTE   *time.Time  `json:"createdAtLTE,omitempty"`
+
+	// "user_id" field predicates.
+	UserID             *pulid.ID  `json:"userID,omitempty"`
+	UserIDNEQ          *pulid.ID  `json:"userIDNEQ,omitempty"`
+	UserIDIn           []pulid.ID `json:"userIDIn,omitempty"`
+	UserIDNotIn        []pulid.ID `json:"userIDNotIn,omitempty"`
+	UserIDGT           *pulid.ID  `json:"userIDGT,omitempty"`
+	UserIDGTE          *pulid.ID  `json:"userIDGTE,omitempty"`
+	UserIDLT           *pulid.ID  `json:"userIDLT,omitempty"`
+	UserIDLTE          *pulid.ID  `json:"userIDLTE,omitempty"`
+	UserIDContains     *pulid.ID  `json:"userIDContains,omitempty"`
+	UserIDHasPrefix    *pulid.ID  `json:"userIDHasPrefix,omitempty"`
+	UserIDHasSuffix    *pulid.ID  `json:"userIDHasSuffix,omitempty"`
+	UserIDEqualFold    *pulid.ID  `json:"userIDEqualFold,omitempty"`
+	UserIDContainsFold *pulid.ID  `json:"userIDContainsFold,omitempty"`
+
+	// "friend_id" field predicates.
+	FriendID             *pulid.ID  `json:"friendID,omitempty"`
+	FriendIDNEQ          *pulid.ID  `json:"friendIDNEQ,omitempty"`
+	FriendIDIn           []pulid.ID `json:"friendIDIn,omitempty"`
+	FriendIDNotIn        []pulid.ID `json:"friendIDNotIn,omitempty"`
+	FriendIDGT           *pulid.ID  `json:"friendIDGT,omitempty"`
+	FriendIDGTE          *pulid.ID  `json:"friendIDGTE,omitempty"`
+	FriendIDLT           *pulid.ID  `json:"friendIDLT,omitempty"`
+	FriendIDLTE          *pulid.ID  `json:"friendIDLTE,omitempty"`
+	FriendIDContains     *pulid.ID  `json:"friendIDContains,omitempty"`
+	FriendIDHasPrefix    *pulid.ID  `json:"friendIDHasPrefix,omitempty"`
+	FriendIDHasSuffix    *pulid.ID  `json:"friendIDHasSuffix,omitempty"`
+	FriendIDEqualFold    *pulid.ID  `json:"friendIDEqualFold,omitempty"`
+	FriendIDContainsFold *pulid.ID  `json:"friendIDContainsFold,omitempty"`
+
+	// "user" edge predicates.
+	HasUser     *bool             `json:"hasUser,omitempty"`
+	HasUserWith []*UserWhereInput `json:"hasUserWith,omitempty"`
+
+	// "friend" edge predicates.
+	HasFriend     *bool             `json:"hasFriend,omitempty"`
+	HasFriendWith []*UserWhereInput `json:"hasFriendWith,omitempty"`
+}
+
+// AddPredicates adds custom predicates to the where input to be used during the filtering phase.
+func (i *FriendshipWhereInput) AddPredicates(predicates ...predicate.Friendship) {
+	i.Predicates = append(i.Predicates, predicates...)
+}
+
+// Filter applies the FriendshipWhereInput filter on the FriendshipQuery builder.
+func (i *FriendshipWhereInput) Filter(q *FriendshipQuery) (*FriendshipQuery, error) {
+	if i == nil {
+		return q, nil
+	}
+	p, err := i.P()
+	if err != nil {
+		if err == ErrEmptyFriendshipWhereInput {
+			return q, nil
+		}
+		return nil, err
+	}
+	return q.Where(p), nil
+}
+
+// ErrEmptyFriendshipWhereInput is returned in case the FriendshipWhereInput is empty.
+var ErrEmptyFriendshipWhereInput = errors.New("ent: empty predicate FriendshipWhereInput")
+
+// P returns a predicate for filtering friendships.
+// An error is returned if the input is empty or invalid.
+func (i *FriendshipWhereInput) P() (predicate.Friendship, error) {
+	var predicates []predicate.Friendship
+	if i.Not != nil {
+		p, err := i.Not.P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'not'", err)
+		}
+		predicates = append(predicates, friendship.Not(p))
+	}
+	switch n := len(i.Or); {
+	case n == 1:
+		p, err := i.Or[0].P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'or'", err)
+		}
+		predicates = append(predicates, p)
+	case n > 1:
+		or := make([]predicate.Friendship, 0, n)
+		for _, w := range i.Or {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'or'", err)
+			}
+			or = append(or, p)
+		}
+		predicates = append(predicates, friendship.Or(or...))
+	}
+	switch n := len(i.And); {
+	case n == 1:
+		p, err := i.And[0].P()
+		if err != nil {
+			return nil, fmt.Errorf("%w: field 'and'", err)
+		}
+		predicates = append(predicates, p)
+	case n > 1:
+		and := make([]predicate.Friendship, 0, n)
+		for _, w := range i.And {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'and'", err)
+			}
+			and = append(and, p)
+		}
+		predicates = append(predicates, friendship.And(and...))
+	}
+	predicates = append(predicates, i.Predicates...)
+	if i.ID != nil {
+		predicates = append(predicates, friendship.IDEQ(*i.ID))
+	}
+	if i.IDNEQ != nil {
+		predicates = append(predicates, friendship.IDNEQ(*i.IDNEQ))
+	}
+	if len(i.IDIn) > 0 {
+		predicates = append(predicates, friendship.IDIn(i.IDIn...))
+	}
+	if len(i.IDNotIn) > 0 {
+		predicates = append(predicates, friendship.IDNotIn(i.IDNotIn...))
+	}
+	if i.IDGT != nil {
+		predicates = append(predicates, friendship.IDGT(*i.IDGT))
+	}
+	if i.IDGTE != nil {
+		predicates = append(predicates, friendship.IDGTE(*i.IDGTE))
+	}
+	if i.IDLT != nil {
+		predicates = append(predicates, friendship.IDLT(*i.IDLT))
+	}
+	if i.IDLTE != nil {
+		predicates = append(predicates, friendship.IDLTE(*i.IDLTE))
+	}
+	if i.CreatedAt != nil {
+		predicates = append(predicates, friendship.CreatedAtEQ(*i.CreatedAt))
+	}
+	if i.CreatedAtNEQ != nil {
+		predicates = append(predicates, friendship.CreatedAtNEQ(*i.CreatedAtNEQ))
+	}
+	if len(i.CreatedAtIn) > 0 {
+		predicates = append(predicates, friendship.CreatedAtIn(i.CreatedAtIn...))
+	}
+	if len(i.CreatedAtNotIn) > 0 {
+		predicates = append(predicates, friendship.CreatedAtNotIn(i.CreatedAtNotIn...))
+	}
+	if i.CreatedAtGT != nil {
+		predicates = append(predicates, friendship.CreatedAtGT(*i.CreatedAtGT))
+	}
+	if i.CreatedAtGTE != nil {
+		predicates = append(predicates, friendship.CreatedAtGTE(*i.CreatedAtGTE))
+	}
+	if i.CreatedAtLT != nil {
+		predicates = append(predicates, friendship.CreatedAtLT(*i.CreatedAtLT))
+	}
+	if i.CreatedAtLTE != nil {
+		predicates = append(predicates, friendship.CreatedAtLTE(*i.CreatedAtLTE))
+	}
+	if i.UserID != nil {
+		predicates = append(predicates, friendship.UserIDEQ(*i.UserID))
+	}
+	if i.UserIDNEQ != nil {
+		predicates = append(predicates, friendship.UserIDNEQ(*i.UserIDNEQ))
+	}
+	if len(i.UserIDIn) > 0 {
+		predicates = append(predicates, friendship.UserIDIn(i.UserIDIn...))
+	}
+	if len(i.UserIDNotIn) > 0 {
+		predicates = append(predicates, friendship.UserIDNotIn(i.UserIDNotIn...))
+	}
+	if i.UserIDGT != nil {
+		predicates = append(predicates, friendship.UserIDGT(*i.UserIDGT))
+	}
+	if i.UserIDGTE != nil {
+		predicates = append(predicates, friendship.UserIDGTE(*i.UserIDGTE))
+	}
+	if i.UserIDLT != nil {
+		predicates = append(predicates, friendship.UserIDLT(*i.UserIDLT))
+	}
+	if i.UserIDLTE != nil {
+		predicates = append(predicates, friendship.UserIDLTE(*i.UserIDLTE))
+	}
+	if i.UserIDContains != nil {
+		predicates = append(predicates, friendship.UserIDContains(*i.UserIDContains))
+	}
+	if i.UserIDHasPrefix != nil {
+		predicates = append(predicates, friendship.UserIDHasPrefix(*i.UserIDHasPrefix))
+	}
+	if i.UserIDHasSuffix != nil {
+		predicates = append(predicates, friendship.UserIDHasSuffix(*i.UserIDHasSuffix))
+	}
+	if i.UserIDEqualFold != nil {
+		predicates = append(predicates, friendship.UserIDEqualFold(*i.UserIDEqualFold))
+	}
+	if i.UserIDContainsFold != nil {
+		predicates = append(predicates, friendship.UserIDContainsFold(*i.UserIDContainsFold))
+	}
+	if i.FriendID != nil {
+		predicates = append(predicates, friendship.FriendIDEQ(*i.FriendID))
+	}
+	if i.FriendIDNEQ != nil {
+		predicates = append(predicates, friendship.FriendIDNEQ(*i.FriendIDNEQ))
+	}
+	if len(i.FriendIDIn) > 0 {
+		predicates = append(predicates, friendship.FriendIDIn(i.FriendIDIn...))
+	}
+	if len(i.FriendIDNotIn) > 0 {
+		predicates = append(predicates, friendship.FriendIDNotIn(i.FriendIDNotIn...))
+	}
+	if i.FriendIDGT != nil {
+		predicates = append(predicates, friendship.FriendIDGT(*i.FriendIDGT))
+	}
+	if i.FriendIDGTE != nil {
+		predicates = append(predicates, friendship.FriendIDGTE(*i.FriendIDGTE))
+	}
+	if i.FriendIDLT != nil {
+		predicates = append(predicates, friendship.FriendIDLT(*i.FriendIDLT))
+	}
+	if i.FriendIDLTE != nil {
+		predicates = append(predicates, friendship.FriendIDLTE(*i.FriendIDLTE))
+	}
+	if i.FriendIDContains != nil {
+		predicates = append(predicates, friendship.FriendIDContains(*i.FriendIDContains))
+	}
+	if i.FriendIDHasPrefix != nil {
+		predicates = append(predicates, friendship.FriendIDHasPrefix(*i.FriendIDHasPrefix))
+	}
+	if i.FriendIDHasSuffix != nil {
+		predicates = append(predicates, friendship.FriendIDHasSuffix(*i.FriendIDHasSuffix))
+	}
+	if i.FriendIDEqualFold != nil {
+		predicates = append(predicates, friendship.FriendIDEqualFold(*i.FriendIDEqualFold))
+	}
+	if i.FriendIDContainsFold != nil {
+		predicates = append(predicates, friendship.FriendIDContainsFold(*i.FriendIDContainsFold))
+	}
+
+	if i.HasUser != nil {
+		p := friendship.HasUser()
+		if !*i.HasUser {
+			p = friendship.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasUserWith) > 0 {
+		with := make([]predicate.User, 0, len(i.HasUserWith))
+		for _, w := range i.HasUserWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasUserWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, friendship.HasUserWith(with...))
+	}
+	if i.HasFriend != nil {
+		p := friendship.HasFriend()
+		if !*i.HasFriend {
+			p = friendship.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasFriendWith) > 0 {
+		with := make([]predicate.User, 0, len(i.HasFriendWith))
+		for _, w := range i.HasFriendWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasFriendWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, friendship.HasFriendWith(with...))
+	}
+	switch len(predicates) {
+	case 0:
+		return nil, ErrEmptyFriendshipWhereInput
+	case 1:
+		return predicates[0], nil
+	default:
+		return friendship.And(predicates...), nil
 	}
 }
 
@@ -416,10 +1024,16 @@ func (i *GroupWhereInput) Filter(q *GroupQuery) (*GroupQuery, error) {
 	}
 	p, err := i.P()
 	if err != nil {
+		if err == ErrEmptyGroupWhereInput {
+			return q, nil
+		}
 		return nil, err
 	}
 	return q.Where(p), nil
 }
+
+// ErrEmptyGroupWhereInput is returned in case the GroupWhereInput is empty.
+var ErrEmptyGroupWhereInput = errors.New("ent: empty predicate GroupWhereInput")
 
 // P returns a predicate for filtering groups.
 // An error is returned if the input is empty or invalid.
@@ -428,7 +1042,7 @@ func (i *GroupWhereInput) P() (predicate.Group, error) {
 	if i.Not != nil {
 		p, err := i.Not.P()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: field 'not'", err)
 		}
 		predicates = append(predicates, group.Not(p))
 	}
@@ -436,7 +1050,7 @@ func (i *GroupWhereInput) P() (predicate.Group, error) {
 	case n == 1:
 		p, err := i.Or[0].P()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: field 'or'", err)
 		}
 		predicates = append(predicates, p)
 	case n > 1:
@@ -444,7 +1058,7 @@ func (i *GroupWhereInput) P() (predicate.Group, error) {
 		for _, w := range i.Or {
 			p, err := w.P()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%w: field 'or'", err)
 			}
 			or = append(or, p)
 		}
@@ -454,7 +1068,7 @@ func (i *GroupWhereInput) P() (predicate.Group, error) {
 	case n == 1:
 		p, err := i.And[0].P()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: field 'and'", err)
 		}
 		predicates = append(predicates, p)
 	case n > 1:
@@ -462,7 +1076,7 @@ func (i *GroupWhereInput) P() (predicate.Group, error) {
 		for _, w := range i.And {
 			p, err := w.P()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%w: field 'and'", err)
 			}
 			and = append(and, p)
 		}
@@ -545,7 +1159,7 @@ func (i *GroupWhereInput) P() (predicate.Group, error) {
 		for _, w := range i.HasUsersWith {
 			p, err := w.P()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%w: field 'HasUsersWith'", err)
 			}
 			with = append(with, p)
 		}
@@ -553,7 +1167,7 @@ func (i *GroupWhereInput) P() (predicate.Group, error) {
 	}
 	switch len(predicates) {
 	case 0:
-		return nil, fmt.Errorf("empty predicate GroupWhereInput")
+		return nil, ErrEmptyGroupWhereInput
 	case 1:
 		return predicates[0], nil
 	default:
@@ -661,10 +1275,16 @@ func (i *TodoWhereInput) Filter(q *TodoQuery) (*TodoQuery, error) {
 	}
 	p, err := i.P()
 	if err != nil {
+		if err == ErrEmptyTodoWhereInput {
+			return q, nil
+		}
 		return nil, err
 	}
 	return q.Where(p), nil
 }
+
+// ErrEmptyTodoWhereInput is returned in case the TodoWhereInput is empty.
+var ErrEmptyTodoWhereInput = errors.New("ent: empty predicate TodoWhereInput")
 
 // P returns a predicate for filtering todos.
 // An error is returned if the input is empty or invalid.
@@ -673,7 +1293,7 @@ func (i *TodoWhereInput) P() (predicate.Todo, error) {
 	if i.Not != nil {
 		p, err := i.Not.P()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: field 'not'", err)
 		}
 		predicates = append(predicates, todo.Not(p))
 	}
@@ -681,7 +1301,7 @@ func (i *TodoWhereInput) P() (predicate.Todo, error) {
 	case n == 1:
 		p, err := i.Or[0].P()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: field 'or'", err)
 		}
 		predicates = append(predicates, p)
 	case n > 1:
@@ -689,7 +1309,7 @@ func (i *TodoWhereInput) P() (predicate.Todo, error) {
 		for _, w := range i.Or {
 			p, err := w.P()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%w: field 'or'", err)
 			}
 			or = append(or, p)
 		}
@@ -699,7 +1319,7 @@ func (i *TodoWhereInput) P() (predicate.Todo, error) {
 	case n == 1:
 		p, err := i.And[0].P()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: field 'and'", err)
 		}
 		predicates = append(predicates, p)
 	case n > 1:
@@ -707,7 +1327,7 @@ func (i *TodoWhereInput) P() (predicate.Todo, error) {
 		for _, w := range i.And {
 			p, err := w.P()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%w: field 'and'", err)
 			}
 			and = append(and, p)
 		}
@@ -895,7 +1515,7 @@ func (i *TodoWhereInput) P() (predicate.Todo, error) {
 		for _, w := range i.HasParentWith {
 			p, err := w.P()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%w: field 'HasParentWith'", err)
 			}
 			with = append(with, p)
 		}
@@ -913,7 +1533,7 @@ func (i *TodoWhereInput) P() (predicate.Todo, error) {
 		for _, w := range i.HasChildrenWith {
 			p, err := w.P()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%w: field 'HasChildrenWith'", err)
 			}
 			with = append(with, p)
 		}
@@ -931,7 +1551,7 @@ func (i *TodoWhereInput) P() (predicate.Todo, error) {
 		for _, w := range i.HasCategoryWith {
 			p, err := w.P()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%w: field 'HasCategoryWith'", err)
 			}
 			with = append(with, p)
 		}
@@ -939,7 +1559,7 @@ func (i *TodoWhereInput) P() (predicate.Todo, error) {
 	}
 	switch len(predicates) {
 	case 0:
-		return nil, fmt.Errorf("empty predicate TodoWhereInput")
+		return nil, ErrEmptyTodoWhereInput
 	case 1:
 		return predicates[0], nil
 	default:
@@ -979,6 +1599,33 @@ type UserWhereInput struct {
 	NameEqualFold    *string  `json:"nameEqualFold,omitempty"`
 	NameContainsFold *string  `json:"nameContainsFold,omitempty"`
 
+	// "username" field predicates.
+	Username      *uuid.UUID  `json:"username,omitempty"`
+	UsernameNEQ   *uuid.UUID  `json:"usernameNEQ,omitempty"`
+	UsernameIn    []uuid.UUID `json:"usernameIn,omitempty"`
+	UsernameNotIn []uuid.UUID `json:"usernameNotIn,omitempty"`
+	UsernameGT    *uuid.UUID  `json:"usernameGT,omitempty"`
+	UsernameGTE   *uuid.UUID  `json:"usernameGTE,omitempty"`
+	UsernameLT    *uuid.UUID  `json:"usernameLT,omitempty"`
+	UsernameLTE   *uuid.UUID  `json:"usernameLTE,omitempty"`
+
+	// "password" field predicates.
+	Password             *string  `json:"password,omitempty"`
+	PasswordNEQ          *string  `json:"passwordNEQ,omitempty"`
+	PasswordIn           []string `json:"passwordIn,omitempty"`
+	PasswordNotIn        []string `json:"passwordNotIn,omitempty"`
+	PasswordGT           *string  `json:"passwordGT,omitempty"`
+	PasswordGTE          *string  `json:"passwordGTE,omitempty"`
+	PasswordLT           *string  `json:"passwordLT,omitempty"`
+	PasswordLTE          *string  `json:"passwordLTE,omitempty"`
+	PasswordContains     *string  `json:"passwordContains,omitempty"`
+	PasswordHasPrefix    *string  `json:"passwordHasPrefix,omitempty"`
+	PasswordHasSuffix    *string  `json:"passwordHasSuffix,omitempty"`
+	PasswordIsNil        bool     `json:"passwordIsNil,omitempty"`
+	PasswordNotNil       bool     `json:"passwordNotNil,omitempty"`
+	PasswordEqualFold    *string  `json:"passwordEqualFold,omitempty"`
+	PasswordContainsFold *string  `json:"passwordContainsFold,omitempty"`
+
 	// "groups" edge predicates.
 	HasGroups     *bool              `json:"hasGroups,omitempty"`
 	HasGroupsWith []*GroupWhereInput `json:"hasGroupsWith,omitempty"`
@@ -986,6 +1633,10 @@ type UserWhereInput struct {
 	// "friends" edge predicates.
 	HasFriends     *bool             `json:"hasFriends,omitempty"`
 	HasFriendsWith []*UserWhereInput `json:"hasFriendsWith,omitempty"`
+
+	// "friendships" edge predicates.
+	HasFriendships     *bool                   `json:"hasFriendships,omitempty"`
+	HasFriendshipsWith []*FriendshipWhereInput `json:"hasFriendshipsWith,omitempty"`
 }
 
 // AddPredicates adds custom predicates to the where input to be used during the filtering phase.
@@ -1000,10 +1651,16 @@ func (i *UserWhereInput) Filter(q *UserQuery) (*UserQuery, error) {
 	}
 	p, err := i.P()
 	if err != nil {
+		if err == ErrEmptyUserWhereInput {
+			return q, nil
+		}
 		return nil, err
 	}
 	return q.Where(p), nil
 }
+
+// ErrEmptyUserWhereInput is returned in case the UserWhereInput is empty.
+var ErrEmptyUserWhereInput = errors.New("ent: empty predicate UserWhereInput")
 
 // P returns a predicate for filtering users.
 // An error is returned if the input is empty or invalid.
@@ -1012,7 +1669,7 @@ func (i *UserWhereInput) P() (predicate.User, error) {
 	if i.Not != nil {
 		p, err := i.Not.P()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: field 'not'", err)
 		}
 		predicates = append(predicates, user.Not(p))
 	}
@@ -1020,7 +1677,7 @@ func (i *UserWhereInput) P() (predicate.User, error) {
 	case n == 1:
 		p, err := i.Or[0].P()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: field 'or'", err)
 		}
 		predicates = append(predicates, p)
 	case n > 1:
@@ -1028,7 +1685,7 @@ func (i *UserWhereInput) P() (predicate.User, error) {
 		for _, w := range i.Or {
 			p, err := w.P()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%w: field 'or'", err)
 			}
 			or = append(or, p)
 		}
@@ -1038,7 +1695,7 @@ func (i *UserWhereInput) P() (predicate.User, error) {
 	case n == 1:
 		p, err := i.And[0].P()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: field 'and'", err)
 		}
 		predicates = append(predicates, p)
 	case n > 1:
@@ -1046,7 +1703,7 @@ func (i *UserWhereInput) P() (predicate.User, error) {
 		for _, w := range i.And {
 			p, err := w.P()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%w: field 'and'", err)
 			}
 			and = append(and, p)
 		}
@@ -1116,6 +1773,75 @@ func (i *UserWhereInput) P() (predicate.User, error) {
 	if i.NameContainsFold != nil {
 		predicates = append(predicates, user.NameContainsFold(*i.NameContainsFold))
 	}
+	if i.Username != nil {
+		predicates = append(predicates, user.UsernameEQ(*i.Username))
+	}
+	if i.UsernameNEQ != nil {
+		predicates = append(predicates, user.UsernameNEQ(*i.UsernameNEQ))
+	}
+	if len(i.UsernameIn) > 0 {
+		predicates = append(predicates, user.UsernameIn(i.UsernameIn...))
+	}
+	if len(i.UsernameNotIn) > 0 {
+		predicates = append(predicates, user.UsernameNotIn(i.UsernameNotIn...))
+	}
+	if i.UsernameGT != nil {
+		predicates = append(predicates, user.UsernameGT(*i.UsernameGT))
+	}
+	if i.UsernameGTE != nil {
+		predicates = append(predicates, user.UsernameGTE(*i.UsernameGTE))
+	}
+	if i.UsernameLT != nil {
+		predicates = append(predicates, user.UsernameLT(*i.UsernameLT))
+	}
+	if i.UsernameLTE != nil {
+		predicates = append(predicates, user.UsernameLTE(*i.UsernameLTE))
+	}
+	if i.Password != nil {
+		predicates = append(predicates, user.PasswordEQ(*i.Password))
+	}
+	if i.PasswordNEQ != nil {
+		predicates = append(predicates, user.PasswordNEQ(*i.PasswordNEQ))
+	}
+	if len(i.PasswordIn) > 0 {
+		predicates = append(predicates, user.PasswordIn(i.PasswordIn...))
+	}
+	if len(i.PasswordNotIn) > 0 {
+		predicates = append(predicates, user.PasswordNotIn(i.PasswordNotIn...))
+	}
+	if i.PasswordGT != nil {
+		predicates = append(predicates, user.PasswordGT(*i.PasswordGT))
+	}
+	if i.PasswordGTE != nil {
+		predicates = append(predicates, user.PasswordGTE(*i.PasswordGTE))
+	}
+	if i.PasswordLT != nil {
+		predicates = append(predicates, user.PasswordLT(*i.PasswordLT))
+	}
+	if i.PasswordLTE != nil {
+		predicates = append(predicates, user.PasswordLTE(*i.PasswordLTE))
+	}
+	if i.PasswordContains != nil {
+		predicates = append(predicates, user.PasswordContains(*i.PasswordContains))
+	}
+	if i.PasswordHasPrefix != nil {
+		predicates = append(predicates, user.PasswordHasPrefix(*i.PasswordHasPrefix))
+	}
+	if i.PasswordHasSuffix != nil {
+		predicates = append(predicates, user.PasswordHasSuffix(*i.PasswordHasSuffix))
+	}
+	if i.PasswordIsNil {
+		predicates = append(predicates, user.PasswordIsNil())
+	}
+	if i.PasswordNotNil {
+		predicates = append(predicates, user.PasswordNotNil())
+	}
+	if i.PasswordEqualFold != nil {
+		predicates = append(predicates, user.PasswordEqualFold(*i.PasswordEqualFold))
+	}
+	if i.PasswordContainsFold != nil {
+		predicates = append(predicates, user.PasswordContainsFold(*i.PasswordContainsFold))
+	}
 
 	if i.HasGroups != nil {
 		p := user.HasGroups()
@@ -1129,7 +1855,7 @@ func (i *UserWhereInput) P() (predicate.User, error) {
 		for _, w := range i.HasGroupsWith {
 			p, err := w.P()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%w: field 'HasGroupsWith'", err)
 			}
 			with = append(with, p)
 		}
@@ -1147,15 +1873,33 @@ func (i *UserWhereInput) P() (predicate.User, error) {
 		for _, w := range i.HasFriendsWith {
 			p, err := w.P()
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("%w: field 'HasFriendsWith'", err)
 			}
 			with = append(with, p)
 		}
 		predicates = append(predicates, user.HasFriendsWith(with...))
 	}
+	if i.HasFriendships != nil {
+		p := user.HasFriendships()
+		if !*i.HasFriendships {
+			p = user.Not(p)
+		}
+		predicates = append(predicates, p)
+	}
+	if len(i.HasFriendshipsWith) > 0 {
+		with := make([]predicate.Friendship, 0, len(i.HasFriendshipsWith))
+		for _, w := range i.HasFriendshipsWith {
+			p, err := w.P()
+			if err != nil {
+				return nil, fmt.Errorf("%w: field 'HasFriendshipsWith'", err)
+			}
+			with = append(with, p)
+		}
+		predicates = append(predicates, user.HasFriendshipsWith(with...))
+	}
 	switch len(predicates) {
 	case 0:
-		return nil, fmt.Errorf("empty predicate UserWhereInput")
+		return nil, ErrEmptyUserWhereInput
 	case 1:
 		return predicates[0], nil
 	default:
