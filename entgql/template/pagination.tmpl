@@ -32,7 +32,6 @@ import (
 	{{- end }}
 	"{{ $.Config.Package }}/predicate"
 
-import (
 	"math"
 	
 	"entgo.io/ent/dialect/sql"
@@ -498,7 +497,7 @@ func ({{ $r }} *{{ $query }}) PaginateJump(
 		//glog.Warning("no pageLength specified in paginaging jump, assign math.MaxInt16")
 	}
 
-	pager, err := {{ $newPager }}(opts)
+	pager, err := {{ $newPager }}(opts, false)
 	if err != nil {
 		return nil, err
 	}
@@ -549,7 +548,7 @@ func ({{ $r }} *{{ $query }}) PaginateJump(
 		conn.Current = *pageIndex
 	}
  
-	{{ $r }} = pager.applyOrder({{ $r }}, false)
+	{{ $r }} = pager.applyOrder({{ $r }})
 	{{ $r }} = {{ $r }}.Limit(*pageLength).Offset(*pageIndex * *pageLength)
 
 
