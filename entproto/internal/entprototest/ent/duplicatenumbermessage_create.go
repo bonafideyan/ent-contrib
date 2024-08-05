@@ -38,7 +38,7 @@ func (dnmc *DuplicateNumberMessageCreate) Mutation() *DuplicateNumberMessageMuta
 
 // Save creates the DuplicateNumberMessage in the database.
 func (dnmc *DuplicateNumberMessageCreate) Save(ctx context.Context) (*DuplicateNumberMessage, error) {
-	return withHooks[*DuplicateNumberMessage, DuplicateNumberMessageMutation](ctx, dnmc.sqlSave, dnmc.mutation, dnmc.hooks)
+	return withHooks(ctx, dnmc.sqlSave, dnmc.mutation, dnmc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -95,13 +95,7 @@ func (dnmc *DuplicateNumberMessageCreate) sqlSave(ctx context.Context) (*Duplica
 func (dnmc *DuplicateNumberMessageCreate) createSpec() (*DuplicateNumberMessage, *sqlgraph.CreateSpec) {
 	var (
 		_node = &DuplicateNumberMessage{config: dnmc.config}
-		_spec = &sqlgraph.CreateSpec{
-			Table: duplicatenumbermessage.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: duplicatenumbermessage.FieldID,
-			},
-		}
+		_spec = sqlgraph.NewCreateSpec(duplicatenumbermessage.Table, sqlgraph.NewFieldSpec(duplicatenumbermessage.FieldID, field.TypeInt))
 	)
 	if value, ok := dnmc.mutation.Hello(); ok {
 		_spec.SetField(duplicatenumbermessage.FieldHello, field.TypeString, value)
@@ -117,11 +111,15 @@ func (dnmc *DuplicateNumberMessageCreate) createSpec() (*DuplicateNumberMessage,
 // DuplicateNumberMessageCreateBulk is the builder for creating many DuplicateNumberMessage entities in bulk.
 type DuplicateNumberMessageCreateBulk struct {
 	config
+	err      error
 	builders []*DuplicateNumberMessageCreate
 }
 
 // Save creates the DuplicateNumberMessage entities in the database.
 func (dnmcb *DuplicateNumberMessageCreateBulk) Save(ctx context.Context) ([]*DuplicateNumberMessage, error) {
+	if dnmcb.err != nil {
+		return nil, dnmcb.err
+	}
 	specs := make([]*sqlgraph.CreateSpec, len(dnmcb.builders))
 	nodes := make([]*DuplicateNumberMessage, len(dnmcb.builders))
 	mutators := make([]Mutator, len(dnmcb.builders))
@@ -137,8 +135,8 @@ func (dnmcb *DuplicateNumberMessageCreateBulk) Save(ctx context.Context) ([]*Dup
 					return nil, err
 				}
 				builder.mutation = mutation
-				nodes[i], specs[i] = builder.createSpec()
 				var err error
+				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, dnmcb.builders[i+1].mutation)
 				} else {

@@ -34,6 +34,14 @@ func (iu *ImageUpdate) SetURLPath(s string) *ImageUpdate {
 	return iu
 }
 
+// SetNillableURLPath sets the "url_path" field if the given value is not nil.
+func (iu *ImageUpdate) SetNillableURLPath(s *string) *ImageUpdate {
+	if s != nil {
+		iu.SetURLPath(*s)
+	}
+	return iu
+}
+
 // AddUserProfilePicIDs adds the "user_profile_pic" edge to the User entity by IDs.
 func (iu *ImageUpdate) AddUserProfilePicIDs(ids ...int) *ImageUpdate {
 	iu.mutation.AddUserProfilePicIDs(ids...)
@@ -77,7 +85,7 @@ func (iu *ImageUpdate) RemoveUserProfilePic(u ...*User) *ImageUpdate {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (iu *ImageUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks[int, ImageMutation](ctx, iu.sqlSave, iu.mutation, iu.hooks)
+	return withHooks(ctx, iu.sqlSave, iu.mutation, iu.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -103,16 +111,7 @@ func (iu *ImageUpdate) ExecX(ctx context.Context) {
 }
 
 func (iu *ImageUpdate) sqlSave(ctx context.Context) (n int, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   image.Table,
-			Columns: image.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeUUID,
-				Column: image.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(image.Table, image.Columns, sqlgraph.NewFieldSpec(image.FieldID, field.TypeUUID))
 	if ps := iu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -131,10 +130,7 @@ func (iu *ImageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Columns: []string{image.UserProfilePicColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeInt,
-					Column: user.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
@@ -147,10 +143,7 @@ func (iu *ImageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Columns: []string{image.UserProfilePicColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeInt,
-					Column: user.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -166,10 +159,7 @@ func (iu *ImageUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Columns: []string{image.UserProfilePicColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeInt,
-					Column: user.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -200,6 +190,14 @@ type ImageUpdateOne struct {
 // SetURLPath sets the "url_path" field.
 func (iuo *ImageUpdateOne) SetURLPath(s string) *ImageUpdateOne {
 	iuo.mutation.SetURLPath(s)
+	return iuo
+}
+
+// SetNillableURLPath sets the "url_path" field if the given value is not nil.
+func (iuo *ImageUpdateOne) SetNillableURLPath(s *string) *ImageUpdateOne {
+	if s != nil {
+		iuo.SetURLPath(*s)
+	}
 	return iuo
 }
 
@@ -244,6 +242,12 @@ func (iuo *ImageUpdateOne) RemoveUserProfilePic(u ...*User) *ImageUpdateOne {
 	return iuo.RemoveUserProfilePicIDs(ids...)
 }
 
+// Where appends a list predicates to the ImageUpdate builder.
+func (iuo *ImageUpdateOne) Where(ps ...predicate.Image) *ImageUpdateOne {
+	iuo.mutation.Where(ps...)
+	return iuo
+}
+
 // Select allows selecting one or more fields (columns) of the returned entity.
 // The default is selecting all fields defined in the entity schema.
 func (iuo *ImageUpdateOne) Select(field string, fields ...string) *ImageUpdateOne {
@@ -253,7 +257,7 @@ func (iuo *ImageUpdateOne) Select(field string, fields ...string) *ImageUpdateOn
 
 // Save executes the query and returns the updated Image entity.
 func (iuo *ImageUpdateOne) Save(ctx context.Context) (*Image, error) {
-	return withHooks[*Image, ImageMutation](ctx, iuo.sqlSave, iuo.mutation, iuo.hooks)
+	return withHooks(ctx, iuo.sqlSave, iuo.mutation, iuo.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -279,16 +283,7 @@ func (iuo *ImageUpdateOne) ExecX(ctx context.Context) {
 }
 
 func (iuo *ImageUpdateOne) sqlSave(ctx context.Context) (_node *Image, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   image.Table,
-			Columns: image.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeUUID,
-				Column: image.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(image.Table, image.Columns, sqlgraph.NewFieldSpec(image.FieldID, field.TypeUUID))
 	id, ok := iuo.mutation.ID()
 	if !ok {
 		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "Image.id" for update`)}
@@ -324,10 +319,7 @@ func (iuo *ImageUpdateOne) sqlSave(ctx context.Context) (_node *Image, err error
 			Columns: []string{image.UserProfilePicColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeInt,
-					Column: user.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
@@ -340,10 +332,7 @@ func (iuo *ImageUpdateOne) sqlSave(ctx context.Context) (_node *Image, err error
 			Columns: []string{image.UserProfilePicColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeInt,
-					Column: user.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -359,10 +348,7 @@ func (iuo *ImageUpdateOne) sqlSave(ctx context.Context) (_node *Image, err error
 			Columns: []string{image.UserProfilePicColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeInt,
-					Column: user.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {

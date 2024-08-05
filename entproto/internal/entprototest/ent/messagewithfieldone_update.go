@@ -34,6 +34,14 @@ func (mwfou *MessageWithFieldOneUpdate) SetFieldOne(i int32) *MessageWithFieldOn
 	return mwfou
 }
 
+// SetNillableFieldOne sets the "field_one" field if the given value is not nil.
+func (mwfou *MessageWithFieldOneUpdate) SetNillableFieldOne(i *int32) *MessageWithFieldOneUpdate {
+	if i != nil {
+		mwfou.SetFieldOne(*i)
+	}
+	return mwfou
+}
+
 // AddFieldOne adds i to the "field_one" field.
 func (mwfou *MessageWithFieldOneUpdate) AddFieldOne(i int32) *MessageWithFieldOneUpdate {
 	mwfou.mutation.AddFieldOne(i)
@@ -47,7 +55,7 @@ func (mwfou *MessageWithFieldOneUpdate) Mutation() *MessageWithFieldOneMutation 
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (mwfou *MessageWithFieldOneUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks[int, MessageWithFieldOneMutation](ctx, mwfou.sqlSave, mwfou.mutation, mwfou.hooks)
+	return withHooks(ctx, mwfou.sqlSave, mwfou.mutation, mwfou.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -73,16 +81,7 @@ func (mwfou *MessageWithFieldOneUpdate) ExecX(ctx context.Context) {
 }
 
 func (mwfou *MessageWithFieldOneUpdate) sqlSave(ctx context.Context) (n int, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   messagewithfieldone.Table,
-			Columns: messagewithfieldone.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: messagewithfieldone.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(messagewithfieldone.Table, messagewithfieldone.Columns, sqlgraph.NewFieldSpec(messagewithfieldone.FieldID, field.TypeInt))
 	if ps := mwfou.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -123,6 +122,14 @@ func (mwfouo *MessageWithFieldOneUpdateOne) SetFieldOne(i int32) *MessageWithFie
 	return mwfouo
 }
 
+// SetNillableFieldOne sets the "field_one" field if the given value is not nil.
+func (mwfouo *MessageWithFieldOneUpdateOne) SetNillableFieldOne(i *int32) *MessageWithFieldOneUpdateOne {
+	if i != nil {
+		mwfouo.SetFieldOne(*i)
+	}
+	return mwfouo
+}
+
 // AddFieldOne adds i to the "field_one" field.
 func (mwfouo *MessageWithFieldOneUpdateOne) AddFieldOne(i int32) *MessageWithFieldOneUpdateOne {
 	mwfouo.mutation.AddFieldOne(i)
@@ -134,6 +141,12 @@ func (mwfouo *MessageWithFieldOneUpdateOne) Mutation() *MessageWithFieldOneMutat
 	return mwfouo.mutation
 }
 
+// Where appends a list predicates to the MessageWithFieldOneUpdate builder.
+func (mwfouo *MessageWithFieldOneUpdateOne) Where(ps ...predicate.MessageWithFieldOne) *MessageWithFieldOneUpdateOne {
+	mwfouo.mutation.Where(ps...)
+	return mwfouo
+}
+
 // Select allows selecting one or more fields (columns) of the returned entity.
 // The default is selecting all fields defined in the entity schema.
 func (mwfouo *MessageWithFieldOneUpdateOne) Select(field string, fields ...string) *MessageWithFieldOneUpdateOne {
@@ -143,7 +156,7 @@ func (mwfouo *MessageWithFieldOneUpdateOne) Select(field string, fields ...strin
 
 // Save executes the query and returns the updated MessageWithFieldOne entity.
 func (mwfouo *MessageWithFieldOneUpdateOne) Save(ctx context.Context) (*MessageWithFieldOne, error) {
-	return withHooks[*MessageWithFieldOne, MessageWithFieldOneMutation](ctx, mwfouo.sqlSave, mwfouo.mutation, mwfouo.hooks)
+	return withHooks(ctx, mwfouo.sqlSave, mwfouo.mutation, mwfouo.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -169,16 +182,7 @@ func (mwfouo *MessageWithFieldOneUpdateOne) ExecX(ctx context.Context) {
 }
 
 func (mwfouo *MessageWithFieldOneUpdateOne) sqlSave(ctx context.Context) (_node *MessageWithFieldOne, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   messagewithfieldone.Table,
-			Columns: messagewithfieldone.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: messagewithfieldone.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(messagewithfieldone.Table, messagewithfieldone.Columns, sqlgraph.NewFieldSpec(messagewithfieldone.FieldID, field.TypeInt))
 	id, ok := mwfouo.mutation.ID()
 	if !ok {
 		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "MessageWithFieldOne.id" for update`)}

@@ -34,7 +34,7 @@ func (amsu *AllMethodsServiceUpdate) Mutation() *AllMethodsServiceMutation {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (amsu *AllMethodsServiceUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks[int, AllMethodsServiceMutation](ctx, amsu.sqlSave, amsu.mutation, amsu.hooks)
+	return withHooks(ctx, amsu.sqlSave, amsu.mutation, amsu.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -60,16 +60,7 @@ func (amsu *AllMethodsServiceUpdate) ExecX(ctx context.Context) {
 }
 
 func (amsu *AllMethodsServiceUpdate) sqlSave(ctx context.Context) (n int, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   allmethodsservice.Table,
-			Columns: allmethodsservice.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: allmethodsservice.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(allmethodsservice.Table, allmethodsservice.Columns, sqlgraph.NewFieldSpec(allmethodsservice.FieldID, field.TypeInt))
 	if ps := amsu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -102,6 +93,12 @@ func (amsuo *AllMethodsServiceUpdateOne) Mutation() *AllMethodsServiceMutation {
 	return amsuo.mutation
 }
 
+// Where appends a list predicates to the AllMethodsServiceUpdate builder.
+func (amsuo *AllMethodsServiceUpdateOne) Where(ps ...predicate.AllMethodsService) *AllMethodsServiceUpdateOne {
+	amsuo.mutation.Where(ps...)
+	return amsuo
+}
+
 // Select allows selecting one or more fields (columns) of the returned entity.
 // The default is selecting all fields defined in the entity schema.
 func (amsuo *AllMethodsServiceUpdateOne) Select(field string, fields ...string) *AllMethodsServiceUpdateOne {
@@ -111,7 +108,7 @@ func (amsuo *AllMethodsServiceUpdateOne) Select(field string, fields ...string) 
 
 // Save executes the query and returns the updated AllMethodsService entity.
 func (amsuo *AllMethodsServiceUpdateOne) Save(ctx context.Context) (*AllMethodsService, error) {
-	return withHooks[*AllMethodsService, AllMethodsServiceMutation](ctx, amsuo.sqlSave, amsuo.mutation, amsuo.hooks)
+	return withHooks(ctx, amsuo.sqlSave, amsuo.mutation, amsuo.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -137,16 +134,7 @@ func (amsuo *AllMethodsServiceUpdateOne) ExecX(ctx context.Context) {
 }
 
 func (amsuo *AllMethodsServiceUpdateOne) sqlSave(ctx context.Context) (_node *AllMethodsService, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   allmethodsservice.Table,
-			Columns: allmethodsservice.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: allmethodsservice.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(allmethodsservice.Table, allmethodsservice.Columns, sqlgraph.NewFieldSpec(allmethodsservice.FieldID, field.TypeInt))
 	id, ok := amsuo.mutation.ID()
 	if !ok {
 		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "AllMethodsService.id" for update`)}

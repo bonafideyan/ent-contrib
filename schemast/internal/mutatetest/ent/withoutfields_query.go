@@ -9,6 +9,7 @@ import (
 
 	"entgo.io/contrib/schemast/internal/mutatetest/ent/predicate"
 	"entgo.io/contrib/schemast/internal/mutatetest/ent/withoutfields"
+	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
@@ -18,7 +19,7 @@ import (
 type WithoutFieldsQuery struct {
 	config
 	ctx        *QueryContext
-	order      []OrderFunc
+	order      []withoutfields.OrderOption
 	inters     []Interceptor
 	predicates []predicate.WithoutFields
 	// intermediate query (i.e. traversal path).
@@ -52,7 +53,7 @@ func (wfq *WithoutFieldsQuery) Unique(unique bool) *WithoutFieldsQuery {
 }
 
 // Order specifies how the records should be ordered.
-func (wfq *WithoutFieldsQuery) Order(o ...OrderFunc) *WithoutFieldsQuery {
+func (wfq *WithoutFieldsQuery) Order(o ...withoutfields.OrderOption) *WithoutFieldsQuery {
 	wfq.order = append(wfq.order, o...)
 	return wfq
 }
@@ -60,7 +61,7 @@ func (wfq *WithoutFieldsQuery) Order(o ...OrderFunc) *WithoutFieldsQuery {
 // First returns the first WithoutFields entity from the query.
 // Returns a *NotFoundError when no WithoutFields was found.
 func (wfq *WithoutFieldsQuery) First(ctx context.Context) (*WithoutFields, error) {
-	nodes, err := wfq.Limit(1).All(setContextOp(ctx, wfq.ctx, "First"))
+	nodes, err := wfq.Limit(1).All(setContextOp(ctx, wfq.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +84,7 @@ func (wfq *WithoutFieldsQuery) FirstX(ctx context.Context) *WithoutFields {
 // Returns a *NotFoundError when no WithoutFields ID was found.
 func (wfq *WithoutFieldsQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = wfq.Limit(1).IDs(setContextOp(ctx, wfq.ctx, "FirstID")); err != nil {
+	if ids, err = wfq.Limit(1).IDs(setContextOp(ctx, wfq.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -106,7 +107,7 @@ func (wfq *WithoutFieldsQuery) FirstIDX(ctx context.Context) int {
 // Returns a *NotSingularError when more than one WithoutFields entity is found.
 // Returns a *NotFoundError when no WithoutFields entities are found.
 func (wfq *WithoutFieldsQuery) Only(ctx context.Context) (*WithoutFields, error) {
-	nodes, err := wfq.Limit(2).All(setContextOp(ctx, wfq.ctx, "Only"))
+	nodes, err := wfq.Limit(2).All(setContextOp(ctx, wfq.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +135,7 @@ func (wfq *WithoutFieldsQuery) OnlyX(ctx context.Context) *WithoutFields {
 // Returns a *NotFoundError when no entities are found.
 func (wfq *WithoutFieldsQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = wfq.Limit(2).IDs(setContextOp(ctx, wfq.ctx, "OnlyID")); err != nil {
+	if ids, err = wfq.Limit(2).IDs(setContextOp(ctx, wfq.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -159,7 +160,7 @@ func (wfq *WithoutFieldsQuery) OnlyIDX(ctx context.Context) int {
 
 // All executes the query and returns a list of WithoutFieldsSlice.
 func (wfq *WithoutFieldsQuery) All(ctx context.Context) ([]*WithoutFields, error) {
-	ctx = setContextOp(ctx, wfq.ctx, "All")
+	ctx = setContextOp(ctx, wfq.ctx, ent.OpQueryAll)
 	if err := wfq.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
@@ -177,10 +178,12 @@ func (wfq *WithoutFieldsQuery) AllX(ctx context.Context) []*WithoutFields {
 }
 
 // IDs executes the query and returns a list of WithoutFields IDs.
-func (wfq *WithoutFieldsQuery) IDs(ctx context.Context) ([]int, error) {
-	var ids []int
-	ctx = setContextOp(ctx, wfq.ctx, "IDs")
-	if err := wfq.Select(withoutfields.FieldID).Scan(ctx, &ids); err != nil {
+func (wfq *WithoutFieldsQuery) IDs(ctx context.Context) (ids []int, err error) {
+	if wfq.ctx.Unique == nil && wfq.path != nil {
+		wfq.Unique(true)
+	}
+	ctx = setContextOp(ctx, wfq.ctx, ent.OpQueryIDs)
+	if err = wfq.Select(withoutfields.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -197,7 +200,7 @@ func (wfq *WithoutFieldsQuery) IDsX(ctx context.Context) []int {
 
 // Count returns the count of the given query.
 func (wfq *WithoutFieldsQuery) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, wfq.ctx, "Count")
+	ctx = setContextOp(ctx, wfq.ctx, ent.OpQueryCount)
 	if err := wfq.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
@@ -215,7 +218,7 @@ func (wfq *WithoutFieldsQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (wfq *WithoutFieldsQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, wfq.ctx, "Exist")
+	ctx = setContextOp(ctx, wfq.ctx, ent.OpQueryExist)
 	switch _, err := wfq.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -244,7 +247,7 @@ func (wfq *WithoutFieldsQuery) Clone() *WithoutFieldsQuery {
 	return &WithoutFieldsQuery{
 		config:     wfq.config,
 		ctx:        wfq.ctx.Clone(),
-		order:      append([]OrderFunc{}, wfq.order...),
+		order:      append([]withoutfields.OrderOption{}, wfq.order...),
 		inters:     append([]Interceptor{}, wfq.inters...),
 		predicates: append([]predicate.WithoutFields{}, wfq.predicates...),
 		// clone intermediate query.
@@ -340,20 +343,12 @@ func (wfq *WithoutFieldsQuery) sqlCount(ctx context.Context) (int, error) {
 }
 
 func (wfq *WithoutFieldsQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := &sqlgraph.QuerySpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   withoutfields.Table,
-			Columns: withoutfields.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: withoutfields.FieldID,
-			},
-		},
-		From:   wfq.sql,
-		Unique: true,
-	}
+	_spec := sqlgraph.NewQuerySpec(withoutfields.Table, withoutfields.Columns, sqlgraph.NewFieldSpec(withoutfields.FieldID, field.TypeInt))
+	_spec.From = wfq.sql
 	if unique := wfq.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
+	} else if wfq.path != nil {
+		_spec.Unique = true
 	}
 	if fields := wfq.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
@@ -433,7 +428,7 @@ func (wfgb *WithoutFieldsGroupBy) Aggregate(fns ...AggregateFunc) *WithoutFields
 
 // Scan applies the selector query and scans the result into the given value.
 func (wfgb *WithoutFieldsGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, wfgb.build.ctx, "GroupBy")
+	ctx = setContextOp(ctx, wfgb.build.ctx, ent.OpQueryGroupBy)
 	if err := wfgb.build.prepareQuery(ctx); err != nil {
 		return err
 	}
@@ -481,7 +476,7 @@ func (wfs *WithoutFieldsSelect) Aggregate(fns ...AggregateFunc) *WithoutFieldsSe
 
 // Scan applies the selector query and scans the result into the given value.
 func (wfs *WithoutFieldsSelect) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, wfs.ctx, "Select")
+	ctx = setContextOp(ctx, wfs.ctx, ent.OpQuerySelect)
 	if err := wfs.prepareQuery(ctx); err != nil {
 		return err
 	}

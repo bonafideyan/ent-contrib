@@ -230,7 +230,7 @@ func (otc *OASTypesCreate) Mutation() *OASTypesMutation {
 // Save creates the OASTypes in the database.
 func (otc *OASTypesCreate) Save(ctx context.Context) (*OASTypes, error) {
 	otc.defaults()
-	return withHooks[*OASTypes, OASTypesMutation](ctx, otc.sqlSave, otc.mutation, otc.hooks)
+	return withHooks(ctx, otc.sqlSave, otc.mutation, otc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -379,13 +379,7 @@ func (otc *OASTypesCreate) sqlSave(ctx context.Context) (*OASTypes, error) {
 func (otc *OASTypesCreate) createSpec() (*OASTypes, *sqlgraph.CreateSpec) {
 	var (
 		_node = &OASTypes{config: otc.config}
-		_spec = &sqlgraph.CreateSpec{
-			Table: oastypes.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: oastypes.FieldID,
-			},
-		}
+		_spec = sqlgraph.NewCreateSpec(oastypes.Table, sqlgraph.NewFieldSpec(oastypes.FieldID, field.TypeInt))
 	)
 	if value, ok := otc.mutation.Int(); ok {
 		_spec.SetField(oastypes.FieldInt, field.TypeInt, value)
@@ -509,11 +503,15 @@ func (otc *OASTypesCreate) createSpec() (*OASTypes, *sqlgraph.CreateSpec) {
 // OASTypesCreateBulk is the builder for creating many OASTypes entities in bulk.
 type OASTypesCreateBulk struct {
 	config
+	err      error
 	builders []*OASTypesCreate
 }
 
 // Save creates the OASTypes entities in the database.
 func (otcb *OASTypesCreateBulk) Save(ctx context.Context) ([]*OASTypes, error) {
+	if otcb.err != nil {
+		return nil, otcb.err
+	}
 	specs := make([]*sqlgraph.CreateSpec, len(otcb.builders))
 	nodes := make([]*OASTypes, len(otcb.builders))
 	mutators := make([]Mutator, len(otcb.builders))
@@ -530,8 +528,8 @@ func (otcb *OASTypesCreateBulk) Save(ctx context.Context) ([]*OASTypes, error) {
 					return nil, err
 				}
 				builder.mutation = mutation
-				nodes[i], specs[i] = builder.createSpec()
 				var err error
+				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, otcb.builders[i+1].mutation)
 				} else {

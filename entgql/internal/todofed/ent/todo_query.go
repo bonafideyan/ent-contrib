@@ -26,6 +26,7 @@ import (
 	"entgo.io/contrib/entgql/internal/todofed/ent/predicate"
 	"entgo.io/contrib/entgql/internal/todofed/ent/todo"
 	"entgo.io/contrib/entgql/internal/todofed/ent/verysecret"
+	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
@@ -35,7 +36,7 @@ import (
 type TodoQuery struct {
 	config
 	ctx               *QueryContext
-	order             []OrderFunc
+	order             []todo.OrderOption
 	inters            []Interceptor
 	predicates        []predicate.Todo
 	withParent        *TodoQuery
@@ -77,7 +78,7 @@ func (tq *TodoQuery) Unique(unique bool) *TodoQuery {
 }
 
 // Order specifies how the records should be ordered.
-func (tq *TodoQuery) Order(o ...OrderFunc) *TodoQuery {
+func (tq *TodoQuery) Order(o ...todo.OrderOption) *TodoQuery {
 	tq.order = append(tq.order, o...)
 	return tq
 }
@@ -173,7 +174,7 @@ func (tq *TodoQuery) QuerySecret() *VerySecretQuery {
 // First returns the first Todo entity from the query.
 // Returns a *NotFoundError when no Todo was found.
 func (tq *TodoQuery) First(ctx context.Context) (*Todo, error) {
-	nodes, err := tq.Limit(1).All(setContextOp(ctx, tq.ctx, "First"))
+	nodes, err := tq.Limit(1).All(setContextOp(ctx, tq.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +197,7 @@ func (tq *TodoQuery) FirstX(ctx context.Context) *Todo {
 // Returns a *NotFoundError when no Todo ID was found.
 func (tq *TodoQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = tq.Limit(1).IDs(setContextOp(ctx, tq.ctx, "FirstID")); err != nil {
+	if ids, err = tq.Limit(1).IDs(setContextOp(ctx, tq.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -219,7 +220,7 @@ func (tq *TodoQuery) FirstIDX(ctx context.Context) int {
 // Returns a *NotSingularError when more than one Todo entity is found.
 // Returns a *NotFoundError when no Todo entities are found.
 func (tq *TodoQuery) Only(ctx context.Context) (*Todo, error) {
-	nodes, err := tq.Limit(2).All(setContextOp(ctx, tq.ctx, "Only"))
+	nodes, err := tq.Limit(2).All(setContextOp(ctx, tq.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
 	}
@@ -247,7 +248,7 @@ func (tq *TodoQuery) OnlyX(ctx context.Context) *Todo {
 // Returns a *NotFoundError when no entities are found.
 func (tq *TodoQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = tq.Limit(2).IDs(setContextOp(ctx, tq.ctx, "OnlyID")); err != nil {
+	if ids, err = tq.Limit(2).IDs(setContextOp(ctx, tq.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -272,7 +273,7 @@ func (tq *TodoQuery) OnlyIDX(ctx context.Context) int {
 
 // All executes the query and returns a list of Todos.
 func (tq *TodoQuery) All(ctx context.Context) ([]*Todo, error) {
-	ctx = setContextOp(ctx, tq.ctx, "All")
+	ctx = setContextOp(ctx, tq.ctx, ent.OpQueryAll)
 	if err := tq.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
@@ -290,10 +291,12 @@ func (tq *TodoQuery) AllX(ctx context.Context) []*Todo {
 }
 
 // IDs executes the query and returns a list of Todo IDs.
-func (tq *TodoQuery) IDs(ctx context.Context) ([]int, error) {
-	var ids []int
-	ctx = setContextOp(ctx, tq.ctx, "IDs")
-	if err := tq.Select(todo.FieldID).Scan(ctx, &ids); err != nil {
+func (tq *TodoQuery) IDs(ctx context.Context) (ids []int, err error) {
+	if tq.ctx.Unique == nil && tq.path != nil {
+		tq.Unique(true)
+	}
+	ctx = setContextOp(ctx, tq.ctx, ent.OpQueryIDs)
+	if err = tq.Select(todo.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -310,7 +313,7 @@ func (tq *TodoQuery) IDsX(ctx context.Context) []int {
 
 // Count returns the count of the given query.
 func (tq *TodoQuery) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, tq.ctx, "Count")
+	ctx = setContextOp(ctx, tq.ctx, ent.OpQueryCount)
 	if err := tq.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
@@ -328,7 +331,7 @@ func (tq *TodoQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (tq *TodoQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, tq.ctx, "Exist")
+	ctx = setContextOp(ctx, tq.ctx, ent.OpQueryExist)
 	switch _, err := tq.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -357,7 +360,7 @@ func (tq *TodoQuery) Clone() *TodoQuery {
 	return &TodoQuery{
 		config:       tq.config,
 		ctx:          tq.ctx.Clone(),
-		order:        append([]OrderFunc{}, tq.order...),
+		order:        append([]todo.OrderOption{}, tq.order...),
 		inters:       append([]Interceptor{}, tq.inters...),
 		predicates:   append([]predicate.Todo{}, tq.predicates...),
 		withParent:   tq.withParent.Clone(),
@@ -611,7 +614,7 @@ func (tq *TodoQuery) loadChildren(ctx context.Context, query *TodoQuery, nodes [
 	}
 	query.withFKs = true
 	query.Where(predicate.Todo(func(s *sql.Selector) {
-		s.Where(sql.InValues(todo.ChildrenColumn, fks...))
+		s.Where(sql.InValues(s.C(todo.ChildrenColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {
@@ -624,7 +627,7 @@ func (tq *TodoQuery) loadChildren(ctx context.Context, query *TodoQuery, nodes [
 		}
 		node, ok := nodeids[*fk]
 		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "todo_children" returned %v for node %v`, *fk, n.ID)
+			return fmt.Errorf(`unexpected referenced foreign-key "todo_children" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}
@@ -708,20 +711,12 @@ func (tq *TodoQuery) sqlCount(ctx context.Context) (int, error) {
 }
 
 func (tq *TodoQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := &sqlgraph.QuerySpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   todo.Table,
-			Columns: todo.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: todo.FieldID,
-			},
-		},
-		From:   tq.sql,
-		Unique: true,
-	}
+	_spec := sqlgraph.NewQuerySpec(todo.Table, todo.Columns, sqlgraph.NewFieldSpec(todo.FieldID, field.TypeInt))
+	_spec.From = tq.sql
 	if unique := tq.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
+	} else if tq.path != nil {
+		_spec.Unique = true
 	}
 	if fields := tq.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
@@ -815,7 +810,7 @@ func (tgb *TodoGroupBy) Aggregate(fns ...AggregateFunc) *TodoGroupBy {
 
 // Scan applies the selector query and scans the result into the given value.
 func (tgb *TodoGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, tgb.build.ctx, "GroupBy")
+	ctx = setContextOp(ctx, tgb.build.ctx, ent.OpQueryGroupBy)
 	if err := tgb.build.prepareQuery(ctx); err != nil {
 		return err
 	}
@@ -863,7 +858,7 @@ func (ts *TodoSelect) Aggregate(fns ...AggregateFunc) *TodoSelect {
 
 // Scan applies the selector query and scans the result into the given value.
 func (ts *TodoSelect) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, ts.ctx, "Select")
+	ctx = setContextOp(ctx, ts.ctx, ent.OpQuerySelect)
 	if err := ts.prepareQuery(ctx); err != nil {
 		return err
 	}

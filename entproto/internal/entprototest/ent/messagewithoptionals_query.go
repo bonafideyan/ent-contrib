@@ -9,6 +9,7 @@ import (
 
 	"entgo.io/contrib/entproto/internal/entprototest/ent/messagewithoptionals"
 	"entgo.io/contrib/entproto/internal/entprototest/ent/predicate"
+	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
@@ -18,7 +19,7 @@ import (
 type MessageWithOptionalsQuery struct {
 	config
 	ctx        *QueryContext
-	order      []OrderFunc
+	order      []messagewithoptionals.OrderOption
 	inters     []Interceptor
 	predicates []predicate.MessageWithOptionals
 	// intermediate query (i.e. traversal path).
@@ -52,7 +53,7 @@ func (mwoq *MessageWithOptionalsQuery) Unique(unique bool) *MessageWithOptionals
 }
 
 // Order specifies how the records should be ordered.
-func (mwoq *MessageWithOptionalsQuery) Order(o ...OrderFunc) *MessageWithOptionalsQuery {
+func (mwoq *MessageWithOptionalsQuery) Order(o ...messagewithoptionals.OrderOption) *MessageWithOptionalsQuery {
 	mwoq.order = append(mwoq.order, o...)
 	return mwoq
 }
@@ -60,7 +61,7 @@ func (mwoq *MessageWithOptionalsQuery) Order(o ...OrderFunc) *MessageWithOptiona
 // First returns the first MessageWithOptionals entity from the query.
 // Returns a *NotFoundError when no MessageWithOptionals was found.
 func (mwoq *MessageWithOptionalsQuery) First(ctx context.Context) (*MessageWithOptionals, error) {
-	nodes, err := mwoq.Limit(1).All(setContextOp(ctx, mwoq.ctx, "First"))
+	nodes, err := mwoq.Limit(1).All(setContextOp(ctx, mwoq.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +84,7 @@ func (mwoq *MessageWithOptionalsQuery) FirstX(ctx context.Context) *MessageWithO
 // Returns a *NotFoundError when no MessageWithOptionals ID was found.
 func (mwoq *MessageWithOptionalsQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = mwoq.Limit(1).IDs(setContextOp(ctx, mwoq.ctx, "FirstID")); err != nil {
+	if ids, err = mwoq.Limit(1).IDs(setContextOp(ctx, mwoq.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -106,7 +107,7 @@ func (mwoq *MessageWithOptionalsQuery) FirstIDX(ctx context.Context) int {
 // Returns a *NotSingularError when more than one MessageWithOptionals entity is found.
 // Returns a *NotFoundError when no MessageWithOptionals entities are found.
 func (mwoq *MessageWithOptionalsQuery) Only(ctx context.Context) (*MessageWithOptionals, error) {
-	nodes, err := mwoq.Limit(2).All(setContextOp(ctx, mwoq.ctx, "Only"))
+	nodes, err := mwoq.Limit(2).All(setContextOp(ctx, mwoq.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +135,7 @@ func (mwoq *MessageWithOptionalsQuery) OnlyX(ctx context.Context) *MessageWithOp
 // Returns a *NotFoundError when no entities are found.
 func (mwoq *MessageWithOptionalsQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = mwoq.Limit(2).IDs(setContextOp(ctx, mwoq.ctx, "OnlyID")); err != nil {
+	if ids, err = mwoq.Limit(2).IDs(setContextOp(ctx, mwoq.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -159,7 +160,7 @@ func (mwoq *MessageWithOptionalsQuery) OnlyIDX(ctx context.Context) int {
 
 // All executes the query and returns a list of MessageWithOptionalsSlice.
 func (mwoq *MessageWithOptionalsQuery) All(ctx context.Context) ([]*MessageWithOptionals, error) {
-	ctx = setContextOp(ctx, mwoq.ctx, "All")
+	ctx = setContextOp(ctx, mwoq.ctx, ent.OpQueryAll)
 	if err := mwoq.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
@@ -177,10 +178,12 @@ func (mwoq *MessageWithOptionalsQuery) AllX(ctx context.Context) []*MessageWithO
 }
 
 // IDs executes the query and returns a list of MessageWithOptionals IDs.
-func (mwoq *MessageWithOptionalsQuery) IDs(ctx context.Context) ([]int, error) {
-	var ids []int
-	ctx = setContextOp(ctx, mwoq.ctx, "IDs")
-	if err := mwoq.Select(messagewithoptionals.FieldID).Scan(ctx, &ids); err != nil {
+func (mwoq *MessageWithOptionalsQuery) IDs(ctx context.Context) (ids []int, err error) {
+	if mwoq.ctx.Unique == nil && mwoq.path != nil {
+		mwoq.Unique(true)
+	}
+	ctx = setContextOp(ctx, mwoq.ctx, ent.OpQueryIDs)
+	if err = mwoq.Select(messagewithoptionals.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -197,7 +200,7 @@ func (mwoq *MessageWithOptionalsQuery) IDsX(ctx context.Context) []int {
 
 // Count returns the count of the given query.
 func (mwoq *MessageWithOptionalsQuery) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, mwoq.ctx, "Count")
+	ctx = setContextOp(ctx, mwoq.ctx, ent.OpQueryCount)
 	if err := mwoq.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
@@ -215,7 +218,7 @@ func (mwoq *MessageWithOptionalsQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (mwoq *MessageWithOptionalsQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, mwoq.ctx, "Exist")
+	ctx = setContextOp(ctx, mwoq.ctx, ent.OpQueryExist)
 	switch _, err := mwoq.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -244,7 +247,7 @@ func (mwoq *MessageWithOptionalsQuery) Clone() *MessageWithOptionalsQuery {
 	return &MessageWithOptionalsQuery{
 		config:     mwoq.config,
 		ctx:        mwoq.ctx.Clone(),
-		order:      append([]OrderFunc{}, mwoq.order...),
+		order:      append([]messagewithoptionals.OrderOption{}, mwoq.order...),
 		inters:     append([]Interceptor{}, mwoq.inters...),
 		predicates: append([]predicate.MessageWithOptionals{}, mwoq.predicates...),
 		// clone intermediate query.
@@ -362,20 +365,12 @@ func (mwoq *MessageWithOptionalsQuery) sqlCount(ctx context.Context) (int, error
 }
 
 func (mwoq *MessageWithOptionalsQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := &sqlgraph.QuerySpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   messagewithoptionals.Table,
-			Columns: messagewithoptionals.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: messagewithoptionals.FieldID,
-			},
-		},
-		From:   mwoq.sql,
-		Unique: true,
-	}
+	_spec := sqlgraph.NewQuerySpec(messagewithoptionals.Table, messagewithoptionals.Columns, sqlgraph.NewFieldSpec(messagewithoptionals.FieldID, field.TypeInt))
+	_spec.From = mwoq.sql
 	if unique := mwoq.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
+	} else if mwoq.path != nil {
+		_spec.Unique = true
 	}
 	if fields := mwoq.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
@@ -455,7 +450,7 @@ func (mwogb *MessageWithOptionalsGroupBy) Aggregate(fns ...AggregateFunc) *Messa
 
 // Scan applies the selector query and scans the result into the given value.
 func (mwogb *MessageWithOptionalsGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, mwogb.build.ctx, "GroupBy")
+	ctx = setContextOp(ctx, mwogb.build.ctx, ent.OpQueryGroupBy)
 	if err := mwogb.build.prepareQuery(ctx); err != nil {
 		return err
 	}
@@ -503,7 +498,7 @@ func (mwos *MessageWithOptionalsSelect) Aggregate(fns ...AggregateFunc) *Message
 
 // Scan applies the selector query and scans the result into the given value.
 func (mwos *MessageWithOptionalsSelect) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, mwos.ctx, "Select")
+	ctx = setContextOp(ctx, mwos.ctx, ent.OpQuerySelect)
 	if err := mwos.prepareQuery(ctx); err != nil {
 		return err
 	}

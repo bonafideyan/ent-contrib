@@ -23,6 +23,7 @@ import (
 
 	"entgo.io/contrib/entgql/internal/todo/ent/friendship"
 	"entgo.io/contrib/entgql/internal/todo/ent/user"
+	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 )
 
@@ -39,7 +40,8 @@ type Friendship struct {
 	FriendID int `json:"friend_id,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the FriendshipQuery when eager-loading is set.
-	Edges FriendshipEdges `json:"edges"`
+	Edges        FriendshipEdges `json:"edges"`
+	selectValues sql.SelectValues
 }
 
 // FriendshipEdges holds the relations/edges for other nodes in the graph.
@@ -58,12 +60,10 @@ type FriendshipEdges struct {
 // UserOrErr returns the User value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
 func (e FriendshipEdges) UserOrErr() (*User, error) {
-	if e.loadedTypes[0] {
-		if e.User == nil {
-			// Edge was loaded but was not found.
-			return nil, &NotFoundError{label: user.Label}
-		}
+	if e.User != nil {
 		return e.User, nil
+	} else if e.loadedTypes[0] {
+		return nil, &NotFoundError{label: user.Label}
 	}
 	return nil, &NotLoadedError{edge: "user"}
 }
@@ -71,12 +71,10 @@ func (e FriendshipEdges) UserOrErr() (*User, error) {
 // FriendOrErr returns the Friend value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
 func (e FriendshipEdges) FriendOrErr() (*User, error) {
-	if e.loadedTypes[1] {
-		if e.Friend == nil {
-			// Edge was loaded but was not found.
-			return nil, &NotFoundError{label: user.Label}
-		}
+	if e.Friend != nil {
 		return e.Friend, nil
+	} else if e.loadedTypes[1] {
+		return nil, &NotFoundError{label: user.Label}
 	}
 	return nil, &NotLoadedError{edge: "friend"}
 }
@@ -91,7 +89,7 @@ func (*Friendship) scanValues(columns []string) ([]any, error) {
 		case friendship.FieldCreatedAt:
 			values[i] = new(sql.NullTime)
 		default:
-			return nil, fmt.Errorf("unexpected column %q for type Friendship", columns[i])
+			values[i] = new(sql.UnknownType)
 		}
 	}
 	return values, nil
@@ -129,9 +127,17 @@ func (f *Friendship) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				f.FriendID = int(value.Int64)
 			}
+		default:
+			f.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
+}
+
+// Value returns the ent.Value that was dynamically selected and assigned to the Friendship.
+// This includes values selected through modifiers, order, etc.
+func (f *Friendship) Value(name string) (ent.Value, error) {
+	return f.selectValues.Get(name)
 }
 
 // QueryUser queries the "user" edge of the Friendship entity.
@@ -181,9 +187,3 @@ func (f *Friendship) String() string {
 
 // Friendships is a parsable slice of Friendship.
 type Friendships []*Friendship
-
-func (f Friendships) config(cfg config) {
-	for _i := range f {
-		f[_i].config = cfg
-	}
-}

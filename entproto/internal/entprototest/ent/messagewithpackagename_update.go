@@ -33,6 +33,14 @@ func (mwpnu *MessageWithPackageNameUpdate) SetName(s string) *MessageWithPackage
 	return mwpnu
 }
 
+// SetNillableName sets the "name" field if the given value is not nil.
+func (mwpnu *MessageWithPackageNameUpdate) SetNillableName(s *string) *MessageWithPackageNameUpdate {
+	if s != nil {
+		mwpnu.SetName(*s)
+	}
+	return mwpnu
+}
+
 // Mutation returns the MessageWithPackageNameMutation object of the builder.
 func (mwpnu *MessageWithPackageNameUpdate) Mutation() *MessageWithPackageNameMutation {
 	return mwpnu.mutation
@@ -40,7 +48,7 @@ func (mwpnu *MessageWithPackageNameUpdate) Mutation() *MessageWithPackageNameMut
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (mwpnu *MessageWithPackageNameUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks[int, MessageWithPackageNameMutation](ctx, mwpnu.sqlSave, mwpnu.mutation, mwpnu.hooks)
+	return withHooks(ctx, mwpnu.sqlSave, mwpnu.mutation, mwpnu.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -66,16 +74,7 @@ func (mwpnu *MessageWithPackageNameUpdate) ExecX(ctx context.Context) {
 }
 
 func (mwpnu *MessageWithPackageNameUpdate) sqlSave(ctx context.Context) (n int, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   messagewithpackagename.Table,
-			Columns: messagewithpackagename.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: messagewithpackagename.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(messagewithpackagename.Table, messagewithpackagename.Columns, sqlgraph.NewFieldSpec(messagewithpackagename.FieldID, field.TypeInt))
 	if ps := mwpnu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -112,9 +111,23 @@ func (mwpnuo *MessageWithPackageNameUpdateOne) SetName(s string) *MessageWithPac
 	return mwpnuo
 }
 
+// SetNillableName sets the "name" field if the given value is not nil.
+func (mwpnuo *MessageWithPackageNameUpdateOne) SetNillableName(s *string) *MessageWithPackageNameUpdateOne {
+	if s != nil {
+		mwpnuo.SetName(*s)
+	}
+	return mwpnuo
+}
+
 // Mutation returns the MessageWithPackageNameMutation object of the builder.
 func (mwpnuo *MessageWithPackageNameUpdateOne) Mutation() *MessageWithPackageNameMutation {
 	return mwpnuo.mutation
+}
+
+// Where appends a list predicates to the MessageWithPackageNameUpdate builder.
+func (mwpnuo *MessageWithPackageNameUpdateOne) Where(ps ...predicate.MessageWithPackageName) *MessageWithPackageNameUpdateOne {
+	mwpnuo.mutation.Where(ps...)
+	return mwpnuo
 }
 
 // Select allows selecting one or more fields (columns) of the returned entity.
@@ -126,7 +139,7 @@ func (mwpnuo *MessageWithPackageNameUpdateOne) Select(field string, fields ...st
 
 // Save executes the query and returns the updated MessageWithPackageName entity.
 func (mwpnuo *MessageWithPackageNameUpdateOne) Save(ctx context.Context) (*MessageWithPackageName, error) {
-	return withHooks[*MessageWithPackageName, MessageWithPackageNameMutation](ctx, mwpnuo.sqlSave, mwpnuo.mutation, mwpnuo.hooks)
+	return withHooks(ctx, mwpnuo.sqlSave, mwpnuo.mutation, mwpnuo.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -152,16 +165,7 @@ func (mwpnuo *MessageWithPackageNameUpdateOne) ExecX(ctx context.Context) {
 }
 
 func (mwpnuo *MessageWithPackageNameUpdateOne) sqlSave(ctx context.Context) (_node *MessageWithPackageName, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   messagewithpackagename.Table,
-			Columns: messagewithpackagename.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: messagewithpackagename.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(messagewithpackagename.Table, messagewithpackagename.Columns, sqlgraph.NewFieldSpec(messagewithpackagename.FieldID, field.TypeInt))
 	id, ok := mwpnuo.mutation.ID()
 	if !ok {
 		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "MessageWithPackageName.id" for update`)}

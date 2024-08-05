@@ -25,7 +25,7 @@ func (ismc *ImplicitSkippedMessageCreate) Mutation() *ImplicitSkippedMessageMuta
 
 // Save creates the ImplicitSkippedMessage in the database.
 func (ismc *ImplicitSkippedMessageCreate) Save(ctx context.Context) (*ImplicitSkippedMessage, error) {
-	return withHooks[*ImplicitSkippedMessage, ImplicitSkippedMessageMutation](ctx, ismc.sqlSave, ismc.mutation, ismc.hooks)
+	return withHooks(ctx, ismc.sqlSave, ismc.mutation, ismc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -76,13 +76,7 @@ func (ismc *ImplicitSkippedMessageCreate) sqlSave(ctx context.Context) (*Implici
 func (ismc *ImplicitSkippedMessageCreate) createSpec() (*ImplicitSkippedMessage, *sqlgraph.CreateSpec) {
 	var (
 		_node = &ImplicitSkippedMessage{config: ismc.config}
-		_spec = &sqlgraph.CreateSpec{
-			Table: implicitskippedmessage.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: implicitskippedmessage.FieldID,
-			},
-		}
+		_spec = sqlgraph.NewCreateSpec(implicitskippedmessage.Table, sqlgraph.NewFieldSpec(implicitskippedmessage.FieldID, field.TypeInt))
 	)
 	return _node, _spec
 }
@@ -90,11 +84,15 @@ func (ismc *ImplicitSkippedMessageCreate) createSpec() (*ImplicitSkippedMessage,
 // ImplicitSkippedMessageCreateBulk is the builder for creating many ImplicitSkippedMessage entities in bulk.
 type ImplicitSkippedMessageCreateBulk struct {
 	config
+	err      error
 	builders []*ImplicitSkippedMessageCreate
 }
 
 // Save creates the ImplicitSkippedMessage entities in the database.
 func (ismcb *ImplicitSkippedMessageCreateBulk) Save(ctx context.Context) ([]*ImplicitSkippedMessage, error) {
+	if ismcb.err != nil {
+		return nil, ismcb.err
+	}
 	specs := make([]*sqlgraph.CreateSpec, len(ismcb.builders))
 	nodes := make([]*ImplicitSkippedMessage, len(ismcb.builders))
 	mutators := make([]Mutator, len(ismcb.builders))
@@ -110,8 +108,8 @@ func (ismcb *ImplicitSkippedMessageCreateBulk) Save(ctx context.Context) ([]*Imp
 					return nil, err
 				}
 				builder.mutation = mutation
-				nodes[i], specs[i] = builder.createSpec()
 				var err error
+				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, ismcb.builders[i+1].mutation)
 				} else {

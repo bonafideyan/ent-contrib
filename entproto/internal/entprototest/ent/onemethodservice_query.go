@@ -9,6 +9,7 @@ import (
 
 	"entgo.io/contrib/entproto/internal/entprototest/ent/onemethodservice"
 	"entgo.io/contrib/entproto/internal/entprototest/ent/predicate"
+	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
@@ -18,7 +19,7 @@ import (
 type OneMethodServiceQuery struct {
 	config
 	ctx        *QueryContext
-	order      []OrderFunc
+	order      []onemethodservice.OrderOption
 	inters     []Interceptor
 	predicates []predicate.OneMethodService
 	// intermediate query (i.e. traversal path).
@@ -52,7 +53,7 @@ func (omsq *OneMethodServiceQuery) Unique(unique bool) *OneMethodServiceQuery {
 }
 
 // Order specifies how the records should be ordered.
-func (omsq *OneMethodServiceQuery) Order(o ...OrderFunc) *OneMethodServiceQuery {
+func (omsq *OneMethodServiceQuery) Order(o ...onemethodservice.OrderOption) *OneMethodServiceQuery {
 	omsq.order = append(omsq.order, o...)
 	return omsq
 }
@@ -60,7 +61,7 @@ func (omsq *OneMethodServiceQuery) Order(o ...OrderFunc) *OneMethodServiceQuery 
 // First returns the first OneMethodService entity from the query.
 // Returns a *NotFoundError when no OneMethodService was found.
 func (omsq *OneMethodServiceQuery) First(ctx context.Context) (*OneMethodService, error) {
-	nodes, err := omsq.Limit(1).All(setContextOp(ctx, omsq.ctx, "First"))
+	nodes, err := omsq.Limit(1).All(setContextOp(ctx, omsq.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +84,7 @@ func (omsq *OneMethodServiceQuery) FirstX(ctx context.Context) *OneMethodService
 // Returns a *NotFoundError when no OneMethodService ID was found.
 func (omsq *OneMethodServiceQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = omsq.Limit(1).IDs(setContextOp(ctx, omsq.ctx, "FirstID")); err != nil {
+	if ids, err = omsq.Limit(1).IDs(setContextOp(ctx, omsq.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -106,7 +107,7 @@ func (omsq *OneMethodServiceQuery) FirstIDX(ctx context.Context) int {
 // Returns a *NotSingularError when more than one OneMethodService entity is found.
 // Returns a *NotFoundError when no OneMethodService entities are found.
 func (omsq *OneMethodServiceQuery) Only(ctx context.Context) (*OneMethodService, error) {
-	nodes, err := omsq.Limit(2).All(setContextOp(ctx, omsq.ctx, "Only"))
+	nodes, err := omsq.Limit(2).All(setContextOp(ctx, omsq.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +135,7 @@ func (omsq *OneMethodServiceQuery) OnlyX(ctx context.Context) *OneMethodService 
 // Returns a *NotFoundError when no entities are found.
 func (omsq *OneMethodServiceQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = omsq.Limit(2).IDs(setContextOp(ctx, omsq.ctx, "OnlyID")); err != nil {
+	if ids, err = omsq.Limit(2).IDs(setContextOp(ctx, omsq.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -159,7 +160,7 @@ func (omsq *OneMethodServiceQuery) OnlyIDX(ctx context.Context) int {
 
 // All executes the query and returns a list of OneMethodServices.
 func (omsq *OneMethodServiceQuery) All(ctx context.Context) ([]*OneMethodService, error) {
-	ctx = setContextOp(ctx, omsq.ctx, "All")
+	ctx = setContextOp(ctx, omsq.ctx, ent.OpQueryAll)
 	if err := omsq.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
@@ -177,10 +178,12 @@ func (omsq *OneMethodServiceQuery) AllX(ctx context.Context) []*OneMethodService
 }
 
 // IDs executes the query and returns a list of OneMethodService IDs.
-func (omsq *OneMethodServiceQuery) IDs(ctx context.Context) ([]int, error) {
-	var ids []int
-	ctx = setContextOp(ctx, omsq.ctx, "IDs")
-	if err := omsq.Select(onemethodservice.FieldID).Scan(ctx, &ids); err != nil {
+func (omsq *OneMethodServiceQuery) IDs(ctx context.Context) (ids []int, err error) {
+	if omsq.ctx.Unique == nil && omsq.path != nil {
+		omsq.Unique(true)
+	}
+	ctx = setContextOp(ctx, omsq.ctx, ent.OpQueryIDs)
+	if err = omsq.Select(onemethodservice.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -197,7 +200,7 @@ func (omsq *OneMethodServiceQuery) IDsX(ctx context.Context) []int {
 
 // Count returns the count of the given query.
 func (omsq *OneMethodServiceQuery) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, omsq.ctx, "Count")
+	ctx = setContextOp(ctx, omsq.ctx, ent.OpQueryCount)
 	if err := omsq.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
@@ -215,7 +218,7 @@ func (omsq *OneMethodServiceQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (omsq *OneMethodServiceQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, omsq.ctx, "Exist")
+	ctx = setContextOp(ctx, omsq.ctx, ent.OpQueryExist)
 	switch _, err := omsq.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -244,7 +247,7 @@ func (omsq *OneMethodServiceQuery) Clone() *OneMethodServiceQuery {
 	return &OneMethodServiceQuery{
 		config:     omsq.config,
 		ctx:        omsq.ctx.Clone(),
-		order:      append([]OrderFunc{}, omsq.order...),
+		order:      append([]onemethodservice.OrderOption{}, omsq.order...),
 		inters:     append([]Interceptor{}, omsq.inters...),
 		predicates: append([]predicate.OneMethodService{}, omsq.predicates...),
 		// clone intermediate query.
@@ -340,20 +343,12 @@ func (omsq *OneMethodServiceQuery) sqlCount(ctx context.Context) (int, error) {
 }
 
 func (omsq *OneMethodServiceQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := &sqlgraph.QuerySpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   onemethodservice.Table,
-			Columns: onemethodservice.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: onemethodservice.FieldID,
-			},
-		},
-		From:   omsq.sql,
-		Unique: true,
-	}
+	_spec := sqlgraph.NewQuerySpec(onemethodservice.Table, onemethodservice.Columns, sqlgraph.NewFieldSpec(onemethodservice.FieldID, field.TypeInt))
+	_spec.From = omsq.sql
 	if unique := omsq.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
+	} else if omsq.path != nil {
+		_spec.Unique = true
 	}
 	if fields := omsq.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
@@ -433,7 +428,7 @@ func (omsgb *OneMethodServiceGroupBy) Aggregate(fns ...AggregateFunc) *OneMethod
 
 // Scan applies the selector query and scans the result into the given value.
 func (omsgb *OneMethodServiceGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, omsgb.build.ctx, "GroupBy")
+	ctx = setContextOp(ctx, omsgb.build.ctx, ent.OpQueryGroupBy)
 	if err := omsgb.build.prepareQuery(ctx); err != nil {
 		return err
 	}
@@ -481,7 +476,7 @@ func (omss *OneMethodServiceSelect) Aggregate(fns ...AggregateFunc) *OneMethodSe
 
 // Scan applies the selector query and scans the result into the given value.
 func (omss *OneMethodServiceSelect) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, omss.ctx, "Select")
+	ctx = setContextOp(ctx, omss.ctx, ent.OpQuerySelect)
 	if err := omss.prepareQuery(ctx); err != nil {
 		return err
 	}

@@ -9,6 +9,7 @@ import (
 
 	"entgo.io/contrib/entproto/internal/todo/ent/nilexample"
 	"entgo.io/contrib/entproto/internal/todo/ent/predicate"
+	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
@@ -18,7 +19,7 @@ import (
 type NilExampleQuery struct {
 	config
 	ctx        *QueryContext
-	order      []OrderFunc
+	order      []nilexample.OrderOption
 	inters     []Interceptor
 	predicates []predicate.NilExample
 	// intermediate query (i.e. traversal path).
@@ -52,7 +53,7 @@ func (neq *NilExampleQuery) Unique(unique bool) *NilExampleQuery {
 }
 
 // Order specifies how the records should be ordered.
-func (neq *NilExampleQuery) Order(o ...OrderFunc) *NilExampleQuery {
+func (neq *NilExampleQuery) Order(o ...nilexample.OrderOption) *NilExampleQuery {
 	neq.order = append(neq.order, o...)
 	return neq
 }
@@ -60,7 +61,7 @@ func (neq *NilExampleQuery) Order(o ...OrderFunc) *NilExampleQuery {
 // First returns the first NilExample entity from the query.
 // Returns a *NotFoundError when no NilExample was found.
 func (neq *NilExampleQuery) First(ctx context.Context) (*NilExample, error) {
-	nodes, err := neq.Limit(1).All(setContextOp(ctx, neq.ctx, "First"))
+	nodes, err := neq.Limit(1).All(setContextOp(ctx, neq.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +84,7 @@ func (neq *NilExampleQuery) FirstX(ctx context.Context) *NilExample {
 // Returns a *NotFoundError when no NilExample ID was found.
 func (neq *NilExampleQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = neq.Limit(1).IDs(setContextOp(ctx, neq.ctx, "FirstID")); err != nil {
+	if ids, err = neq.Limit(1).IDs(setContextOp(ctx, neq.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -106,7 +107,7 @@ func (neq *NilExampleQuery) FirstIDX(ctx context.Context) int {
 // Returns a *NotSingularError when more than one NilExample entity is found.
 // Returns a *NotFoundError when no NilExample entities are found.
 func (neq *NilExampleQuery) Only(ctx context.Context) (*NilExample, error) {
-	nodes, err := neq.Limit(2).All(setContextOp(ctx, neq.ctx, "Only"))
+	nodes, err := neq.Limit(2).All(setContextOp(ctx, neq.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +135,7 @@ func (neq *NilExampleQuery) OnlyX(ctx context.Context) *NilExample {
 // Returns a *NotFoundError when no entities are found.
 func (neq *NilExampleQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = neq.Limit(2).IDs(setContextOp(ctx, neq.ctx, "OnlyID")); err != nil {
+	if ids, err = neq.Limit(2).IDs(setContextOp(ctx, neq.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -159,7 +160,7 @@ func (neq *NilExampleQuery) OnlyIDX(ctx context.Context) int {
 
 // All executes the query and returns a list of NilExamples.
 func (neq *NilExampleQuery) All(ctx context.Context) ([]*NilExample, error) {
-	ctx = setContextOp(ctx, neq.ctx, "All")
+	ctx = setContextOp(ctx, neq.ctx, ent.OpQueryAll)
 	if err := neq.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
@@ -177,10 +178,12 @@ func (neq *NilExampleQuery) AllX(ctx context.Context) []*NilExample {
 }
 
 // IDs executes the query and returns a list of NilExample IDs.
-func (neq *NilExampleQuery) IDs(ctx context.Context) ([]int, error) {
-	var ids []int
-	ctx = setContextOp(ctx, neq.ctx, "IDs")
-	if err := neq.Select(nilexample.FieldID).Scan(ctx, &ids); err != nil {
+func (neq *NilExampleQuery) IDs(ctx context.Context) (ids []int, err error) {
+	if neq.ctx.Unique == nil && neq.path != nil {
+		neq.Unique(true)
+	}
+	ctx = setContextOp(ctx, neq.ctx, ent.OpQueryIDs)
+	if err = neq.Select(nilexample.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -197,7 +200,7 @@ func (neq *NilExampleQuery) IDsX(ctx context.Context) []int {
 
 // Count returns the count of the given query.
 func (neq *NilExampleQuery) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, neq.ctx, "Count")
+	ctx = setContextOp(ctx, neq.ctx, ent.OpQueryCount)
 	if err := neq.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
@@ -215,7 +218,7 @@ func (neq *NilExampleQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (neq *NilExampleQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, neq.ctx, "Exist")
+	ctx = setContextOp(ctx, neq.ctx, ent.OpQueryExist)
 	switch _, err := neq.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -244,7 +247,7 @@ func (neq *NilExampleQuery) Clone() *NilExampleQuery {
 	return &NilExampleQuery{
 		config:     neq.config,
 		ctx:        neq.ctx.Clone(),
-		order:      append([]OrderFunc{}, neq.order...),
+		order:      append([]nilexample.OrderOption{}, neq.order...),
 		inters:     append([]Interceptor{}, neq.inters...),
 		predicates: append([]predicate.NilExample{}, neq.predicates...),
 		// clone intermediate query.
@@ -362,20 +365,12 @@ func (neq *NilExampleQuery) sqlCount(ctx context.Context) (int, error) {
 }
 
 func (neq *NilExampleQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := &sqlgraph.QuerySpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   nilexample.Table,
-			Columns: nilexample.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: nilexample.FieldID,
-			},
-		},
-		From:   neq.sql,
-		Unique: true,
-	}
+	_spec := sqlgraph.NewQuerySpec(nilexample.Table, nilexample.Columns, sqlgraph.NewFieldSpec(nilexample.FieldID, field.TypeInt))
+	_spec.From = neq.sql
 	if unique := neq.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
+	} else if neq.path != nil {
+		_spec.Unique = true
 	}
 	if fields := neq.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
@@ -455,7 +450,7 @@ func (negb *NilExampleGroupBy) Aggregate(fns ...AggregateFunc) *NilExampleGroupB
 
 // Scan applies the selector query and scans the result into the given value.
 func (negb *NilExampleGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, negb.build.ctx, "GroupBy")
+	ctx = setContextOp(ctx, negb.build.ctx, ent.OpQueryGroupBy)
 	if err := negb.build.prepareQuery(ctx); err != nil {
 		return err
 	}
@@ -503,7 +498,7 @@ func (nes *NilExampleSelect) Aggregate(fns ...AggregateFunc) *NilExampleSelect {
 
 // Scan applies the selector query and scans the result into the given value.
 func (nes *NilExampleSelect) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, nes.ctx, "Select")
+	ctx = setContextOp(ctx, nes.ctx, ent.OpQuerySelect)
 	if err := nes.prepareQuery(ctx); err != nil {
 		return err
 	}

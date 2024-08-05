@@ -9,6 +9,7 @@ import (
 
 	"entgo.io/contrib/entproto/internal/entprototest/ent/implicitskippedmessage"
 	"entgo.io/contrib/entproto/internal/entprototest/ent/predicate"
+	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
@@ -18,7 +19,7 @@ import (
 type ImplicitSkippedMessageQuery struct {
 	config
 	ctx        *QueryContext
-	order      []OrderFunc
+	order      []implicitskippedmessage.OrderOption
 	inters     []Interceptor
 	predicates []predicate.ImplicitSkippedMessage
 	withFKs    bool
@@ -53,7 +54,7 @@ func (ismq *ImplicitSkippedMessageQuery) Unique(unique bool) *ImplicitSkippedMes
 }
 
 // Order specifies how the records should be ordered.
-func (ismq *ImplicitSkippedMessageQuery) Order(o ...OrderFunc) *ImplicitSkippedMessageQuery {
+func (ismq *ImplicitSkippedMessageQuery) Order(o ...implicitskippedmessage.OrderOption) *ImplicitSkippedMessageQuery {
 	ismq.order = append(ismq.order, o...)
 	return ismq
 }
@@ -61,7 +62,7 @@ func (ismq *ImplicitSkippedMessageQuery) Order(o ...OrderFunc) *ImplicitSkippedM
 // First returns the first ImplicitSkippedMessage entity from the query.
 // Returns a *NotFoundError when no ImplicitSkippedMessage was found.
 func (ismq *ImplicitSkippedMessageQuery) First(ctx context.Context) (*ImplicitSkippedMessage, error) {
-	nodes, err := ismq.Limit(1).All(setContextOp(ctx, ismq.ctx, "First"))
+	nodes, err := ismq.Limit(1).All(setContextOp(ctx, ismq.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +85,7 @@ func (ismq *ImplicitSkippedMessageQuery) FirstX(ctx context.Context) *ImplicitSk
 // Returns a *NotFoundError when no ImplicitSkippedMessage ID was found.
 func (ismq *ImplicitSkippedMessageQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = ismq.Limit(1).IDs(setContextOp(ctx, ismq.ctx, "FirstID")); err != nil {
+	if ids, err = ismq.Limit(1).IDs(setContextOp(ctx, ismq.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -107,7 +108,7 @@ func (ismq *ImplicitSkippedMessageQuery) FirstIDX(ctx context.Context) int {
 // Returns a *NotSingularError when more than one ImplicitSkippedMessage entity is found.
 // Returns a *NotFoundError when no ImplicitSkippedMessage entities are found.
 func (ismq *ImplicitSkippedMessageQuery) Only(ctx context.Context) (*ImplicitSkippedMessage, error) {
-	nodes, err := ismq.Limit(2).All(setContextOp(ctx, ismq.ctx, "Only"))
+	nodes, err := ismq.Limit(2).All(setContextOp(ctx, ismq.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +136,7 @@ func (ismq *ImplicitSkippedMessageQuery) OnlyX(ctx context.Context) *ImplicitSki
 // Returns a *NotFoundError when no entities are found.
 func (ismq *ImplicitSkippedMessageQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = ismq.Limit(2).IDs(setContextOp(ctx, ismq.ctx, "OnlyID")); err != nil {
+	if ids, err = ismq.Limit(2).IDs(setContextOp(ctx, ismq.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -160,7 +161,7 @@ func (ismq *ImplicitSkippedMessageQuery) OnlyIDX(ctx context.Context) int {
 
 // All executes the query and returns a list of ImplicitSkippedMessages.
 func (ismq *ImplicitSkippedMessageQuery) All(ctx context.Context) ([]*ImplicitSkippedMessage, error) {
-	ctx = setContextOp(ctx, ismq.ctx, "All")
+	ctx = setContextOp(ctx, ismq.ctx, ent.OpQueryAll)
 	if err := ismq.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
@@ -178,10 +179,12 @@ func (ismq *ImplicitSkippedMessageQuery) AllX(ctx context.Context) []*ImplicitSk
 }
 
 // IDs executes the query and returns a list of ImplicitSkippedMessage IDs.
-func (ismq *ImplicitSkippedMessageQuery) IDs(ctx context.Context) ([]int, error) {
-	var ids []int
-	ctx = setContextOp(ctx, ismq.ctx, "IDs")
-	if err := ismq.Select(implicitskippedmessage.FieldID).Scan(ctx, &ids); err != nil {
+func (ismq *ImplicitSkippedMessageQuery) IDs(ctx context.Context) (ids []int, err error) {
+	if ismq.ctx.Unique == nil && ismq.path != nil {
+		ismq.Unique(true)
+	}
+	ctx = setContextOp(ctx, ismq.ctx, ent.OpQueryIDs)
+	if err = ismq.Select(implicitskippedmessage.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -198,7 +201,7 @@ func (ismq *ImplicitSkippedMessageQuery) IDsX(ctx context.Context) []int {
 
 // Count returns the count of the given query.
 func (ismq *ImplicitSkippedMessageQuery) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, ismq.ctx, "Count")
+	ctx = setContextOp(ctx, ismq.ctx, ent.OpQueryCount)
 	if err := ismq.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
@@ -216,7 +219,7 @@ func (ismq *ImplicitSkippedMessageQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (ismq *ImplicitSkippedMessageQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, ismq.ctx, "Exist")
+	ctx = setContextOp(ctx, ismq.ctx, ent.OpQueryExist)
 	switch _, err := ismq.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -245,7 +248,7 @@ func (ismq *ImplicitSkippedMessageQuery) Clone() *ImplicitSkippedMessageQuery {
 	return &ImplicitSkippedMessageQuery{
 		config:     ismq.config,
 		ctx:        ismq.ctx.Clone(),
-		order:      append([]OrderFunc{}, ismq.order...),
+		order:      append([]implicitskippedmessage.OrderOption{}, ismq.order...),
 		inters:     append([]Interceptor{}, ismq.inters...),
 		predicates: append([]predicate.ImplicitSkippedMessage{}, ismq.predicates...),
 		// clone intermediate query.
@@ -345,20 +348,12 @@ func (ismq *ImplicitSkippedMessageQuery) sqlCount(ctx context.Context) (int, err
 }
 
 func (ismq *ImplicitSkippedMessageQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := &sqlgraph.QuerySpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   implicitskippedmessage.Table,
-			Columns: implicitskippedmessage.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: implicitskippedmessage.FieldID,
-			},
-		},
-		From:   ismq.sql,
-		Unique: true,
-	}
+	_spec := sqlgraph.NewQuerySpec(implicitskippedmessage.Table, implicitskippedmessage.Columns, sqlgraph.NewFieldSpec(implicitskippedmessage.FieldID, field.TypeInt))
+	_spec.From = ismq.sql
 	if unique := ismq.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
+	} else if ismq.path != nil {
+		_spec.Unique = true
 	}
 	if fields := ismq.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
@@ -438,7 +433,7 @@ func (ismgb *ImplicitSkippedMessageGroupBy) Aggregate(fns ...AggregateFunc) *Imp
 
 // Scan applies the selector query and scans the result into the given value.
 func (ismgb *ImplicitSkippedMessageGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, ismgb.build.ctx, "GroupBy")
+	ctx = setContextOp(ctx, ismgb.build.ctx, ent.OpQueryGroupBy)
 	if err := ismgb.build.prepareQuery(ctx); err != nil {
 		return err
 	}
@@ -486,7 +481,7 @@ func (isms *ImplicitSkippedMessageSelect) Aggregate(fns ...AggregateFunc) *Impli
 
 // Scan applies the selector query and scans the result into the given value.
 func (isms *ImplicitSkippedMessageSelect) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, isms.ctx, "Select")
+	ctx = setContextOp(ctx, isms.ctx, ent.OpQuerySelect)
 	if err := isms.prepareQuery(ctx); err != nil {
 		return err
 	}

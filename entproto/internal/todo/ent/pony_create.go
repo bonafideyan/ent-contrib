@@ -32,7 +32,7 @@ func (pc *PonyCreate) Mutation() *PonyMutation {
 
 // Save creates the Pony in the database.
 func (pc *PonyCreate) Save(ctx context.Context) (*Pony, error) {
-	return withHooks[*Pony, PonyMutation](ctx, pc.sqlSave, pc.mutation, pc.hooks)
+	return withHooks(ctx, pc.sqlSave, pc.mutation, pc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -86,13 +86,7 @@ func (pc *PonyCreate) sqlSave(ctx context.Context) (*Pony, error) {
 func (pc *PonyCreate) createSpec() (*Pony, *sqlgraph.CreateSpec) {
 	var (
 		_node = &Pony{config: pc.config}
-		_spec = &sqlgraph.CreateSpec{
-			Table: pony.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: pony.FieldID,
-			},
-		}
+		_spec = sqlgraph.NewCreateSpec(pony.Table, sqlgraph.NewFieldSpec(pony.FieldID, field.TypeInt))
 	)
 	if value, ok := pc.mutation.Name(); ok {
 		_spec.SetField(pony.FieldName, field.TypeString, value)
@@ -104,11 +98,15 @@ func (pc *PonyCreate) createSpec() (*Pony, *sqlgraph.CreateSpec) {
 // PonyCreateBulk is the builder for creating many Pony entities in bulk.
 type PonyCreateBulk struct {
 	config
+	err      error
 	builders []*PonyCreate
 }
 
 // Save creates the Pony entities in the database.
 func (pcb *PonyCreateBulk) Save(ctx context.Context) ([]*Pony, error) {
+	if pcb.err != nil {
+		return nil, pcb.err
+	}
 	specs := make([]*sqlgraph.CreateSpec, len(pcb.builders))
 	nodes := make([]*Pony, len(pcb.builders))
 	mutators := make([]Mutator, len(pcb.builders))
@@ -124,8 +122,8 @@ func (pcb *PonyCreateBulk) Save(ctx context.Context) ([]*Pony, error) {
 					return nil, err
 				}
 				builder.mutation = mutation
-				nodes[i], specs[i] = builder.createSpec()
 				var err error
+				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, pcb.builders[i+1].mutation)
 				} else {

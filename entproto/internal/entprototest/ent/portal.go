@@ -8,6 +8,7 @@ import (
 
 	"entgo.io/contrib/entproto/internal/entprototest/ent/category"
 	"entgo.io/contrib/entproto/internal/entprototest/ent/portal"
+	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 )
 
@@ -24,6 +25,7 @@ type Portal struct {
 	// The values are being populated by the PortalQuery when eager-loading is set.
 	Edges           PortalEdges `json:"edges"`
 	portal_category *int
+	selectValues    sql.SelectValues
 }
 
 // PortalEdges holds the relations/edges for other nodes in the graph.
@@ -38,12 +40,10 @@ type PortalEdges struct {
 // CategoryOrErr returns the Category value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
 func (e PortalEdges) CategoryOrErr() (*Category, error) {
-	if e.loadedTypes[0] {
-		if e.Category == nil {
-			// Edge was loaded but was not found.
-			return nil, &NotFoundError{label: category.Label}
-		}
+	if e.Category != nil {
 		return e.Category, nil
+	} else if e.loadedTypes[0] {
+		return nil, &NotFoundError{label: category.Label}
 	}
 	return nil, &NotLoadedError{edge: "category"}
 }
@@ -60,7 +60,7 @@ func (*Portal) scanValues(columns []string) ([]any, error) {
 		case portal.ForeignKeys[0]: // portal_category
 			values[i] = new(sql.NullInt64)
 		default:
-			return nil, fmt.Errorf("unexpected column %q for type Portal", columns[i])
+			values[i] = new(sql.UnknownType)
 		}
 	}
 	return values, nil
@@ -99,9 +99,17 @@ func (po *Portal) assignValues(columns []string, values []any) error {
 				po.portal_category = new(int)
 				*po.portal_category = int(value.Int64)
 			}
+		default:
+			po.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
+}
+
+// Value returns the ent.Value that was dynamically selected and assigned to the Portal.
+// This includes values selected through modifiers, order, etc.
+func (po *Portal) Value(name string) (ent.Value, error) {
+	return po.selectValues.Get(name)
 }
 
 // QueryCategory queries the "category" edge of the Portal entity.
@@ -143,9 +151,3 @@ func (po *Portal) String() string {
 
 // Portals is a parsable slice of Portal.
 type Portals []*Portal
-
-func (po Portals) config(cfg config) {
-	for _i := range po {
-		po[_i].config = cfg
-	}
-}

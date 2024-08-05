@@ -8,6 +8,7 @@ import (
 
 	"entgo.io/contrib/entproto/internal/todo/ent/todo"
 	"entgo.io/contrib/entproto/internal/todo/ent/user"
+	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 )
 
@@ -22,8 +23,9 @@ type Todo struct {
 	Status todo.Status `json:"status,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the TodoQuery when eager-loading is set.
-	Edges     TodoEdges `json:"edges"`
-	todo_user *uint32
+	Edges        TodoEdges `json:"edges"`
+	todo_user    *uint32
+	selectValues sql.SelectValues
 }
 
 // TodoEdges holds the relations/edges for other nodes in the graph.
@@ -38,12 +40,10 @@ type TodoEdges struct {
 // UserOrErr returns the User value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
 func (e TodoEdges) UserOrErr() (*User, error) {
-	if e.loadedTypes[0] {
-		if e.User == nil {
-			// Edge was loaded but was not found.
-			return nil, &NotFoundError{label: user.Label}
-		}
+	if e.User != nil {
 		return e.User, nil
+	} else if e.loadedTypes[0] {
+		return nil, &NotFoundError{label: user.Label}
 	}
 	return nil, &NotLoadedError{edge: "user"}
 }
@@ -60,7 +60,7 @@ func (*Todo) scanValues(columns []string) ([]any, error) {
 		case todo.ForeignKeys[0]: // todo_user
 			values[i] = new(sql.NullInt64)
 		default:
-			return nil, fmt.Errorf("unexpected column %q for type Todo", columns[i])
+			values[i] = new(sql.UnknownType)
 		}
 	}
 	return values, nil
@@ -99,9 +99,17 @@ func (t *Todo) assignValues(columns []string, values []any) error {
 				t.todo_user = new(uint32)
 				*t.todo_user = uint32(value.Int64)
 			}
+		default:
+			t.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
+}
+
+// Value returns the ent.Value that was dynamically selected and assigned to the Todo.
+// This includes values selected through modifiers, order, etc.
+func (t *Todo) Value(name string) (ent.Value, error) {
+	return t.selectValues.Get(name)
 }
 
 // QueryUser queries the "user" edge of the Todo entity.
@@ -143,9 +151,3 @@ func (t *Todo) String() string {
 
 // Todos is a parsable slice of Todo.
 type Todos []*Todo
-
-func (t Todos) config(cfg config) {
-	for _i := range t {
-		t[_i].config = cfg
-	}
-}

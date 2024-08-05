@@ -66,6 +66,16 @@ func IDLTE(id string) predicate.BillProduct {
 	return predicate.BillProduct(sql.FieldLTE(FieldID, id))
 }
 
+// IDEqualFold applies the EqualFold predicate on the ID field.
+func IDEqualFold(id string) predicate.BillProduct {
+	return predicate.BillProduct(sql.FieldEqualFold(FieldID, id))
+}
+
+// IDContainsFold applies the ContainsFold predicate on the ID field.
+func IDContainsFold(id string) predicate.BillProduct {
+	return predicate.BillProduct(sql.FieldContainsFold(FieldID, id))
+}
+
 // Name applies equality check predicate on the "name" field. It's identical to NameEQ.
 func Name(v string) predicate.BillProduct {
 	return predicate.BillProduct(sql.FieldEQ(FieldName, v))
@@ -253,32 +263,15 @@ func QuantityLTE(v uint64) predicate.BillProduct {
 
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.BillProduct) predicate.BillProduct {
-	return predicate.BillProduct(func(s *sql.Selector) {
-		s1 := s.Clone().SetP(nil)
-		for _, p := range predicates {
-			p(s1)
-		}
-		s.Where(s1.P())
-	})
+	return predicate.BillProduct(sql.AndPredicates(predicates...))
 }
 
 // Or groups predicates with the OR operator between them.
 func Or(predicates ...predicate.BillProduct) predicate.BillProduct {
-	return predicate.BillProduct(func(s *sql.Selector) {
-		s1 := s.Clone().SetP(nil)
-		for i, p := range predicates {
-			if i > 0 {
-				s1.Or()
-			}
-			p(s1)
-		}
-		s.Where(s1.P())
-	})
+	return predicate.BillProduct(sql.OrPredicates(predicates...))
 }
 
 // Not applies the not operator on the given predicate.
 func Not(p predicate.BillProduct) predicate.BillProduct {
-	return predicate.BillProduct(func(s *sql.Selector) {
-		p(s.Not())
-	})
+	return predicate.BillProduct(sql.NotPredicates(p))
 }

@@ -137,11 +137,7 @@ func HasOwner() predicate.WithModifiedField {
 // HasOwnerWith applies the HasEdge predicate on the "owner" edge with a given conditions (other predicates).
 func HasOwnerWith(preds ...predicate.User) predicate.WithModifiedField {
 	return predicate.WithModifiedField(func(s *sql.Selector) {
-		step := sqlgraph.NewStep(
-			sqlgraph.From(Table, FieldID),
-			sqlgraph.To(OwnerInverseTable, FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, OwnerTable, OwnerColumn),
-		)
+		step := newOwnerStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)
@@ -152,32 +148,15 @@ func HasOwnerWith(preds ...predicate.User) predicate.WithModifiedField {
 
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.WithModifiedField) predicate.WithModifiedField {
-	return predicate.WithModifiedField(func(s *sql.Selector) {
-		s1 := s.Clone().SetP(nil)
-		for _, p := range predicates {
-			p(s1)
-		}
-		s.Where(s1.P())
-	})
+	return predicate.WithModifiedField(sql.AndPredicates(predicates...))
 }
 
 // Or groups predicates with the OR operator between them.
 func Or(predicates ...predicate.WithModifiedField) predicate.WithModifiedField {
-	return predicate.WithModifiedField(func(s *sql.Selector) {
-		s1 := s.Clone().SetP(nil)
-		for i, p := range predicates {
-			if i > 0 {
-				s1.Or()
-			}
-			p(s1)
-		}
-		s.Where(s1.P())
-	})
+	return predicate.WithModifiedField(sql.OrPredicates(predicates...))
 }
 
 // Not applies the not operator on the given predicate.
 func Not(p predicate.WithModifiedField) predicate.WithModifiedField {
-	return predicate.WithModifiedField(func(s *sql.Selector) {
-		p(s.Not())
-	})
+	return predicate.WithModifiedField(sql.NotPredicates(p))
 }

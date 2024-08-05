@@ -34,7 +34,7 @@ func (wfu *WithoutFieldsUpdate) Mutation() *WithoutFieldsMutation {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (wfu *WithoutFieldsUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks[int, WithoutFieldsMutation](ctx, wfu.sqlSave, wfu.mutation, wfu.hooks)
+	return withHooks(ctx, wfu.sqlSave, wfu.mutation, wfu.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -60,16 +60,7 @@ func (wfu *WithoutFieldsUpdate) ExecX(ctx context.Context) {
 }
 
 func (wfu *WithoutFieldsUpdate) sqlSave(ctx context.Context) (n int, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   withoutfields.Table,
-			Columns: withoutfields.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: withoutfields.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(withoutfields.Table, withoutfields.Columns, sqlgraph.NewFieldSpec(withoutfields.FieldID, field.TypeInt))
 	if ps := wfu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -102,6 +93,12 @@ func (wfuo *WithoutFieldsUpdateOne) Mutation() *WithoutFieldsMutation {
 	return wfuo.mutation
 }
 
+// Where appends a list predicates to the WithoutFieldsUpdate builder.
+func (wfuo *WithoutFieldsUpdateOne) Where(ps ...predicate.WithoutFields) *WithoutFieldsUpdateOne {
+	wfuo.mutation.Where(ps...)
+	return wfuo
+}
+
 // Select allows selecting one or more fields (columns) of the returned entity.
 // The default is selecting all fields defined in the entity schema.
 func (wfuo *WithoutFieldsUpdateOne) Select(field string, fields ...string) *WithoutFieldsUpdateOne {
@@ -111,7 +108,7 @@ func (wfuo *WithoutFieldsUpdateOne) Select(field string, fields ...string) *With
 
 // Save executes the query and returns the updated WithoutFields entity.
 func (wfuo *WithoutFieldsUpdateOne) Save(ctx context.Context) (*WithoutFields, error) {
-	return withHooks[*WithoutFields, WithoutFieldsMutation](ctx, wfuo.sqlSave, wfuo.mutation, wfuo.hooks)
+	return withHooks(ctx, wfuo.sqlSave, wfuo.mutation, wfuo.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -137,16 +134,7 @@ func (wfuo *WithoutFieldsUpdateOne) ExecX(ctx context.Context) {
 }
 
 func (wfuo *WithoutFieldsUpdateOne) sqlSave(ctx context.Context) (_node *WithoutFields, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   withoutfields.Table,
-			Columns: withoutfields.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: withoutfields.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(withoutfields.Table, withoutfields.Columns, sqlgraph.NewFieldSpec(withoutfields.FieldID, field.TypeInt))
 	id, ok := wfuo.mutation.ID()
 	if !ok {
 		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "WithoutFields.id" for update`)}

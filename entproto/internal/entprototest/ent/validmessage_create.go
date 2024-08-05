@@ -66,7 +66,7 @@ func (vmc *ValidMessageCreate) Mutation() *ValidMessageMutation {
 
 // Save creates the ValidMessage in the database.
 func (vmc *ValidMessageCreate) Save(ctx context.Context) (*ValidMessage, error) {
-	return withHooks[*ValidMessage, ValidMessageMutation](ctx, vmc.sqlSave, vmc.mutation, vmc.hooks)
+	return withHooks(ctx, vmc.sqlSave, vmc.mutation, vmc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -129,13 +129,7 @@ func (vmc *ValidMessageCreate) sqlSave(ctx context.Context) (*ValidMessage, erro
 func (vmc *ValidMessageCreate) createSpec() (*ValidMessage, *sqlgraph.CreateSpec) {
 	var (
 		_node = &ValidMessage{config: vmc.config}
-		_spec = &sqlgraph.CreateSpec{
-			Table: validmessage.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: validmessage.FieldID,
-			},
-		}
+		_spec = sqlgraph.NewCreateSpec(validmessage.Table, sqlgraph.NewFieldSpec(validmessage.FieldID, field.TypeInt))
 	)
 	if value, ok := vmc.mutation.Name(); ok {
 		_spec.SetField(validmessage.FieldName, field.TypeString, value)
@@ -163,11 +157,15 @@ func (vmc *ValidMessageCreate) createSpec() (*ValidMessage, *sqlgraph.CreateSpec
 // ValidMessageCreateBulk is the builder for creating many ValidMessage entities in bulk.
 type ValidMessageCreateBulk struct {
 	config
+	err      error
 	builders []*ValidMessageCreate
 }
 
 // Save creates the ValidMessage entities in the database.
 func (vmcb *ValidMessageCreateBulk) Save(ctx context.Context) ([]*ValidMessage, error) {
+	if vmcb.err != nil {
+		return nil, vmcb.err
+	}
 	specs := make([]*sqlgraph.CreateSpec, len(vmcb.builders))
 	nodes := make([]*ValidMessage, len(vmcb.builders))
 	mutators := make([]Mutator, len(vmcb.builders))
@@ -183,8 +181,8 @@ func (vmcb *ValidMessageCreateBulk) Save(ctx context.Context) ([]*ValidMessage, 
 					return nil, err
 				}
 				builder.mutation = mutation
-				nodes[i], specs[i] = builder.createSpec()
 				var err error
+				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, vmcb.builders[i+1].mutation)
 				} else {

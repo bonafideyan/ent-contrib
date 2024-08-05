@@ -32,7 +32,7 @@ func (wfc *WithFieldsCreate) Mutation() *WithFieldsMutation {
 
 // Save creates the WithFields in the database.
 func (wfc *WithFieldsCreate) Save(ctx context.Context) (*WithFields, error) {
-	return withHooks[*WithFields, WithFieldsMutation](ctx, wfc.sqlSave, wfc.mutation, wfc.hooks)
+	return withHooks(ctx, wfc.sqlSave, wfc.mutation, wfc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -86,13 +86,7 @@ func (wfc *WithFieldsCreate) sqlSave(ctx context.Context) (*WithFields, error) {
 func (wfc *WithFieldsCreate) createSpec() (*WithFields, *sqlgraph.CreateSpec) {
 	var (
 		_node = &WithFields{config: wfc.config}
-		_spec = &sqlgraph.CreateSpec{
-			Table: withfields.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: withfields.FieldID,
-			},
-		}
+		_spec = sqlgraph.NewCreateSpec(withfields.Table, sqlgraph.NewFieldSpec(withfields.FieldID, field.TypeInt))
 	)
 	if value, ok := wfc.mutation.Existing(); ok {
 		_spec.SetField(withfields.FieldExisting, field.TypeString, value)
@@ -104,11 +98,15 @@ func (wfc *WithFieldsCreate) createSpec() (*WithFields, *sqlgraph.CreateSpec) {
 // WithFieldsCreateBulk is the builder for creating many WithFields entities in bulk.
 type WithFieldsCreateBulk struct {
 	config
+	err      error
 	builders []*WithFieldsCreate
 }
 
 // Save creates the WithFields entities in the database.
 func (wfcb *WithFieldsCreateBulk) Save(ctx context.Context) ([]*WithFields, error) {
+	if wfcb.err != nil {
+		return nil, wfcb.err
+	}
 	specs := make([]*sqlgraph.CreateSpec, len(wfcb.builders))
 	nodes := make([]*WithFields, len(wfcb.builders))
 	mutators := make([]Mutator, len(wfcb.builders))
@@ -124,8 +122,8 @@ func (wfcb *WithFieldsCreateBulk) Save(ctx context.Context) ([]*WithFields, erro
 					return nil, err
 				}
 				builder.mutation = mutation
-				nodes[i], specs[i] = builder.createSpec()
 				var err error
+				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, wfcb.builders[i+1].mutation)
 				} else {

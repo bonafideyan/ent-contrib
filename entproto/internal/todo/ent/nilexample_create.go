@@ -54,7 +54,7 @@ func (nec *NilExampleCreate) Mutation() *NilExampleMutation {
 
 // Save creates the NilExample in the database.
 func (nec *NilExampleCreate) Save(ctx context.Context) (*NilExample, error) {
-	return withHooks[*NilExample, NilExampleMutation](ctx, nec.sqlSave, nec.mutation, nec.hooks)
+	return withHooks(ctx, nec.sqlSave, nec.mutation, nec.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -105,13 +105,7 @@ func (nec *NilExampleCreate) sqlSave(ctx context.Context) (*NilExample, error) {
 func (nec *NilExampleCreate) createSpec() (*NilExample, *sqlgraph.CreateSpec) {
 	var (
 		_node = &NilExample{config: nec.config}
-		_spec = &sqlgraph.CreateSpec{
-			Table: nilexample.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: nilexample.FieldID,
-			},
-		}
+		_spec = sqlgraph.NewCreateSpec(nilexample.Table, sqlgraph.NewFieldSpec(nilexample.FieldID, field.TypeInt))
 	)
 	if value, ok := nec.mutation.StrNil(); ok {
 		_spec.SetField(nilexample.FieldStrNil, field.TypeString, value)
@@ -127,11 +121,15 @@ func (nec *NilExampleCreate) createSpec() (*NilExample, *sqlgraph.CreateSpec) {
 // NilExampleCreateBulk is the builder for creating many NilExample entities in bulk.
 type NilExampleCreateBulk struct {
 	config
+	err      error
 	builders []*NilExampleCreate
 }
 
 // Save creates the NilExample entities in the database.
 func (necb *NilExampleCreateBulk) Save(ctx context.Context) ([]*NilExample, error) {
+	if necb.err != nil {
+		return nil, necb.err
+	}
 	specs := make([]*sqlgraph.CreateSpec, len(necb.builders))
 	nodes := make([]*NilExample, len(necb.builders))
 	mutators := make([]Mutator, len(necb.builders))
@@ -147,8 +145,8 @@ func (necb *NilExampleCreateBulk) Save(ctx context.Context) ([]*NilExample, erro
 					return nil, err
 				}
 				builder.mutation = mutation
-				nodes[i], specs[i] = builder.createSpec()
 				var err error
+				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, necb.builders[i+1].mutation)
 				} else {

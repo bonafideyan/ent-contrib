@@ -33,6 +33,14 @@ func (wfu *WithFieldsUpdate) SetExisting(s string) *WithFieldsUpdate {
 	return wfu
 }
 
+// SetNillableExisting sets the "existing" field if the given value is not nil.
+func (wfu *WithFieldsUpdate) SetNillableExisting(s *string) *WithFieldsUpdate {
+	if s != nil {
+		wfu.SetExisting(*s)
+	}
+	return wfu
+}
+
 // Mutation returns the WithFieldsMutation object of the builder.
 func (wfu *WithFieldsUpdate) Mutation() *WithFieldsMutation {
 	return wfu.mutation
@@ -40,7 +48,7 @@ func (wfu *WithFieldsUpdate) Mutation() *WithFieldsMutation {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (wfu *WithFieldsUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks[int, WithFieldsMutation](ctx, wfu.sqlSave, wfu.mutation, wfu.hooks)
+	return withHooks(ctx, wfu.sqlSave, wfu.mutation, wfu.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -66,16 +74,7 @@ func (wfu *WithFieldsUpdate) ExecX(ctx context.Context) {
 }
 
 func (wfu *WithFieldsUpdate) sqlSave(ctx context.Context) (n int, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   withfields.Table,
-			Columns: withfields.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: withfields.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(withfields.Table, withfields.Columns, sqlgraph.NewFieldSpec(withfields.FieldID, field.TypeInt))
 	if ps := wfu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -112,9 +111,23 @@ func (wfuo *WithFieldsUpdateOne) SetExisting(s string) *WithFieldsUpdateOne {
 	return wfuo
 }
 
+// SetNillableExisting sets the "existing" field if the given value is not nil.
+func (wfuo *WithFieldsUpdateOne) SetNillableExisting(s *string) *WithFieldsUpdateOne {
+	if s != nil {
+		wfuo.SetExisting(*s)
+	}
+	return wfuo
+}
+
 // Mutation returns the WithFieldsMutation object of the builder.
 func (wfuo *WithFieldsUpdateOne) Mutation() *WithFieldsMutation {
 	return wfuo.mutation
+}
+
+// Where appends a list predicates to the WithFieldsUpdate builder.
+func (wfuo *WithFieldsUpdateOne) Where(ps ...predicate.WithFields) *WithFieldsUpdateOne {
+	wfuo.mutation.Where(ps...)
+	return wfuo
 }
 
 // Select allows selecting one or more fields (columns) of the returned entity.
@@ -126,7 +139,7 @@ func (wfuo *WithFieldsUpdateOne) Select(field string, fields ...string) *WithFie
 
 // Save executes the query and returns the updated WithFields entity.
 func (wfuo *WithFieldsUpdateOne) Save(ctx context.Context) (*WithFields, error) {
-	return withHooks[*WithFields, WithFieldsMutation](ctx, wfuo.sqlSave, wfuo.mutation, wfuo.hooks)
+	return withHooks(ctx, wfuo.sqlSave, wfuo.mutation, wfuo.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -152,16 +165,7 @@ func (wfuo *WithFieldsUpdateOne) ExecX(ctx context.Context) {
 }
 
 func (wfuo *WithFieldsUpdateOne) sqlSave(ctx context.Context) (_node *WithFields, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   withfields.Table,
-			Columns: withfields.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: withfields.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(withfields.Table, withfields.Columns, sqlgraph.NewFieldSpec(withfields.FieldID, field.TypeInt))
 	id, ok := wfuo.mutation.ID()
 	if !ok {
 		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "WithFields.id" for update`)}

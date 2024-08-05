@@ -137,11 +137,7 @@ func HasSkipped() predicate.DependsOnSkipped {
 // HasSkippedWith applies the HasEdge predicate on the "skipped" edge with a given conditions (other predicates).
 func HasSkippedWith(preds ...predicate.ImplicitSkippedMessage) predicate.DependsOnSkipped {
 	return predicate.DependsOnSkipped(func(s *sql.Selector) {
-		step := sqlgraph.NewStep(
-			sqlgraph.From(Table, FieldID),
-			sqlgraph.To(SkippedInverseTable, FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, SkippedTable, SkippedColumn),
-		)
+		step := newSkippedStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)
@@ -152,32 +148,15 @@ func HasSkippedWith(preds ...predicate.ImplicitSkippedMessage) predicate.Depends
 
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.DependsOnSkipped) predicate.DependsOnSkipped {
-	return predicate.DependsOnSkipped(func(s *sql.Selector) {
-		s1 := s.Clone().SetP(nil)
-		for _, p := range predicates {
-			p(s1)
-		}
-		s.Where(s1.P())
-	})
+	return predicate.DependsOnSkipped(sql.AndPredicates(predicates...))
 }
 
 // Or groups predicates with the OR operator between them.
 func Or(predicates ...predicate.DependsOnSkipped) predicate.DependsOnSkipped {
-	return predicate.DependsOnSkipped(func(s *sql.Selector) {
-		s1 := s.Clone().SetP(nil)
-		for i, p := range predicates {
-			if i > 0 {
-				s1.Or()
-			}
-			p(s1)
-		}
-		s.Where(s1.P())
-	})
+	return predicate.DependsOnSkipped(sql.OrPredicates(predicates...))
 }
 
 // Not applies the not operator on the given predicate.
 func Not(p predicate.DependsOnSkipped) predicate.DependsOnSkipped {
-	return predicate.DependsOnSkipped(func(s *sql.Selector) {
-		p(s.Not())
-	})
+	return predicate.DependsOnSkipped(sql.NotPredicates(p))
 }

@@ -64,9 +64,25 @@ func (fu *FriendshipUpdate) SetUserID(u uuid.UUID) *FriendshipUpdate {
 	return fu
 }
 
+// SetNillableUserID sets the "user_id" field if the given value is not nil.
+func (fu *FriendshipUpdate) SetNillableUserID(u *uuid.UUID) *FriendshipUpdate {
+	if u != nil {
+		fu.SetUserID(*u)
+	}
+	return fu
+}
+
 // SetFriendID sets the "friend_id" field.
 func (fu *FriendshipUpdate) SetFriendID(u uuid.UUID) *FriendshipUpdate {
 	fu.mutation.SetFriendID(u)
+	return fu
+}
+
+// SetNillableFriendID sets the "friend_id" field if the given value is not nil.
+func (fu *FriendshipUpdate) SetNillableFriendID(u *uuid.UUID) *FriendshipUpdate {
+	if u != nil {
+		fu.SetFriendID(*u)
+	}
 	return fu
 }
 
@@ -99,7 +115,7 @@ func (fu *FriendshipUpdate) ClearFriend() *FriendshipUpdate {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (fu *FriendshipUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks[int, FriendshipMutation](ctx, fu.sqlSave, fu.mutation, fu.hooks)
+	return withHooks(ctx, fu.sqlSave, fu.mutation, fu.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -126,10 +142,10 @@ func (fu *FriendshipUpdate) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (fu *FriendshipUpdate) check() error {
-	if _, ok := fu.mutation.UserID(); fu.mutation.UserCleared() && !ok {
+	if fu.mutation.UserCleared() && len(fu.mutation.UserIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Friendship.user"`)
 	}
-	if _, ok := fu.mutation.FriendID(); fu.mutation.FriendCleared() && !ok {
+	if fu.mutation.FriendCleared() && len(fu.mutation.FriendIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Friendship.friend"`)
 	}
 	return nil
@@ -139,16 +155,7 @@ func (fu *FriendshipUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	if err := fu.check(); err != nil {
 		return n, err
 	}
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   friendship.Table,
-			Columns: friendship.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeUUID,
-				Column: friendship.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(friendship.Table, friendship.Columns, sqlgraph.NewFieldSpec(friendship.FieldID, field.TypeUUID))
 	if ps := fu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -167,10 +174,7 @@ func (fu *FriendshipUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Columns: []string{friendship.UserColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeUUID,
-					Column: user.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
@@ -183,10 +187,7 @@ func (fu *FriendshipUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Columns: []string{friendship.UserColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeUUID,
-					Column: user.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -202,10 +203,7 @@ func (fu *FriendshipUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Columns: []string{friendship.FriendColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeUUID,
-					Column: user.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
@@ -218,10 +216,7 @@ func (fu *FriendshipUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Columns: []string{friendship.FriendColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeUUID,
-					Column: user.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -269,9 +264,25 @@ func (fuo *FriendshipUpdateOne) SetUserID(u uuid.UUID) *FriendshipUpdateOne {
 	return fuo
 }
 
+// SetNillableUserID sets the "user_id" field if the given value is not nil.
+func (fuo *FriendshipUpdateOne) SetNillableUserID(u *uuid.UUID) *FriendshipUpdateOne {
+	if u != nil {
+		fuo.SetUserID(*u)
+	}
+	return fuo
+}
+
 // SetFriendID sets the "friend_id" field.
 func (fuo *FriendshipUpdateOne) SetFriendID(u uuid.UUID) *FriendshipUpdateOne {
 	fuo.mutation.SetFriendID(u)
+	return fuo
+}
+
+// SetNillableFriendID sets the "friend_id" field if the given value is not nil.
+func (fuo *FriendshipUpdateOne) SetNillableFriendID(u *uuid.UUID) *FriendshipUpdateOne {
+	if u != nil {
+		fuo.SetFriendID(*u)
+	}
 	return fuo
 }
 
@@ -302,6 +313,12 @@ func (fuo *FriendshipUpdateOne) ClearFriend() *FriendshipUpdateOne {
 	return fuo
 }
 
+// Where appends a list predicates to the FriendshipUpdate builder.
+func (fuo *FriendshipUpdateOne) Where(ps ...predicate.Friendship) *FriendshipUpdateOne {
+	fuo.mutation.Where(ps...)
+	return fuo
+}
+
 // Select allows selecting one or more fields (columns) of the returned entity.
 // The default is selecting all fields defined in the entity schema.
 func (fuo *FriendshipUpdateOne) Select(field string, fields ...string) *FriendshipUpdateOne {
@@ -311,7 +328,7 @@ func (fuo *FriendshipUpdateOne) Select(field string, fields ...string) *Friendsh
 
 // Save executes the query and returns the updated Friendship entity.
 func (fuo *FriendshipUpdateOne) Save(ctx context.Context) (*Friendship, error) {
-	return withHooks[*Friendship, FriendshipMutation](ctx, fuo.sqlSave, fuo.mutation, fuo.hooks)
+	return withHooks(ctx, fuo.sqlSave, fuo.mutation, fuo.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -338,10 +355,10 @@ func (fuo *FriendshipUpdateOne) ExecX(ctx context.Context) {
 
 // check runs all checks and user-defined validators on the builder.
 func (fuo *FriendshipUpdateOne) check() error {
-	if _, ok := fuo.mutation.UserID(); fuo.mutation.UserCleared() && !ok {
+	if fuo.mutation.UserCleared() && len(fuo.mutation.UserIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Friendship.user"`)
 	}
-	if _, ok := fuo.mutation.FriendID(); fuo.mutation.FriendCleared() && !ok {
+	if fuo.mutation.FriendCleared() && len(fuo.mutation.FriendIDs()) > 0 {
 		return errors.New(`ent: clearing a required unique edge "Friendship.friend"`)
 	}
 	return nil
@@ -351,16 +368,7 @@ func (fuo *FriendshipUpdateOne) sqlSave(ctx context.Context) (_node *Friendship,
 	if err := fuo.check(); err != nil {
 		return _node, err
 	}
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   friendship.Table,
-			Columns: friendship.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeUUID,
-				Column: friendship.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(friendship.Table, friendship.Columns, sqlgraph.NewFieldSpec(friendship.FieldID, field.TypeUUID))
 	id, ok := fuo.mutation.ID()
 	if !ok {
 		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "Friendship.id" for update`)}
@@ -396,10 +404,7 @@ func (fuo *FriendshipUpdateOne) sqlSave(ctx context.Context) (_node *Friendship,
 			Columns: []string{friendship.UserColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeUUID,
-					Column: user.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
@@ -412,10 +417,7 @@ func (fuo *FriendshipUpdateOne) sqlSave(ctx context.Context) (_node *Friendship,
 			Columns: []string{friendship.UserColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeUUID,
-					Column: user.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -431,10 +433,7 @@ func (fuo *FriendshipUpdateOne) sqlSave(ctx context.Context) (_node *Friendship,
 			Columns: []string{friendship.FriendColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeUUID,
-					Column: user.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
@@ -447,10 +446,7 @@ func (fuo *FriendshipUpdateOne) sqlSave(ctx context.Context) (_node *Friendship,
 			Columns: []string{friendship.FriendColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeUUID,
-					Column: user.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {

@@ -33,6 +33,14 @@ func (au *AttachmentUpdate) SetContents(s string) *AttachmentUpdate {
 	return au
 }
 
+// SetNillableContents sets the "contents" field if the given value is not nil.
+func (au *AttachmentUpdate) SetNillableContents(s *string) *AttachmentUpdate {
+	if s != nil {
+		au.SetContents(*s)
+	}
+	return au
+}
+
 // Mutation returns the AttachmentMutation object of the builder.
 func (au *AttachmentUpdate) Mutation() *AttachmentMutation {
 	return au.mutation
@@ -40,7 +48,7 @@ func (au *AttachmentUpdate) Mutation() *AttachmentMutation {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (au *AttachmentUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks[int, AttachmentMutation](ctx, au.sqlSave, au.mutation, au.hooks)
+	return withHooks(ctx, au.sqlSave, au.mutation, au.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -66,16 +74,7 @@ func (au *AttachmentUpdate) ExecX(ctx context.Context) {
 }
 
 func (au *AttachmentUpdate) sqlSave(ctx context.Context) (n int, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   attachment.Table,
-			Columns: attachment.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeString,
-				Column: attachment.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(attachment.Table, attachment.Columns, sqlgraph.NewFieldSpec(attachment.FieldID, field.TypeString))
 	if ps := au.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -112,9 +111,23 @@ func (auo *AttachmentUpdateOne) SetContents(s string) *AttachmentUpdateOne {
 	return auo
 }
 
+// SetNillableContents sets the "contents" field if the given value is not nil.
+func (auo *AttachmentUpdateOne) SetNillableContents(s *string) *AttachmentUpdateOne {
+	if s != nil {
+		auo.SetContents(*s)
+	}
+	return auo
+}
+
 // Mutation returns the AttachmentMutation object of the builder.
 func (auo *AttachmentUpdateOne) Mutation() *AttachmentMutation {
 	return auo.mutation
+}
+
+// Where appends a list predicates to the AttachmentUpdate builder.
+func (auo *AttachmentUpdateOne) Where(ps ...predicate.Attachment) *AttachmentUpdateOne {
+	auo.mutation.Where(ps...)
+	return auo
 }
 
 // Select allows selecting one or more fields (columns) of the returned entity.
@@ -126,7 +139,7 @@ func (auo *AttachmentUpdateOne) Select(field string, fields ...string) *Attachme
 
 // Save executes the query and returns the updated Attachment entity.
 func (auo *AttachmentUpdateOne) Save(ctx context.Context) (*Attachment, error) {
-	return withHooks[*Attachment, AttachmentMutation](ctx, auo.sqlSave, auo.mutation, auo.hooks)
+	return withHooks(ctx, auo.sqlSave, auo.mutation, auo.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -152,16 +165,7 @@ func (auo *AttachmentUpdateOne) ExecX(ctx context.Context) {
 }
 
 func (auo *AttachmentUpdateOne) sqlSave(ctx context.Context) (_node *Attachment, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   attachment.Table,
-			Columns: attachment.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeString,
-				Column: attachment.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(attachment.Table, attachment.Columns, sqlgraph.NewFieldSpec(attachment.FieldID, field.TypeString))
 	id, ok := auo.mutation.ID()
 	if !ok {
 		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "Attachment.id" for update`)}

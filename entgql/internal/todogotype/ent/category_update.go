@@ -52,9 +52,25 @@ func (cu *CategoryUpdate) SetText(s string) *CategoryUpdate {
 	return cu
 }
 
+// SetNillableText sets the "text" field if the given value is not nil.
+func (cu *CategoryUpdate) SetNillableText(s *string) *CategoryUpdate {
+	if s != nil {
+		cu.SetText(*s)
+	}
+	return cu
+}
+
 // SetStatus sets the "status" field.
 func (cu *CategoryUpdate) SetStatus(c category.Status) *CategoryUpdate {
 	cu.mutation.SetStatus(c)
+	return cu
+}
+
+// SetNillableStatus sets the "status" field if the given value is not nil.
+func (cu *CategoryUpdate) SetNillableStatus(c *category.Status) *CategoryUpdate {
+	if c != nil {
+		cu.SetStatus(*c)
+	}
 	return cu
 }
 
@@ -67,6 +83,18 @@ func (cu *CategoryUpdate) SetConfig(sc *schematype.CategoryConfig) *CategoryUpda
 // ClearConfig clears the value of the "config" field.
 func (cu *CategoryUpdate) ClearConfig() *CategoryUpdate {
 	cu.mutation.ClearConfig()
+	return cu
+}
+
+// SetTypes sets the "types" field.
+func (cu *CategoryUpdate) SetTypes(st *schematype.CategoryTypes) *CategoryUpdate {
+	cu.mutation.SetTypes(st)
+	return cu
+}
+
+// ClearTypes clears the value of the "types" field.
+func (cu *CategoryUpdate) ClearTypes() *CategoryUpdate {
+	cu.mutation.ClearTypes()
 	return cu
 }
 
@@ -221,7 +249,7 @@ func (cu *CategoryUpdate) RemoveSubCategories(c ...*Category) *CategoryUpdate {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (cu *CategoryUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks[int, CategoryMutation](ctx, cu.sqlSave, cu.mutation, cu.hooks)
+	return withHooks(ctx, cu.sqlSave, cu.mutation, cu.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -265,16 +293,7 @@ func (cu *CategoryUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	if err := cu.check(); err != nil {
 		return n, err
 	}
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   category.Table,
-			Columns: category.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeString,
-				Column: category.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(category.Table, category.Columns, sqlgraph.NewFieldSpec(category.FieldID, field.TypeString))
 	if ps := cu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -293,6 +312,12 @@ func (cu *CategoryUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if cu.mutation.ConfigCleared() {
 		_spec.ClearField(category.FieldConfig, field.TypeOther)
+	}
+	if value, ok := cu.mutation.Types(); ok {
+		_spec.SetField(category.FieldTypes, field.TypeJSON, value)
+	}
+	if cu.mutation.TypesCleared() {
+		_spec.ClearField(category.FieldTypes, field.TypeJSON)
 	}
 	if value, ok := cu.mutation.Duration(); ok {
 		_spec.SetField(category.FieldDuration, field.TypeInt64, value)
@@ -331,10 +356,7 @@ func (cu *CategoryUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Columns: []string{category.TodosColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeString,
-					Column: todo.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(todo.FieldID, field.TypeString),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
@@ -347,10 +369,7 @@ func (cu *CategoryUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Columns: []string{category.TodosColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeString,
-					Column: todo.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(todo.FieldID, field.TypeString),
 			},
 		}
 		for _, k := range nodes {
@@ -366,10 +385,7 @@ func (cu *CategoryUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Columns: []string{category.TodosColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeString,
-					Column: todo.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(todo.FieldID, field.TypeString),
 			},
 		}
 		for _, k := range nodes {
@@ -385,10 +401,7 @@ func (cu *CategoryUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Columns: category.SubCategoriesPrimaryKey,
 			Bidi:    true,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeString,
-					Column: category.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(category.FieldID, field.TypeString),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
@@ -401,10 +414,7 @@ func (cu *CategoryUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Columns: category.SubCategoriesPrimaryKey,
 			Bidi:    true,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeString,
-					Column: category.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(category.FieldID, field.TypeString),
 			},
 		}
 		for _, k := range nodes {
@@ -420,10 +430,7 @@ func (cu *CategoryUpdate) sqlSave(ctx context.Context) (n int, err error) {
 			Columns: category.SubCategoriesPrimaryKey,
 			Bidi:    true,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeString,
-					Column: category.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(category.FieldID, field.TypeString),
 			},
 		}
 		for _, k := range nodes {
@@ -457,9 +464,25 @@ func (cuo *CategoryUpdateOne) SetText(s string) *CategoryUpdateOne {
 	return cuo
 }
 
+// SetNillableText sets the "text" field if the given value is not nil.
+func (cuo *CategoryUpdateOne) SetNillableText(s *string) *CategoryUpdateOne {
+	if s != nil {
+		cuo.SetText(*s)
+	}
+	return cuo
+}
+
 // SetStatus sets the "status" field.
 func (cuo *CategoryUpdateOne) SetStatus(c category.Status) *CategoryUpdateOne {
 	cuo.mutation.SetStatus(c)
+	return cuo
+}
+
+// SetNillableStatus sets the "status" field if the given value is not nil.
+func (cuo *CategoryUpdateOne) SetNillableStatus(c *category.Status) *CategoryUpdateOne {
+	if c != nil {
+		cuo.SetStatus(*c)
+	}
 	return cuo
 }
 
@@ -472,6 +495,18 @@ func (cuo *CategoryUpdateOne) SetConfig(sc *schematype.CategoryConfig) *Category
 // ClearConfig clears the value of the "config" field.
 func (cuo *CategoryUpdateOne) ClearConfig() *CategoryUpdateOne {
 	cuo.mutation.ClearConfig()
+	return cuo
+}
+
+// SetTypes sets the "types" field.
+func (cuo *CategoryUpdateOne) SetTypes(st *schematype.CategoryTypes) *CategoryUpdateOne {
+	cuo.mutation.SetTypes(st)
+	return cuo
+}
+
+// ClearTypes clears the value of the "types" field.
+func (cuo *CategoryUpdateOne) ClearTypes() *CategoryUpdateOne {
+	cuo.mutation.ClearTypes()
 	return cuo
 }
 
@@ -624,6 +659,12 @@ func (cuo *CategoryUpdateOne) RemoveSubCategories(c ...*Category) *CategoryUpdat
 	return cuo.RemoveSubCategoryIDs(ids...)
 }
 
+// Where appends a list predicates to the CategoryUpdate builder.
+func (cuo *CategoryUpdateOne) Where(ps ...predicate.Category) *CategoryUpdateOne {
+	cuo.mutation.Where(ps...)
+	return cuo
+}
+
 // Select allows selecting one or more fields (columns) of the returned entity.
 // The default is selecting all fields defined in the entity schema.
 func (cuo *CategoryUpdateOne) Select(field string, fields ...string) *CategoryUpdateOne {
@@ -633,7 +674,7 @@ func (cuo *CategoryUpdateOne) Select(field string, fields ...string) *CategoryUp
 
 // Save executes the query and returns the updated Category entity.
 func (cuo *CategoryUpdateOne) Save(ctx context.Context) (*Category, error) {
-	return withHooks[*Category, CategoryMutation](ctx, cuo.sqlSave, cuo.mutation, cuo.hooks)
+	return withHooks(ctx, cuo.sqlSave, cuo.mutation, cuo.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -677,16 +718,7 @@ func (cuo *CategoryUpdateOne) sqlSave(ctx context.Context) (_node *Category, err
 	if err := cuo.check(); err != nil {
 		return _node, err
 	}
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   category.Table,
-			Columns: category.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeString,
-				Column: category.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(category.Table, category.Columns, sqlgraph.NewFieldSpec(category.FieldID, field.TypeString))
 	id, ok := cuo.mutation.ID()
 	if !ok {
 		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "Category.id" for update`)}
@@ -722,6 +754,12 @@ func (cuo *CategoryUpdateOne) sqlSave(ctx context.Context) (_node *Category, err
 	}
 	if cuo.mutation.ConfigCleared() {
 		_spec.ClearField(category.FieldConfig, field.TypeOther)
+	}
+	if value, ok := cuo.mutation.Types(); ok {
+		_spec.SetField(category.FieldTypes, field.TypeJSON, value)
+	}
+	if cuo.mutation.TypesCleared() {
+		_spec.ClearField(category.FieldTypes, field.TypeJSON)
 	}
 	if value, ok := cuo.mutation.Duration(); ok {
 		_spec.SetField(category.FieldDuration, field.TypeInt64, value)
@@ -760,10 +798,7 @@ func (cuo *CategoryUpdateOne) sqlSave(ctx context.Context) (_node *Category, err
 			Columns: []string{category.TodosColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeString,
-					Column: todo.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(todo.FieldID, field.TypeString),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
@@ -776,10 +811,7 @@ func (cuo *CategoryUpdateOne) sqlSave(ctx context.Context) (_node *Category, err
 			Columns: []string{category.TodosColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeString,
-					Column: todo.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(todo.FieldID, field.TypeString),
 			},
 		}
 		for _, k := range nodes {
@@ -795,10 +827,7 @@ func (cuo *CategoryUpdateOne) sqlSave(ctx context.Context) (_node *Category, err
 			Columns: []string{category.TodosColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeString,
-					Column: todo.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(todo.FieldID, field.TypeString),
 			},
 		}
 		for _, k := range nodes {
@@ -814,10 +843,7 @@ func (cuo *CategoryUpdateOne) sqlSave(ctx context.Context) (_node *Category, err
 			Columns: category.SubCategoriesPrimaryKey,
 			Bidi:    true,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeString,
-					Column: category.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(category.FieldID, field.TypeString),
 			},
 		}
 		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
@@ -830,10 +856,7 @@ func (cuo *CategoryUpdateOne) sqlSave(ctx context.Context) (_node *Category, err
 			Columns: category.SubCategoriesPrimaryKey,
 			Bidi:    true,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeString,
-					Column: category.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(category.FieldID, field.TypeString),
 			},
 		}
 		for _, k := range nodes {
@@ -849,10 +872,7 @@ func (cuo *CategoryUpdateOne) sqlSave(ctx context.Context) (_node *Category, err
 			Columns: category.SubCategoriesPrimaryKey,
 			Bidi:    true,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeString,
-					Column: category.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(category.FieldID, field.TypeString),
 			},
 		}
 		for _, k := range nodes {

@@ -47,9 +47,25 @@ func (bpu *BillProductUpdate) SetName(s string) *BillProductUpdate {
 	return bpu
 }
 
+// SetNillableName sets the "name" field if the given value is not nil.
+func (bpu *BillProductUpdate) SetNillableName(s *string) *BillProductUpdate {
+	if s != nil {
+		bpu.SetName(*s)
+	}
+	return bpu
+}
+
 // SetSku sets the "sku" field.
 func (bpu *BillProductUpdate) SetSku(s string) *BillProductUpdate {
 	bpu.mutation.SetSku(s)
+	return bpu
+}
+
+// SetNillableSku sets the "sku" field if the given value is not nil.
+func (bpu *BillProductUpdate) SetNillableSku(s *string) *BillProductUpdate {
+	if s != nil {
+		bpu.SetSku(*s)
+	}
 	return bpu
 }
 
@@ -57,6 +73,14 @@ func (bpu *BillProductUpdate) SetSku(s string) *BillProductUpdate {
 func (bpu *BillProductUpdate) SetQuantity(u uint64) *BillProductUpdate {
 	bpu.mutation.ResetQuantity()
 	bpu.mutation.SetQuantity(u)
+	return bpu
+}
+
+// SetNillableQuantity sets the "quantity" field if the given value is not nil.
+func (bpu *BillProductUpdate) SetNillableQuantity(u *uint64) *BillProductUpdate {
+	if u != nil {
+		bpu.SetQuantity(*u)
+	}
 	return bpu
 }
 
@@ -73,7 +97,7 @@ func (bpu *BillProductUpdate) Mutation() *BillProductMutation {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (bpu *BillProductUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks[int, BillProductMutation](ctx, bpu.sqlSave, bpu.mutation, bpu.hooks)
+	return withHooks(ctx, bpu.sqlSave, bpu.mutation, bpu.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -99,16 +123,7 @@ func (bpu *BillProductUpdate) ExecX(ctx context.Context) {
 }
 
 func (bpu *BillProductUpdate) sqlSave(ctx context.Context) (n int, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   billproduct.Table,
-			Columns: billproduct.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeString,
-				Column: billproduct.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(billproduct.Table, billproduct.Columns, sqlgraph.NewFieldSpec(billproduct.FieldID, field.TypeString))
 	if ps := bpu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -154,9 +169,25 @@ func (bpuo *BillProductUpdateOne) SetName(s string) *BillProductUpdateOne {
 	return bpuo
 }
 
+// SetNillableName sets the "name" field if the given value is not nil.
+func (bpuo *BillProductUpdateOne) SetNillableName(s *string) *BillProductUpdateOne {
+	if s != nil {
+		bpuo.SetName(*s)
+	}
+	return bpuo
+}
+
 // SetSku sets the "sku" field.
 func (bpuo *BillProductUpdateOne) SetSku(s string) *BillProductUpdateOne {
 	bpuo.mutation.SetSku(s)
+	return bpuo
+}
+
+// SetNillableSku sets the "sku" field if the given value is not nil.
+func (bpuo *BillProductUpdateOne) SetNillableSku(s *string) *BillProductUpdateOne {
+	if s != nil {
+		bpuo.SetSku(*s)
+	}
 	return bpuo
 }
 
@@ -164,6 +195,14 @@ func (bpuo *BillProductUpdateOne) SetSku(s string) *BillProductUpdateOne {
 func (bpuo *BillProductUpdateOne) SetQuantity(u uint64) *BillProductUpdateOne {
 	bpuo.mutation.ResetQuantity()
 	bpuo.mutation.SetQuantity(u)
+	return bpuo
+}
+
+// SetNillableQuantity sets the "quantity" field if the given value is not nil.
+func (bpuo *BillProductUpdateOne) SetNillableQuantity(u *uint64) *BillProductUpdateOne {
+	if u != nil {
+		bpuo.SetQuantity(*u)
+	}
 	return bpuo
 }
 
@@ -178,6 +217,12 @@ func (bpuo *BillProductUpdateOne) Mutation() *BillProductMutation {
 	return bpuo.mutation
 }
 
+// Where appends a list predicates to the BillProductUpdate builder.
+func (bpuo *BillProductUpdateOne) Where(ps ...predicate.BillProduct) *BillProductUpdateOne {
+	bpuo.mutation.Where(ps...)
+	return bpuo
+}
+
 // Select allows selecting one or more fields (columns) of the returned entity.
 // The default is selecting all fields defined in the entity schema.
 func (bpuo *BillProductUpdateOne) Select(field string, fields ...string) *BillProductUpdateOne {
@@ -187,7 +232,7 @@ func (bpuo *BillProductUpdateOne) Select(field string, fields ...string) *BillPr
 
 // Save executes the query and returns the updated BillProduct entity.
 func (bpuo *BillProductUpdateOne) Save(ctx context.Context) (*BillProduct, error) {
-	return withHooks[*BillProduct, BillProductMutation](ctx, bpuo.sqlSave, bpuo.mutation, bpuo.hooks)
+	return withHooks(ctx, bpuo.sqlSave, bpuo.mutation, bpuo.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -213,16 +258,7 @@ func (bpuo *BillProductUpdateOne) ExecX(ctx context.Context) {
 }
 
 func (bpuo *BillProductUpdateOne) sqlSave(ctx context.Context) (_node *BillProduct, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   billproduct.Table,
-			Columns: billproduct.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeString,
-				Column: billproduct.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(billproduct.Table, billproduct.Columns, sqlgraph.NewFieldSpec(billproduct.FieldID, field.TypeString))
 	id, ok := bpuo.mutation.ID()
 	if !ok {
 		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "BillProduct.id" for update`)}

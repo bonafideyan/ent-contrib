@@ -9,6 +9,7 @@ import (
 
 	"entgo.io/contrib/schemast/internal/printtest/ent/message"
 	"entgo.io/contrib/schemast/internal/printtest/ent/predicate"
+	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
@@ -18,7 +19,7 @@ import (
 type MessageQuery struct {
 	config
 	ctx        *QueryContext
-	order      []OrderFunc
+	order      []message.OrderOption
 	inters     []Interceptor
 	predicates []predicate.Message
 	// intermediate query (i.e. traversal path).
@@ -52,7 +53,7 @@ func (mq *MessageQuery) Unique(unique bool) *MessageQuery {
 }
 
 // Order specifies how the records should be ordered.
-func (mq *MessageQuery) Order(o ...OrderFunc) *MessageQuery {
+func (mq *MessageQuery) Order(o ...message.OrderOption) *MessageQuery {
 	mq.order = append(mq.order, o...)
 	return mq
 }
@@ -60,7 +61,7 @@ func (mq *MessageQuery) Order(o ...OrderFunc) *MessageQuery {
 // First returns the first Message entity from the query.
 // Returns a *NotFoundError when no Message was found.
 func (mq *MessageQuery) First(ctx context.Context) (*Message, error) {
-	nodes, err := mq.Limit(1).All(setContextOp(ctx, mq.ctx, "First"))
+	nodes, err := mq.Limit(1).All(setContextOp(ctx, mq.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +84,7 @@ func (mq *MessageQuery) FirstX(ctx context.Context) *Message {
 // Returns a *NotFoundError when no Message ID was found.
 func (mq *MessageQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = mq.Limit(1).IDs(setContextOp(ctx, mq.ctx, "FirstID")); err != nil {
+	if ids, err = mq.Limit(1).IDs(setContextOp(ctx, mq.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -106,7 +107,7 @@ func (mq *MessageQuery) FirstIDX(ctx context.Context) int {
 // Returns a *NotSingularError when more than one Message entity is found.
 // Returns a *NotFoundError when no Message entities are found.
 func (mq *MessageQuery) Only(ctx context.Context) (*Message, error) {
-	nodes, err := mq.Limit(2).All(setContextOp(ctx, mq.ctx, "Only"))
+	nodes, err := mq.Limit(2).All(setContextOp(ctx, mq.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +135,7 @@ func (mq *MessageQuery) OnlyX(ctx context.Context) *Message {
 // Returns a *NotFoundError when no entities are found.
 func (mq *MessageQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = mq.Limit(2).IDs(setContextOp(ctx, mq.ctx, "OnlyID")); err != nil {
+	if ids, err = mq.Limit(2).IDs(setContextOp(ctx, mq.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -159,7 +160,7 @@ func (mq *MessageQuery) OnlyIDX(ctx context.Context) int {
 
 // All executes the query and returns a list of Messages.
 func (mq *MessageQuery) All(ctx context.Context) ([]*Message, error) {
-	ctx = setContextOp(ctx, mq.ctx, "All")
+	ctx = setContextOp(ctx, mq.ctx, ent.OpQueryAll)
 	if err := mq.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
@@ -177,10 +178,12 @@ func (mq *MessageQuery) AllX(ctx context.Context) []*Message {
 }
 
 // IDs executes the query and returns a list of Message IDs.
-func (mq *MessageQuery) IDs(ctx context.Context) ([]int, error) {
-	var ids []int
-	ctx = setContextOp(ctx, mq.ctx, "IDs")
-	if err := mq.Select(message.FieldID).Scan(ctx, &ids); err != nil {
+func (mq *MessageQuery) IDs(ctx context.Context) (ids []int, err error) {
+	if mq.ctx.Unique == nil && mq.path != nil {
+		mq.Unique(true)
+	}
+	ctx = setContextOp(ctx, mq.ctx, ent.OpQueryIDs)
+	if err = mq.Select(message.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -197,7 +200,7 @@ func (mq *MessageQuery) IDsX(ctx context.Context) []int {
 
 // Count returns the count of the given query.
 func (mq *MessageQuery) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, mq.ctx, "Count")
+	ctx = setContextOp(ctx, mq.ctx, ent.OpQueryCount)
 	if err := mq.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
@@ -215,7 +218,7 @@ func (mq *MessageQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (mq *MessageQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, mq.ctx, "Exist")
+	ctx = setContextOp(ctx, mq.ctx, ent.OpQueryExist)
 	switch _, err := mq.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -244,7 +247,7 @@ func (mq *MessageQuery) Clone() *MessageQuery {
 	return &MessageQuery{
 		config:     mq.config,
 		ctx:        mq.ctx.Clone(),
-		order:      append([]OrderFunc{}, mq.order...),
+		order:      append([]message.OrderOption{}, mq.order...),
 		inters:     append([]Interceptor{}, mq.inters...),
 		predicates: append([]predicate.Message{}, mq.predicates...),
 		// clone intermediate query.
@@ -340,20 +343,12 @@ func (mq *MessageQuery) sqlCount(ctx context.Context) (int, error) {
 }
 
 func (mq *MessageQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := &sqlgraph.QuerySpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   message.Table,
-			Columns: message.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: message.FieldID,
-			},
-		},
-		From:   mq.sql,
-		Unique: true,
-	}
+	_spec := sqlgraph.NewQuerySpec(message.Table, message.Columns, sqlgraph.NewFieldSpec(message.FieldID, field.TypeInt))
+	_spec.From = mq.sql
 	if unique := mq.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
+	} else if mq.path != nil {
+		_spec.Unique = true
 	}
 	if fields := mq.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
@@ -433,7 +428,7 @@ func (mgb *MessageGroupBy) Aggregate(fns ...AggregateFunc) *MessageGroupBy {
 
 // Scan applies the selector query and scans the result into the given value.
 func (mgb *MessageGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, mgb.build.ctx, "GroupBy")
+	ctx = setContextOp(ctx, mgb.build.ctx, ent.OpQueryGroupBy)
 	if err := mgb.build.prepareQuery(ctx); err != nil {
 		return err
 	}
@@ -481,7 +476,7 @@ func (ms *MessageSelect) Aggregate(fns ...AggregateFunc) *MessageSelect {
 
 // Scan applies the selector query and scans the result into the given value.
 func (ms *MessageSelect) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, ms.ctx, "Select")
+	ctx = setContextOp(ctx, ms.ctx, ent.OpQuerySelect)
 	if err := ms.prepareQuery(ctx); err != nil {
 		return err
 	}

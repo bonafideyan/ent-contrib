@@ -25,7 +25,7 @@ func (tmsc *TwoMethodServiceCreate) Mutation() *TwoMethodServiceMutation {
 
 // Save creates the TwoMethodService in the database.
 func (tmsc *TwoMethodServiceCreate) Save(ctx context.Context) (*TwoMethodService, error) {
-	return withHooks[*TwoMethodService, TwoMethodServiceMutation](ctx, tmsc.sqlSave, tmsc.mutation, tmsc.hooks)
+	return withHooks(ctx, tmsc.sqlSave, tmsc.mutation, tmsc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -76,13 +76,7 @@ func (tmsc *TwoMethodServiceCreate) sqlSave(ctx context.Context) (*TwoMethodServ
 func (tmsc *TwoMethodServiceCreate) createSpec() (*TwoMethodService, *sqlgraph.CreateSpec) {
 	var (
 		_node = &TwoMethodService{config: tmsc.config}
-		_spec = &sqlgraph.CreateSpec{
-			Table: twomethodservice.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: twomethodservice.FieldID,
-			},
-		}
+		_spec = sqlgraph.NewCreateSpec(twomethodservice.Table, sqlgraph.NewFieldSpec(twomethodservice.FieldID, field.TypeInt))
 	)
 	return _node, _spec
 }
@@ -90,11 +84,15 @@ func (tmsc *TwoMethodServiceCreate) createSpec() (*TwoMethodService, *sqlgraph.C
 // TwoMethodServiceCreateBulk is the builder for creating many TwoMethodService entities in bulk.
 type TwoMethodServiceCreateBulk struct {
 	config
+	err      error
 	builders []*TwoMethodServiceCreate
 }
 
 // Save creates the TwoMethodService entities in the database.
 func (tmscb *TwoMethodServiceCreateBulk) Save(ctx context.Context) ([]*TwoMethodService, error) {
+	if tmscb.err != nil {
+		return nil, tmscb.err
+	}
 	specs := make([]*sqlgraph.CreateSpec, len(tmscb.builders))
 	nodes := make([]*TwoMethodService, len(tmscb.builders))
 	mutators := make([]Mutator, len(tmscb.builders))
@@ -110,8 +108,8 @@ func (tmscb *TwoMethodServiceCreateBulk) Save(ctx context.Context) ([]*TwoMethod
 					return nil, err
 				}
 				builder.mutation = mutation
-				nodes[i], specs[i] = builder.createSpec()
 				var err error
+				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, tmscb.builders[i+1].mutation)
 				} else {

@@ -34,7 +34,7 @@ func (tmsu *TwoMethodServiceUpdate) Mutation() *TwoMethodServiceMutation {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (tmsu *TwoMethodServiceUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks[int, TwoMethodServiceMutation](ctx, tmsu.sqlSave, tmsu.mutation, tmsu.hooks)
+	return withHooks(ctx, tmsu.sqlSave, tmsu.mutation, tmsu.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -60,16 +60,7 @@ func (tmsu *TwoMethodServiceUpdate) ExecX(ctx context.Context) {
 }
 
 func (tmsu *TwoMethodServiceUpdate) sqlSave(ctx context.Context) (n int, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   twomethodservice.Table,
-			Columns: twomethodservice.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: twomethodservice.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(twomethodservice.Table, twomethodservice.Columns, sqlgraph.NewFieldSpec(twomethodservice.FieldID, field.TypeInt))
 	if ps := tmsu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -102,6 +93,12 @@ func (tmsuo *TwoMethodServiceUpdateOne) Mutation() *TwoMethodServiceMutation {
 	return tmsuo.mutation
 }
 
+// Where appends a list predicates to the TwoMethodServiceUpdate builder.
+func (tmsuo *TwoMethodServiceUpdateOne) Where(ps ...predicate.TwoMethodService) *TwoMethodServiceUpdateOne {
+	tmsuo.mutation.Where(ps...)
+	return tmsuo
+}
+
 // Select allows selecting one or more fields (columns) of the returned entity.
 // The default is selecting all fields defined in the entity schema.
 func (tmsuo *TwoMethodServiceUpdateOne) Select(field string, fields ...string) *TwoMethodServiceUpdateOne {
@@ -111,7 +108,7 @@ func (tmsuo *TwoMethodServiceUpdateOne) Select(field string, fields ...string) *
 
 // Save executes the query and returns the updated TwoMethodService entity.
 func (tmsuo *TwoMethodServiceUpdateOne) Save(ctx context.Context) (*TwoMethodService, error) {
-	return withHooks[*TwoMethodService, TwoMethodServiceMutation](ctx, tmsuo.sqlSave, tmsuo.mutation, tmsuo.hooks)
+	return withHooks(ctx, tmsuo.sqlSave, tmsuo.mutation, tmsuo.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -137,16 +134,7 @@ func (tmsuo *TwoMethodServiceUpdateOne) ExecX(ctx context.Context) {
 }
 
 func (tmsuo *TwoMethodServiceUpdateOne) sqlSave(ctx context.Context) (_node *TwoMethodService, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   twomethodservice.Table,
-			Columns: twomethodservice.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: twomethodservice.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(twomethodservice.Table, twomethodservice.Columns, sqlgraph.NewFieldSpec(twomethodservice.FieldID, field.TypeInt))
 	id, ok := tmsuo.mutation.ID()
 	if !ok {
 		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "TwoMethodService.id" for update`)}

@@ -24,6 +24,7 @@ import (
 	"entgo.io/contrib/entgql/internal/todofed/ent/category"
 	"entgo.io/contrib/entgql/internal/todofed/ent/todo"
 	"entgo.io/contrib/entgql/internal/todofed/ent/verysecret"
+	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 )
 
@@ -48,6 +49,7 @@ type Todo struct {
 	category_todos *int
 	todo_children  *int
 	todo_secret    *int
+	selectValues   sql.SelectValues
 }
 
 // TodoEdges holds the relations/edges for other nodes in the graph.
@@ -72,12 +74,10 @@ type TodoEdges struct {
 // ParentOrErr returns the Parent value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
 func (e TodoEdges) ParentOrErr() (*Todo, error) {
-	if e.loadedTypes[0] {
-		if e.Parent == nil {
-			// Edge was loaded but was not found.
-			return nil, &NotFoundError{label: todo.Label}
-		}
+	if e.Parent != nil {
 		return e.Parent, nil
+	} else if e.loadedTypes[0] {
+		return nil, &NotFoundError{label: todo.Label}
 	}
 	return nil, &NotLoadedError{edge: "parent"}
 }
@@ -94,12 +94,10 @@ func (e TodoEdges) ChildrenOrErr() ([]*Todo, error) {
 // CategoryOrErr returns the Category value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
 func (e TodoEdges) CategoryOrErr() (*Category, error) {
-	if e.loadedTypes[2] {
-		if e.Category == nil {
-			// Edge was loaded but was not found.
-			return nil, &NotFoundError{label: category.Label}
-		}
+	if e.Category != nil {
 		return e.Category, nil
+	} else if e.loadedTypes[2] {
+		return nil, &NotFoundError{label: category.Label}
 	}
 	return nil, &NotLoadedError{edge: "category"}
 }
@@ -107,12 +105,10 @@ func (e TodoEdges) CategoryOrErr() (*Category, error) {
 // SecretOrErr returns the Secret value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
 func (e TodoEdges) SecretOrErr() (*VerySecret, error) {
-	if e.loadedTypes[3] {
-		if e.Secret == nil {
-			// Edge was loaded but was not found.
-			return nil, &NotFoundError{label: verysecret.Label}
-		}
+	if e.Secret != nil {
 		return e.Secret, nil
+	} else if e.loadedTypes[3] {
+		return nil, &NotFoundError{label: verysecret.Label}
 	}
 	return nil, &NotLoadedError{edge: "secret"}
 }
@@ -137,7 +133,7 @@ func (*Todo) scanValues(columns []string) ([]any, error) {
 		case todo.ForeignKeys[2]: // todo_secret
 			values[i] = new(sql.NullInt64)
 		default:
-			return nil, fmt.Errorf("unexpected column %q for type Todo", columns[i])
+			values[i] = new(sql.UnknownType)
 		}
 	}
 	return values, nil
@@ -208,9 +204,17 @@ func (t *Todo) assignValues(columns []string, values []any) error {
 				t.todo_secret = new(int)
 				*t.todo_secret = int(value.Int64)
 			}
+		default:
+			t.selectValues.Set(columns[i], values[i])
 		}
 	}
 	return nil
+}
+
+// Value returns the ent.Value that was dynamically selected and assigned to the Todo.
+// This includes values selected through modifiers, order, etc.
+func (t *Todo) Value(name string) (ent.Value, error) {
+	return t.selectValues.Get(name)
 }
 
 // QueryParent queries the "parent" edge of the Todo entity.
@@ -303,9 +307,3 @@ func (t *Todo) appendNamedChildren(name string, edges ...*Todo) {
 
 // Todos is a parsable slice of Todo.
 type Todos []*Todo
-
-func (t Todos) config(cfg config) {
-	for _i := range t {
-		t[_i].config = cfg
-	}
-}

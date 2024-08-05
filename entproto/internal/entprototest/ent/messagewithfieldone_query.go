@@ -9,6 +9,7 @@ import (
 
 	"entgo.io/contrib/entproto/internal/entprototest/ent/messagewithfieldone"
 	"entgo.io/contrib/entproto/internal/entprototest/ent/predicate"
+	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
@@ -18,7 +19,7 @@ import (
 type MessageWithFieldOneQuery struct {
 	config
 	ctx        *QueryContext
-	order      []OrderFunc
+	order      []messagewithfieldone.OrderOption
 	inters     []Interceptor
 	predicates []predicate.MessageWithFieldOne
 	// intermediate query (i.e. traversal path).
@@ -52,7 +53,7 @@ func (mwfoq *MessageWithFieldOneQuery) Unique(unique bool) *MessageWithFieldOneQ
 }
 
 // Order specifies how the records should be ordered.
-func (mwfoq *MessageWithFieldOneQuery) Order(o ...OrderFunc) *MessageWithFieldOneQuery {
+func (mwfoq *MessageWithFieldOneQuery) Order(o ...messagewithfieldone.OrderOption) *MessageWithFieldOneQuery {
 	mwfoq.order = append(mwfoq.order, o...)
 	return mwfoq
 }
@@ -60,7 +61,7 @@ func (mwfoq *MessageWithFieldOneQuery) Order(o ...OrderFunc) *MessageWithFieldOn
 // First returns the first MessageWithFieldOne entity from the query.
 // Returns a *NotFoundError when no MessageWithFieldOne was found.
 func (mwfoq *MessageWithFieldOneQuery) First(ctx context.Context) (*MessageWithFieldOne, error) {
-	nodes, err := mwfoq.Limit(1).All(setContextOp(ctx, mwfoq.ctx, "First"))
+	nodes, err := mwfoq.Limit(1).All(setContextOp(ctx, mwfoq.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +84,7 @@ func (mwfoq *MessageWithFieldOneQuery) FirstX(ctx context.Context) *MessageWithF
 // Returns a *NotFoundError when no MessageWithFieldOne ID was found.
 func (mwfoq *MessageWithFieldOneQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = mwfoq.Limit(1).IDs(setContextOp(ctx, mwfoq.ctx, "FirstID")); err != nil {
+	if ids, err = mwfoq.Limit(1).IDs(setContextOp(ctx, mwfoq.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -106,7 +107,7 @@ func (mwfoq *MessageWithFieldOneQuery) FirstIDX(ctx context.Context) int {
 // Returns a *NotSingularError when more than one MessageWithFieldOne entity is found.
 // Returns a *NotFoundError when no MessageWithFieldOne entities are found.
 func (mwfoq *MessageWithFieldOneQuery) Only(ctx context.Context) (*MessageWithFieldOne, error) {
-	nodes, err := mwfoq.Limit(2).All(setContextOp(ctx, mwfoq.ctx, "Only"))
+	nodes, err := mwfoq.Limit(2).All(setContextOp(ctx, mwfoq.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +135,7 @@ func (mwfoq *MessageWithFieldOneQuery) OnlyX(ctx context.Context) *MessageWithFi
 // Returns a *NotFoundError when no entities are found.
 func (mwfoq *MessageWithFieldOneQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = mwfoq.Limit(2).IDs(setContextOp(ctx, mwfoq.ctx, "OnlyID")); err != nil {
+	if ids, err = mwfoq.Limit(2).IDs(setContextOp(ctx, mwfoq.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -159,7 +160,7 @@ func (mwfoq *MessageWithFieldOneQuery) OnlyIDX(ctx context.Context) int {
 
 // All executes the query and returns a list of MessageWithFieldOnes.
 func (mwfoq *MessageWithFieldOneQuery) All(ctx context.Context) ([]*MessageWithFieldOne, error) {
-	ctx = setContextOp(ctx, mwfoq.ctx, "All")
+	ctx = setContextOp(ctx, mwfoq.ctx, ent.OpQueryAll)
 	if err := mwfoq.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
@@ -177,10 +178,12 @@ func (mwfoq *MessageWithFieldOneQuery) AllX(ctx context.Context) []*MessageWithF
 }
 
 // IDs executes the query and returns a list of MessageWithFieldOne IDs.
-func (mwfoq *MessageWithFieldOneQuery) IDs(ctx context.Context) ([]int, error) {
-	var ids []int
-	ctx = setContextOp(ctx, mwfoq.ctx, "IDs")
-	if err := mwfoq.Select(messagewithfieldone.FieldID).Scan(ctx, &ids); err != nil {
+func (mwfoq *MessageWithFieldOneQuery) IDs(ctx context.Context) (ids []int, err error) {
+	if mwfoq.ctx.Unique == nil && mwfoq.path != nil {
+		mwfoq.Unique(true)
+	}
+	ctx = setContextOp(ctx, mwfoq.ctx, ent.OpQueryIDs)
+	if err = mwfoq.Select(messagewithfieldone.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -197,7 +200,7 @@ func (mwfoq *MessageWithFieldOneQuery) IDsX(ctx context.Context) []int {
 
 // Count returns the count of the given query.
 func (mwfoq *MessageWithFieldOneQuery) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, mwfoq.ctx, "Count")
+	ctx = setContextOp(ctx, mwfoq.ctx, ent.OpQueryCount)
 	if err := mwfoq.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
@@ -215,7 +218,7 @@ func (mwfoq *MessageWithFieldOneQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (mwfoq *MessageWithFieldOneQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, mwfoq.ctx, "Exist")
+	ctx = setContextOp(ctx, mwfoq.ctx, ent.OpQueryExist)
 	switch _, err := mwfoq.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -244,7 +247,7 @@ func (mwfoq *MessageWithFieldOneQuery) Clone() *MessageWithFieldOneQuery {
 	return &MessageWithFieldOneQuery{
 		config:     mwfoq.config,
 		ctx:        mwfoq.ctx.Clone(),
-		order:      append([]OrderFunc{}, mwfoq.order...),
+		order:      append([]messagewithfieldone.OrderOption{}, mwfoq.order...),
 		inters:     append([]Interceptor{}, mwfoq.inters...),
 		predicates: append([]predicate.MessageWithFieldOne{}, mwfoq.predicates...),
 		// clone intermediate query.
@@ -362,20 +365,12 @@ func (mwfoq *MessageWithFieldOneQuery) sqlCount(ctx context.Context) (int, error
 }
 
 func (mwfoq *MessageWithFieldOneQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := &sqlgraph.QuerySpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   messagewithfieldone.Table,
-			Columns: messagewithfieldone.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: messagewithfieldone.FieldID,
-			},
-		},
-		From:   mwfoq.sql,
-		Unique: true,
-	}
+	_spec := sqlgraph.NewQuerySpec(messagewithfieldone.Table, messagewithfieldone.Columns, sqlgraph.NewFieldSpec(messagewithfieldone.FieldID, field.TypeInt))
+	_spec.From = mwfoq.sql
 	if unique := mwfoq.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
+	} else if mwfoq.path != nil {
+		_spec.Unique = true
 	}
 	if fields := mwfoq.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
@@ -455,7 +450,7 @@ func (mwfogb *MessageWithFieldOneGroupBy) Aggregate(fns ...AggregateFunc) *Messa
 
 // Scan applies the selector query and scans the result into the given value.
 func (mwfogb *MessageWithFieldOneGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, mwfogb.build.ctx, "GroupBy")
+	ctx = setContextOp(ctx, mwfogb.build.ctx, ent.OpQueryGroupBy)
 	if err := mwfogb.build.prepareQuery(ctx); err != nil {
 		return err
 	}
@@ -503,7 +498,7 @@ func (mwfos *MessageWithFieldOneSelect) Aggregate(fns ...AggregateFunc) *Message
 
 // Scan applies the selector query and scans the result into the given value.
 func (mwfos *MessageWithFieldOneSelect) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, mwfos.ctx, "Select")
+	ctx = setContextOp(ctx, mwfos.ctx, ent.OpQuerySelect)
 	if err := mwfos.prepareQuery(ctx); err != nil {
 		return err
 	}

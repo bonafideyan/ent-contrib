@@ -32,7 +32,7 @@ func (mwsc *MessageWithStringsCreate) Mutation() *MessageWithStringsMutation {
 
 // Save creates the MessageWithStrings in the database.
 func (mwsc *MessageWithStringsCreate) Save(ctx context.Context) (*MessageWithStrings, error) {
-	return withHooks[*MessageWithStrings, MessageWithStringsMutation](ctx, mwsc.sqlSave, mwsc.mutation, mwsc.hooks)
+	return withHooks(ctx, mwsc.sqlSave, mwsc.mutation, mwsc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -86,13 +86,7 @@ func (mwsc *MessageWithStringsCreate) sqlSave(ctx context.Context) (*MessageWith
 func (mwsc *MessageWithStringsCreate) createSpec() (*MessageWithStrings, *sqlgraph.CreateSpec) {
 	var (
 		_node = &MessageWithStrings{config: mwsc.config}
-		_spec = &sqlgraph.CreateSpec{
-			Table: messagewithstrings.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: messagewithstrings.FieldID,
-			},
-		}
+		_spec = sqlgraph.NewCreateSpec(messagewithstrings.Table, sqlgraph.NewFieldSpec(messagewithstrings.FieldID, field.TypeInt))
 	)
 	if value, ok := mwsc.mutation.Strings(); ok {
 		_spec.SetField(messagewithstrings.FieldStrings, field.TypeJSON, value)
@@ -104,11 +98,15 @@ func (mwsc *MessageWithStringsCreate) createSpec() (*MessageWithStrings, *sqlgra
 // MessageWithStringsCreateBulk is the builder for creating many MessageWithStrings entities in bulk.
 type MessageWithStringsCreateBulk struct {
 	config
+	err      error
 	builders []*MessageWithStringsCreate
 }
 
 // Save creates the MessageWithStrings entities in the database.
 func (mwscb *MessageWithStringsCreateBulk) Save(ctx context.Context) ([]*MessageWithStrings, error) {
+	if mwscb.err != nil {
+		return nil, mwscb.err
+	}
 	specs := make([]*sqlgraph.CreateSpec, len(mwscb.builders))
 	nodes := make([]*MessageWithStrings, len(mwscb.builders))
 	mutators := make([]Mutator, len(mwscb.builders))
@@ -124,8 +122,8 @@ func (mwscb *MessageWithStringsCreateBulk) Save(ctx context.Context) ([]*Message
 					return nil, err
 				}
 				builder.mutation = mutation
-				nodes[i], specs[i] = builder.createSpec()
 				var err error
+				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, mwscb.builders[i+1].mutation)
 				} else {

@@ -11,6 +11,7 @@ import (
 	"entgo.io/contrib/entproto/internal/entprototest/ent/image"
 	"entgo.io/contrib/entproto/internal/entprototest/ent/nobackref"
 	"entgo.io/contrib/entproto/internal/entprototest/ent/predicate"
+	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
@@ -20,7 +21,7 @@ import (
 type NoBackrefQuery struct {
 	config
 	ctx        *QueryContext
-	order      []OrderFunc
+	order      []nobackref.OrderOption
 	inters     []Interceptor
 	predicates []predicate.NoBackref
 	withImages *ImageQuery
@@ -55,7 +56,7 @@ func (nbq *NoBackrefQuery) Unique(unique bool) *NoBackrefQuery {
 }
 
 // Order specifies how the records should be ordered.
-func (nbq *NoBackrefQuery) Order(o ...OrderFunc) *NoBackrefQuery {
+func (nbq *NoBackrefQuery) Order(o ...nobackref.OrderOption) *NoBackrefQuery {
 	nbq.order = append(nbq.order, o...)
 	return nbq
 }
@@ -85,7 +86,7 @@ func (nbq *NoBackrefQuery) QueryImages() *ImageQuery {
 // First returns the first NoBackref entity from the query.
 // Returns a *NotFoundError when no NoBackref was found.
 func (nbq *NoBackrefQuery) First(ctx context.Context) (*NoBackref, error) {
-	nodes, err := nbq.Limit(1).All(setContextOp(ctx, nbq.ctx, "First"))
+	nodes, err := nbq.Limit(1).All(setContextOp(ctx, nbq.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +109,7 @@ func (nbq *NoBackrefQuery) FirstX(ctx context.Context) *NoBackref {
 // Returns a *NotFoundError when no NoBackref ID was found.
 func (nbq *NoBackrefQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = nbq.Limit(1).IDs(setContextOp(ctx, nbq.ctx, "FirstID")); err != nil {
+	if ids, err = nbq.Limit(1).IDs(setContextOp(ctx, nbq.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -131,7 +132,7 @@ func (nbq *NoBackrefQuery) FirstIDX(ctx context.Context) int {
 // Returns a *NotSingularError when more than one NoBackref entity is found.
 // Returns a *NotFoundError when no NoBackref entities are found.
 func (nbq *NoBackrefQuery) Only(ctx context.Context) (*NoBackref, error) {
-	nodes, err := nbq.Limit(2).All(setContextOp(ctx, nbq.ctx, "Only"))
+	nodes, err := nbq.Limit(2).All(setContextOp(ctx, nbq.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +160,7 @@ func (nbq *NoBackrefQuery) OnlyX(ctx context.Context) *NoBackref {
 // Returns a *NotFoundError when no entities are found.
 func (nbq *NoBackrefQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = nbq.Limit(2).IDs(setContextOp(ctx, nbq.ctx, "OnlyID")); err != nil {
+	if ids, err = nbq.Limit(2).IDs(setContextOp(ctx, nbq.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -184,7 +185,7 @@ func (nbq *NoBackrefQuery) OnlyIDX(ctx context.Context) int {
 
 // All executes the query and returns a list of NoBackrefs.
 func (nbq *NoBackrefQuery) All(ctx context.Context) ([]*NoBackref, error) {
-	ctx = setContextOp(ctx, nbq.ctx, "All")
+	ctx = setContextOp(ctx, nbq.ctx, ent.OpQueryAll)
 	if err := nbq.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
@@ -202,10 +203,12 @@ func (nbq *NoBackrefQuery) AllX(ctx context.Context) []*NoBackref {
 }
 
 // IDs executes the query and returns a list of NoBackref IDs.
-func (nbq *NoBackrefQuery) IDs(ctx context.Context) ([]int, error) {
-	var ids []int
-	ctx = setContextOp(ctx, nbq.ctx, "IDs")
-	if err := nbq.Select(nobackref.FieldID).Scan(ctx, &ids); err != nil {
+func (nbq *NoBackrefQuery) IDs(ctx context.Context) (ids []int, err error) {
+	if nbq.ctx.Unique == nil && nbq.path != nil {
+		nbq.Unique(true)
+	}
+	ctx = setContextOp(ctx, nbq.ctx, ent.OpQueryIDs)
+	if err = nbq.Select(nobackref.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -222,7 +225,7 @@ func (nbq *NoBackrefQuery) IDsX(ctx context.Context) []int {
 
 // Count returns the count of the given query.
 func (nbq *NoBackrefQuery) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, nbq.ctx, "Count")
+	ctx = setContextOp(ctx, nbq.ctx, ent.OpQueryCount)
 	if err := nbq.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
@@ -240,7 +243,7 @@ func (nbq *NoBackrefQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (nbq *NoBackrefQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, nbq.ctx, "Exist")
+	ctx = setContextOp(ctx, nbq.ctx, ent.OpQueryExist)
 	switch _, err := nbq.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -269,7 +272,7 @@ func (nbq *NoBackrefQuery) Clone() *NoBackrefQuery {
 	return &NoBackrefQuery{
 		config:     nbq.config,
 		ctx:        nbq.ctx.Clone(),
-		order:      append([]OrderFunc{}, nbq.order...),
+		order:      append([]nobackref.OrderOption{}, nbq.order...),
 		inters:     append([]Interceptor{}, nbq.inters...),
 		predicates: append([]predicate.NoBackref{}, nbq.predicates...),
 		withImages: nbq.withImages.Clone(),
@@ -390,7 +393,7 @@ func (nbq *NoBackrefQuery) loadImages(ctx context.Context, query *ImageQuery, no
 	}
 	query.withFKs = true
 	query.Where(predicate.Image(func(s *sql.Selector) {
-		s.Where(sql.InValues(nobackref.ImagesColumn, fks...))
+		s.Where(sql.InValues(s.C(nobackref.ImagesColumn), fks...))
 	}))
 	neighbors, err := query.All(ctx)
 	if err != nil {
@@ -403,7 +406,7 @@ func (nbq *NoBackrefQuery) loadImages(ctx context.Context, query *ImageQuery, no
 		}
 		node, ok := nodeids[*fk]
 		if !ok {
-			return fmt.Errorf(`unexpected foreign-key "no_backref_images" returned %v for node %v`, *fk, n.ID)
+			return fmt.Errorf(`unexpected referenced foreign-key "no_backref_images" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}
@@ -420,20 +423,12 @@ func (nbq *NoBackrefQuery) sqlCount(ctx context.Context) (int, error) {
 }
 
 func (nbq *NoBackrefQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := &sqlgraph.QuerySpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   nobackref.Table,
-			Columns: nobackref.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: nobackref.FieldID,
-			},
-		},
-		From:   nbq.sql,
-		Unique: true,
-	}
+	_spec := sqlgraph.NewQuerySpec(nobackref.Table, nobackref.Columns, sqlgraph.NewFieldSpec(nobackref.FieldID, field.TypeInt))
+	_spec.From = nbq.sql
 	if unique := nbq.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
+	} else if nbq.path != nil {
+		_spec.Unique = true
 	}
 	if fields := nbq.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
@@ -513,7 +508,7 @@ func (nbgb *NoBackrefGroupBy) Aggregate(fns ...AggregateFunc) *NoBackrefGroupBy 
 
 // Scan applies the selector query and scans the result into the given value.
 func (nbgb *NoBackrefGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, nbgb.build.ctx, "GroupBy")
+	ctx = setContextOp(ctx, nbgb.build.ctx, ent.OpQueryGroupBy)
 	if err := nbgb.build.prepareQuery(ctx); err != nil {
 		return err
 	}
@@ -561,7 +556,7 @@ func (nbs *NoBackrefSelect) Aggregate(fns ...AggregateFunc) *NoBackrefSelect {
 
 // Scan applies the selector query and scans the result into the given value.
 func (nbs *NoBackrefSelect) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, nbs.ctx, "Select")
+	ctx = setContextOp(ctx, nbs.ctx, ent.OpQuerySelect)
 	if err := nbs.prepareQuery(ctx); err != nil {
 		return err
 	}

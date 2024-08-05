@@ -131,7 +131,7 @@ func (mwoc *MessageWithOptionalsCreate) Mutation() *MessageWithOptionalsMutation
 
 // Save creates the MessageWithOptionals in the database.
 func (mwoc *MessageWithOptionalsCreate) Save(ctx context.Context) (*MessageWithOptionals, error) {
-	return withHooks[*MessageWithOptionals, MessageWithOptionalsMutation](ctx, mwoc.sqlSave, mwoc.mutation, mwoc.hooks)
+	return withHooks(ctx, mwoc.sqlSave, mwoc.mutation, mwoc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -182,13 +182,7 @@ func (mwoc *MessageWithOptionalsCreate) sqlSave(ctx context.Context) (*MessageWi
 func (mwoc *MessageWithOptionalsCreate) createSpec() (*MessageWithOptionals, *sqlgraph.CreateSpec) {
 	var (
 		_node = &MessageWithOptionals{config: mwoc.config}
-		_spec = &sqlgraph.CreateSpec{
-			Table: messagewithoptionals.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: messagewithoptionals.FieldID,
-			},
-		}
+		_spec = sqlgraph.NewCreateSpec(messagewithoptionals.Table, sqlgraph.NewFieldSpec(messagewithoptionals.FieldID, field.TypeInt))
 	)
 	if value, ok := mwoc.mutation.StrOptional(); ok {
 		_spec.SetField(messagewithoptionals.FieldStrOptional, field.TypeString, value)
@@ -228,11 +222,15 @@ func (mwoc *MessageWithOptionalsCreate) createSpec() (*MessageWithOptionals, *sq
 // MessageWithOptionalsCreateBulk is the builder for creating many MessageWithOptionals entities in bulk.
 type MessageWithOptionalsCreateBulk struct {
 	config
+	err      error
 	builders []*MessageWithOptionalsCreate
 }
 
 // Save creates the MessageWithOptionals entities in the database.
 func (mwocb *MessageWithOptionalsCreateBulk) Save(ctx context.Context) ([]*MessageWithOptionals, error) {
+	if mwocb.err != nil {
+		return nil, mwocb.err
+	}
 	specs := make([]*sqlgraph.CreateSpec, len(mwocb.builders))
 	nodes := make([]*MessageWithOptionals, len(mwocb.builders))
 	mutators := make([]Mutator, len(mwocb.builders))
@@ -248,8 +246,8 @@ func (mwocb *MessageWithOptionalsCreateBulk) Save(ctx context.Context) ([]*Messa
 					return nil, err
 				}
 				builder.mutation = mutation
-				nodes[i], specs[i] = builder.createSpec()
 				var err error
+				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, mwocb.builders[i+1].mutation)
 				} else {

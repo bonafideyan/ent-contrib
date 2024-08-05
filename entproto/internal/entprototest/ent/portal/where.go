@@ -207,11 +207,7 @@ func HasCategory() predicate.Portal {
 // HasCategoryWith applies the HasEdge predicate on the "category" edge with a given conditions (other predicates).
 func HasCategoryWith(preds ...predicate.Category) predicate.Portal {
 	return predicate.Portal(func(s *sql.Selector) {
-		step := sqlgraph.NewStep(
-			sqlgraph.From(Table, FieldID),
-			sqlgraph.To(CategoryInverseTable, FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, false, CategoryTable, CategoryColumn),
-		)
+		step := newCategoryStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)
@@ -222,32 +218,15 @@ func HasCategoryWith(preds ...predicate.Category) predicate.Portal {
 
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Portal) predicate.Portal {
-	return predicate.Portal(func(s *sql.Selector) {
-		s1 := s.Clone().SetP(nil)
-		for _, p := range predicates {
-			p(s1)
-		}
-		s.Where(s1.P())
-	})
+	return predicate.Portal(sql.AndPredicates(predicates...))
 }
 
 // Or groups predicates with the OR operator between them.
 func Or(predicates ...predicate.Portal) predicate.Portal {
-	return predicate.Portal(func(s *sql.Selector) {
-		s1 := s.Clone().SetP(nil)
-		for i, p := range predicates {
-			if i > 0 {
-				s1.Or()
-			}
-			p(s1)
-		}
-		s.Where(s1.P())
-	})
+	return predicate.Portal(sql.OrPredicates(predicates...))
 }
 
 // Not applies the not operator on the given predicate.
 func Not(p predicate.Portal) predicate.Portal {
-	return predicate.Portal(func(s *sql.Selector) {
-		p(s.Not())
-	})
+	return predicate.Portal(sql.NotPredicates(p))
 }

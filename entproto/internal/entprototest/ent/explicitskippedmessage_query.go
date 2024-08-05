@@ -9,6 +9,7 @@ import (
 
 	"entgo.io/contrib/entproto/internal/entprototest/ent/explicitskippedmessage"
 	"entgo.io/contrib/entproto/internal/entprototest/ent/predicate"
+	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
@@ -18,7 +19,7 @@ import (
 type ExplicitSkippedMessageQuery struct {
 	config
 	ctx        *QueryContext
-	order      []OrderFunc
+	order      []explicitskippedmessage.OrderOption
 	inters     []Interceptor
 	predicates []predicate.ExplicitSkippedMessage
 	// intermediate query (i.e. traversal path).
@@ -52,7 +53,7 @@ func (esmq *ExplicitSkippedMessageQuery) Unique(unique bool) *ExplicitSkippedMes
 }
 
 // Order specifies how the records should be ordered.
-func (esmq *ExplicitSkippedMessageQuery) Order(o ...OrderFunc) *ExplicitSkippedMessageQuery {
+func (esmq *ExplicitSkippedMessageQuery) Order(o ...explicitskippedmessage.OrderOption) *ExplicitSkippedMessageQuery {
 	esmq.order = append(esmq.order, o...)
 	return esmq
 }
@@ -60,7 +61,7 @@ func (esmq *ExplicitSkippedMessageQuery) Order(o ...OrderFunc) *ExplicitSkippedM
 // First returns the first ExplicitSkippedMessage entity from the query.
 // Returns a *NotFoundError when no ExplicitSkippedMessage was found.
 func (esmq *ExplicitSkippedMessageQuery) First(ctx context.Context) (*ExplicitSkippedMessage, error) {
-	nodes, err := esmq.Limit(1).All(setContextOp(ctx, esmq.ctx, "First"))
+	nodes, err := esmq.Limit(1).All(setContextOp(ctx, esmq.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +84,7 @@ func (esmq *ExplicitSkippedMessageQuery) FirstX(ctx context.Context) *ExplicitSk
 // Returns a *NotFoundError when no ExplicitSkippedMessage ID was found.
 func (esmq *ExplicitSkippedMessageQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = esmq.Limit(1).IDs(setContextOp(ctx, esmq.ctx, "FirstID")); err != nil {
+	if ids, err = esmq.Limit(1).IDs(setContextOp(ctx, esmq.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -106,7 +107,7 @@ func (esmq *ExplicitSkippedMessageQuery) FirstIDX(ctx context.Context) int {
 // Returns a *NotSingularError when more than one ExplicitSkippedMessage entity is found.
 // Returns a *NotFoundError when no ExplicitSkippedMessage entities are found.
 func (esmq *ExplicitSkippedMessageQuery) Only(ctx context.Context) (*ExplicitSkippedMessage, error) {
-	nodes, err := esmq.Limit(2).All(setContextOp(ctx, esmq.ctx, "Only"))
+	nodes, err := esmq.Limit(2).All(setContextOp(ctx, esmq.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +135,7 @@ func (esmq *ExplicitSkippedMessageQuery) OnlyX(ctx context.Context) *ExplicitSki
 // Returns a *NotFoundError when no entities are found.
 func (esmq *ExplicitSkippedMessageQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = esmq.Limit(2).IDs(setContextOp(ctx, esmq.ctx, "OnlyID")); err != nil {
+	if ids, err = esmq.Limit(2).IDs(setContextOp(ctx, esmq.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -159,7 +160,7 @@ func (esmq *ExplicitSkippedMessageQuery) OnlyIDX(ctx context.Context) int {
 
 // All executes the query and returns a list of ExplicitSkippedMessages.
 func (esmq *ExplicitSkippedMessageQuery) All(ctx context.Context) ([]*ExplicitSkippedMessage, error) {
-	ctx = setContextOp(ctx, esmq.ctx, "All")
+	ctx = setContextOp(ctx, esmq.ctx, ent.OpQueryAll)
 	if err := esmq.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
@@ -177,10 +178,12 @@ func (esmq *ExplicitSkippedMessageQuery) AllX(ctx context.Context) []*ExplicitSk
 }
 
 // IDs executes the query and returns a list of ExplicitSkippedMessage IDs.
-func (esmq *ExplicitSkippedMessageQuery) IDs(ctx context.Context) ([]int, error) {
-	var ids []int
-	ctx = setContextOp(ctx, esmq.ctx, "IDs")
-	if err := esmq.Select(explicitskippedmessage.FieldID).Scan(ctx, &ids); err != nil {
+func (esmq *ExplicitSkippedMessageQuery) IDs(ctx context.Context) (ids []int, err error) {
+	if esmq.ctx.Unique == nil && esmq.path != nil {
+		esmq.Unique(true)
+	}
+	ctx = setContextOp(ctx, esmq.ctx, ent.OpQueryIDs)
+	if err = esmq.Select(explicitskippedmessage.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -197,7 +200,7 @@ func (esmq *ExplicitSkippedMessageQuery) IDsX(ctx context.Context) []int {
 
 // Count returns the count of the given query.
 func (esmq *ExplicitSkippedMessageQuery) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, esmq.ctx, "Count")
+	ctx = setContextOp(ctx, esmq.ctx, ent.OpQueryCount)
 	if err := esmq.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
@@ -215,7 +218,7 @@ func (esmq *ExplicitSkippedMessageQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (esmq *ExplicitSkippedMessageQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, esmq.ctx, "Exist")
+	ctx = setContextOp(ctx, esmq.ctx, ent.OpQueryExist)
 	switch _, err := esmq.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -244,7 +247,7 @@ func (esmq *ExplicitSkippedMessageQuery) Clone() *ExplicitSkippedMessageQuery {
 	return &ExplicitSkippedMessageQuery{
 		config:     esmq.config,
 		ctx:        esmq.ctx.Clone(),
-		order:      append([]OrderFunc{}, esmq.order...),
+		order:      append([]explicitskippedmessage.OrderOption{}, esmq.order...),
 		inters:     append([]Interceptor{}, esmq.inters...),
 		predicates: append([]predicate.ExplicitSkippedMessage{}, esmq.predicates...),
 		// clone intermediate query.
@@ -340,20 +343,12 @@ func (esmq *ExplicitSkippedMessageQuery) sqlCount(ctx context.Context) (int, err
 }
 
 func (esmq *ExplicitSkippedMessageQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := &sqlgraph.QuerySpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   explicitskippedmessage.Table,
-			Columns: explicitskippedmessage.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: explicitskippedmessage.FieldID,
-			},
-		},
-		From:   esmq.sql,
-		Unique: true,
-	}
+	_spec := sqlgraph.NewQuerySpec(explicitskippedmessage.Table, explicitskippedmessage.Columns, sqlgraph.NewFieldSpec(explicitskippedmessage.FieldID, field.TypeInt))
+	_spec.From = esmq.sql
 	if unique := esmq.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
+	} else if esmq.path != nil {
+		_spec.Unique = true
 	}
 	if fields := esmq.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
@@ -433,7 +428,7 @@ func (esmgb *ExplicitSkippedMessageGroupBy) Aggregate(fns ...AggregateFunc) *Exp
 
 // Scan applies the selector query and scans the result into the given value.
 func (esmgb *ExplicitSkippedMessageGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, esmgb.build.ctx, "GroupBy")
+	ctx = setContextOp(ctx, esmgb.build.ctx, ent.OpQueryGroupBy)
 	if err := esmgb.build.prepareQuery(ctx); err != nil {
 		return err
 	}
@@ -481,7 +476,7 @@ func (esms *ExplicitSkippedMessageSelect) Aggregate(fns ...AggregateFunc) *Expli
 
 // Scan applies the selector query and scans the result into the given value.
 func (esms *ExplicitSkippedMessageSelect) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, esms.ctx, "Select")
+	ctx = setContextOp(ctx, esms.ctx, ent.OpQuerySelect)
 	if err := esms.prepareQuery(ctx); err != nil {
 		return err
 	}

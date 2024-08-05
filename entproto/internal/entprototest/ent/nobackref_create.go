@@ -42,7 +42,7 @@ func (nbc *NoBackrefCreate) Mutation() *NoBackrefMutation {
 
 // Save creates the NoBackref in the database.
 func (nbc *NoBackrefCreate) Save(ctx context.Context) (*NoBackref, error) {
-	return withHooks[*NoBackref, NoBackrefMutation](ctx, nbc.sqlSave, nbc.mutation, nbc.hooks)
+	return withHooks(ctx, nbc.sqlSave, nbc.mutation, nbc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -93,13 +93,7 @@ func (nbc *NoBackrefCreate) sqlSave(ctx context.Context) (*NoBackref, error) {
 func (nbc *NoBackrefCreate) createSpec() (*NoBackref, *sqlgraph.CreateSpec) {
 	var (
 		_node = &NoBackref{config: nbc.config}
-		_spec = &sqlgraph.CreateSpec{
-			Table: nobackref.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: nobackref.FieldID,
-			},
-		}
+		_spec = sqlgraph.NewCreateSpec(nobackref.Table, sqlgraph.NewFieldSpec(nobackref.FieldID, field.TypeInt))
 	)
 	if nodes := nbc.mutation.ImagesIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
@@ -109,10 +103,7 @@ func (nbc *NoBackrefCreate) createSpec() (*NoBackref, *sqlgraph.CreateSpec) {
 			Columns: []string{nobackref.ImagesColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeUUID,
-					Column: image.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(image.FieldID, field.TypeUUID),
 			},
 		}
 		for _, k := range nodes {
@@ -126,11 +117,15 @@ func (nbc *NoBackrefCreate) createSpec() (*NoBackref, *sqlgraph.CreateSpec) {
 // NoBackrefCreateBulk is the builder for creating many NoBackref entities in bulk.
 type NoBackrefCreateBulk struct {
 	config
+	err      error
 	builders []*NoBackrefCreate
 }
 
 // Save creates the NoBackref entities in the database.
 func (nbcb *NoBackrefCreateBulk) Save(ctx context.Context) ([]*NoBackref, error) {
+	if nbcb.err != nil {
+		return nil, nbcb.err
+	}
 	specs := make([]*sqlgraph.CreateSpec, len(nbcb.builders))
 	nodes := make([]*NoBackref, len(nbcb.builders))
 	mutators := make([]Mutator, len(nbcb.builders))
@@ -146,8 +141,8 @@ func (nbcb *NoBackrefCreateBulk) Save(ctx context.Context) ([]*NoBackref, error)
 					return nil, err
 				}
 				builder.mutation = mutation
-				nodes[i], specs[i] = builder.createSpec()
 				var err error
+				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, nbcb.builders[i+1].mutation)
 				} else {

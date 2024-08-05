@@ -79,7 +79,7 @@ func (fc *FriendshipCreate) Mutation() *FriendshipMutation {
 // Save creates the Friendship in the database.
 func (fc *FriendshipCreate) Save(ctx context.Context) (*Friendship, error) {
 	fc.defaults()
-	return withHooks[*Friendship, FriendshipMutation](ctx, fc.sqlSave, fc.mutation, fc.hooks)
+	return withHooks(ctx, fc.sqlSave, fc.mutation, fc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -123,10 +123,10 @@ func (fc *FriendshipCreate) check() error {
 	if _, ok := fc.mutation.FriendID(); !ok {
 		return &ValidationError{Name: "friend_id", err: errors.New(`ent: missing required field "Friendship.friend_id"`)}
 	}
-	if _, ok := fc.mutation.UserID(); !ok {
+	if len(fc.mutation.UserIDs()) == 0 {
 		return &ValidationError{Name: "user", err: errors.New(`ent: missing required edge "Friendship.user"`)}
 	}
-	if _, ok := fc.mutation.FriendID(); !ok {
+	if len(fc.mutation.FriendIDs()) == 0 {
 		return &ValidationError{Name: "friend", err: errors.New(`ent: missing required edge "Friendship.friend"`)}
 	}
 	return nil
@@ -158,13 +158,7 @@ func (fc *FriendshipCreate) sqlSave(ctx context.Context) (*Friendship, error) {
 func (fc *FriendshipCreate) createSpec() (*Friendship, *sqlgraph.CreateSpec) {
 	var (
 		_node = &Friendship{config: fc.config}
-		_spec = &sqlgraph.CreateSpec{
-			Table: friendship.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeString,
-				Column: friendship.FieldID,
-			},
-		}
+		_spec = sqlgraph.NewCreateSpec(friendship.Table, sqlgraph.NewFieldSpec(friendship.FieldID, field.TypeString))
 	)
 	if value, ok := fc.mutation.CreatedAt(); ok {
 		_spec.SetField(friendship.FieldCreatedAt, field.TypeTime, value)
@@ -178,10 +172,7 @@ func (fc *FriendshipCreate) createSpec() (*Friendship, *sqlgraph.CreateSpec) {
 			Columns: []string{friendship.UserColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeString,
-					Column: user.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeString),
 			},
 		}
 		for _, k := range nodes {
@@ -198,10 +189,7 @@ func (fc *FriendshipCreate) createSpec() (*Friendship, *sqlgraph.CreateSpec) {
 			Columns: []string{friendship.FriendColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeString,
-					Column: user.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeString),
 			},
 		}
 		for _, k := range nodes {
@@ -216,11 +204,15 @@ func (fc *FriendshipCreate) createSpec() (*Friendship, *sqlgraph.CreateSpec) {
 // FriendshipCreateBulk is the builder for creating many Friendship entities in bulk.
 type FriendshipCreateBulk struct {
 	config
+	err      error
 	builders []*FriendshipCreate
 }
 
 // Save creates the Friendship entities in the database.
 func (fcb *FriendshipCreateBulk) Save(ctx context.Context) ([]*Friendship, error) {
+	if fcb.err != nil {
+		return nil, fcb.err
+	}
 	specs := make([]*sqlgraph.CreateSpec, len(fcb.builders))
 	nodes := make([]*Friendship, len(fcb.builders))
 	mutators := make([]Mutator, len(fcb.builders))
@@ -237,8 +229,8 @@ func (fcb *FriendshipCreateBulk) Save(ctx context.Context) ([]*Friendship, error
 					return nil, err
 				}
 				builder.mutation = mutation
-				nodes[i], specs[i] = builder.createSpec()
 				var err error
+				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, fcb.builders[i+1].mutation)
 				} else {

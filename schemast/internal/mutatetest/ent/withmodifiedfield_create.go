@@ -52,7 +52,7 @@ func (wmfc *WithModifiedFieldCreate) Mutation() *WithModifiedFieldMutation {
 
 // Save creates the WithModifiedField in the database.
 func (wmfc *WithModifiedFieldCreate) Save(ctx context.Context) (*WithModifiedField, error) {
-	return withHooks[*WithModifiedField, WithModifiedFieldMutation](ctx, wmfc.sqlSave, wmfc.mutation, wmfc.hooks)
+	return withHooks(ctx, wmfc.sqlSave, wmfc.mutation, wmfc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -111,13 +111,7 @@ func (wmfc *WithModifiedFieldCreate) sqlSave(ctx context.Context) (*WithModified
 func (wmfc *WithModifiedFieldCreate) createSpec() (*WithModifiedField, *sqlgraph.CreateSpec) {
 	var (
 		_node = &WithModifiedField{config: wmfc.config}
-		_spec = &sqlgraph.CreateSpec{
-			Table: withmodifiedfield.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: withmodifiedfield.FieldID,
-			},
-		}
+		_spec = sqlgraph.NewCreateSpec(withmodifiedfield.Table, sqlgraph.NewFieldSpec(withmodifiedfield.FieldID, field.TypeInt))
 	)
 	if value, ok := wmfc.mutation.Name(); ok {
 		_spec.SetField(withmodifiedfield.FieldName, field.TypeString, value)
@@ -131,10 +125,7 @@ func (wmfc *WithModifiedFieldCreate) createSpec() (*WithModifiedField, *sqlgraph
 			Columns: []string{withmodifiedfield.OwnerColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
-				IDSpec: &sqlgraph.FieldSpec{
-					Type:   field.TypeInt,
-					Column: user.FieldID,
-				},
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt),
 			},
 		}
 		for _, k := range nodes {
@@ -149,11 +140,15 @@ func (wmfc *WithModifiedFieldCreate) createSpec() (*WithModifiedField, *sqlgraph
 // WithModifiedFieldCreateBulk is the builder for creating many WithModifiedField entities in bulk.
 type WithModifiedFieldCreateBulk struct {
 	config
+	err      error
 	builders []*WithModifiedFieldCreate
 }
 
 // Save creates the WithModifiedField entities in the database.
 func (wmfcb *WithModifiedFieldCreateBulk) Save(ctx context.Context) ([]*WithModifiedField, error) {
+	if wmfcb.err != nil {
+		return nil, wmfcb.err
+	}
 	specs := make([]*sqlgraph.CreateSpec, len(wmfcb.builders))
 	nodes := make([]*WithModifiedField, len(wmfcb.builders))
 	mutators := make([]Mutator, len(wmfcb.builders))
@@ -169,8 +164,8 @@ func (wmfcb *WithModifiedFieldCreateBulk) Save(ctx context.Context) ([]*WithModi
 					return nil, err
 				}
 				builder.mutation = mutation
-				nodes[i], specs[i] = builder.createSpec()
 				var err error
+				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, wmfcb.builders[i+1].mutation)
 				} else {

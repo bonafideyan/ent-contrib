@@ -33,7 +33,7 @@ func (ifmc *InvalidFieldMessageCreate) Mutation() *InvalidFieldMessageMutation {
 
 // Save creates the InvalidFieldMessage in the database.
 func (ifmc *InvalidFieldMessageCreate) Save(ctx context.Context) (*InvalidFieldMessage, error) {
-	return withHooks[*InvalidFieldMessage, InvalidFieldMessageMutation](ctx, ifmc.sqlSave, ifmc.mutation, ifmc.hooks)
+	return withHooks(ctx, ifmc.sqlSave, ifmc.mutation, ifmc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -87,13 +87,7 @@ func (ifmc *InvalidFieldMessageCreate) sqlSave(ctx context.Context) (*InvalidFie
 func (ifmc *InvalidFieldMessageCreate) createSpec() (*InvalidFieldMessage, *sqlgraph.CreateSpec) {
 	var (
 		_node = &InvalidFieldMessage{config: ifmc.config}
-		_spec = &sqlgraph.CreateSpec{
-			Table: invalidfieldmessage.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: invalidfieldmessage.FieldID,
-			},
-		}
+		_spec = sqlgraph.NewCreateSpec(invalidfieldmessage.Table, sqlgraph.NewFieldSpec(invalidfieldmessage.FieldID, field.TypeInt))
 	)
 	if value, ok := ifmc.mutation.JSON(); ok {
 		_spec.SetField(invalidfieldmessage.FieldJSON, field.TypeJSON, value)
@@ -105,11 +99,15 @@ func (ifmc *InvalidFieldMessageCreate) createSpec() (*InvalidFieldMessage, *sqlg
 // InvalidFieldMessageCreateBulk is the builder for creating many InvalidFieldMessage entities in bulk.
 type InvalidFieldMessageCreateBulk struct {
 	config
+	err      error
 	builders []*InvalidFieldMessageCreate
 }
 
 // Save creates the InvalidFieldMessage entities in the database.
 func (ifmcb *InvalidFieldMessageCreateBulk) Save(ctx context.Context) ([]*InvalidFieldMessage, error) {
+	if ifmcb.err != nil {
+		return nil, ifmcb.err
+	}
 	specs := make([]*sqlgraph.CreateSpec, len(ifmcb.builders))
 	nodes := make([]*InvalidFieldMessage, len(ifmcb.builders))
 	mutators := make([]Mutator, len(ifmcb.builders))
@@ -125,8 +123,8 @@ func (ifmcb *InvalidFieldMessageCreateBulk) Save(ctx context.Context) ([]*Invali
 					return nil, err
 				}
 				builder.mutation = mutation
-				nodes[i], specs[i] = builder.createSpec()
 				var err error
+				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, ifmcb.builders[i+1].mutation)
 				} else {

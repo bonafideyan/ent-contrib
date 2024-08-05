@@ -33,6 +33,14 @@ func (pu *PonyUpdate) SetName(s string) *PonyUpdate {
 	return pu
 }
 
+// SetNillableName sets the "name" field if the given value is not nil.
+func (pu *PonyUpdate) SetNillableName(s *string) *PonyUpdate {
+	if s != nil {
+		pu.SetName(*s)
+	}
+	return pu
+}
+
 // Mutation returns the PonyMutation object of the builder.
 func (pu *PonyUpdate) Mutation() *PonyMutation {
 	return pu.mutation
@@ -40,7 +48,7 @@ func (pu *PonyUpdate) Mutation() *PonyMutation {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (pu *PonyUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks[int, PonyMutation](ctx, pu.sqlSave, pu.mutation, pu.hooks)
+	return withHooks(ctx, pu.sqlSave, pu.mutation, pu.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -66,16 +74,7 @@ func (pu *PonyUpdate) ExecX(ctx context.Context) {
 }
 
 func (pu *PonyUpdate) sqlSave(ctx context.Context) (n int, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   pony.Table,
-			Columns: pony.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: pony.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(pony.Table, pony.Columns, sqlgraph.NewFieldSpec(pony.FieldID, field.TypeInt))
 	if ps := pu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -112,9 +111,23 @@ func (puo *PonyUpdateOne) SetName(s string) *PonyUpdateOne {
 	return puo
 }
 
+// SetNillableName sets the "name" field if the given value is not nil.
+func (puo *PonyUpdateOne) SetNillableName(s *string) *PonyUpdateOne {
+	if s != nil {
+		puo.SetName(*s)
+	}
+	return puo
+}
+
 // Mutation returns the PonyMutation object of the builder.
 func (puo *PonyUpdateOne) Mutation() *PonyMutation {
 	return puo.mutation
+}
+
+// Where appends a list predicates to the PonyUpdate builder.
+func (puo *PonyUpdateOne) Where(ps ...predicate.Pony) *PonyUpdateOne {
+	puo.mutation.Where(ps...)
+	return puo
 }
 
 // Select allows selecting one or more fields (columns) of the returned entity.
@@ -126,7 +139,7 @@ func (puo *PonyUpdateOne) Select(field string, fields ...string) *PonyUpdateOne 
 
 // Save executes the query and returns the updated Pony entity.
 func (puo *PonyUpdateOne) Save(ctx context.Context) (*Pony, error) {
-	return withHooks[*Pony, PonyMutation](ctx, puo.sqlSave, puo.mutation, puo.hooks)
+	return withHooks(ctx, puo.sqlSave, puo.mutation, puo.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -152,16 +165,7 @@ func (puo *PonyUpdateOne) ExecX(ctx context.Context) {
 }
 
 func (puo *PonyUpdateOne) sqlSave(ctx context.Context) (_node *Pony, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   pony.Table,
-			Columns: pony.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: pony.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(pony.Table, pony.Columns, sqlgraph.NewFieldSpec(pony.FieldID, field.TypeInt))
 	id, ok := puo.mutation.ID()
 	if !ok {
 		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "Pony.id" for update`)}

@@ -9,6 +9,7 @@ import (
 
 	"entgo.io/contrib/entproto/internal/entprototest/ent/messagewithenum"
 	"entgo.io/contrib/entproto/internal/entprototest/ent/predicate"
+	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
@@ -18,7 +19,7 @@ import (
 type MessageWithEnumQuery struct {
 	config
 	ctx        *QueryContext
-	order      []OrderFunc
+	order      []messagewithenum.OrderOption
 	inters     []Interceptor
 	predicates []predicate.MessageWithEnum
 	// intermediate query (i.e. traversal path).
@@ -52,7 +53,7 @@ func (mweq *MessageWithEnumQuery) Unique(unique bool) *MessageWithEnumQuery {
 }
 
 // Order specifies how the records should be ordered.
-func (mweq *MessageWithEnumQuery) Order(o ...OrderFunc) *MessageWithEnumQuery {
+func (mweq *MessageWithEnumQuery) Order(o ...messagewithenum.OrderOption) *MessageWithEnumQuery {
 	mweq.order = append(mweq.order, o...)
 	return mweq
 }
@@ -60,7 +61,7 @@ func (mweq *MessageWithEnumQuery) Order(o ...OrderFunc) *MessageWithEnumQuery {
 // First returns the first MessageWithEnum entity from the query.
 // Returns a *NotFoundError when no MessageWithEnum was found.
 func (mweq *MessageWithEnumQuery) First(ctx context.Context) (*MessageWithEnum, error) {
-	nodes, err := mweq.Limit(1).All(setContextOp(ctx, mweq.ctx, "First"))
+	nodes, err := mweq.Limit(1).All(setContextOp(ctx, mweq.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +84,7 @@ func (mweq *MessageWithEnumQuery) FirstX(ctx context.Context) *MessageWithEnum {
 // Returns a *NotFoundError when no MessageWithEnum ID was found.
 func (mweq *MessageWithEnumQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = mweq.Limit(1).IDs(setContextOp(ctx, mweq.ctx, "FirstID")); err != nil {
+	if ids, err = mweq.Limit(1).IDs(setContextOp(ctx, mweq.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -106,7 +107,7 @@ func (mweq *MessageWithEnumQuery) FirstIDX(ctx context.Context) int {
 // Returns a *NotSingularError when more than one MessageWithEnum entity is found.
 // Returns a *NotFoundError when no MessageWithEnum entities are found.
 func (mweq *MessageWithEnumQuery) Only(ctx context.Context) (*MessageWithEnum, error) {
-	nodes, err := mweq.Limit(2).All(setContextOp(ctx, mweq.ctx, "Only"))
+	nodes, err := mweq.Limit(2).All(setContextOp(ctx, mweq.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +135,7 @@ func (mweq *MessageWithEnumQuery) OnlyX(ctx context.Context) *MessageWithEnum {
 // Returns a *NotFoundError when no entities are found.
 func (mweq *MessageWithEnumQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = mweq.Limit(2).IDs(setContextOp(ctx, mweq.ctx, "OnlyID")); err != nil {
+	if ids, err = mweq.Limit(2).IDs(setContextOp(ctx, mweq.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -159,7 +160,7 @@ func (mweq *MessageWithEnumQuery) OnlyIDX(ctx context.Context) int {
 
 // All executes the query and returns a list of MessageWithEnums.
 func (mweq *MessageWithEnumQuery) All(ctx context.Context) ([]*MessageWithEnum, error) {
-	ctx = setContextOp(ctx, mweq.ctx, "All")
+	ctx = setContextOp(ctx, mweq.ctx, ent.OpQueryAll)
 	if err := mweq.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
@@ -177,10 +178,12 @@ func (mweq *MessageWithEnumQuery) AllX(ctx context.Context) []*MessageWithEnum {
 }
 
 // IDs executes the query and returns a list of MessageWithEnum IDs.
-func (mweq *MessageWithEnumQuery) IDs(ctx context.Context) ([]int, error) {
-	var ids []int
-	ctx = setContextOp(ctx, mweq.ctx, "IDs")
-	if err := mweq.Select(messagewithenum.FieldID).Scan(ctx, &ids); err != nil {
+func (mweq *MessageWithEnumQuery) IDs(ctx context.Context) (ids []int, err error) {
+	if mweq.ctx.Unique == nil && mweq.path != nil {
+		mweq.Unique(true)
+	}
+	ctx = setContextOp(ctx, mweq.ctx, ent.OpQueryIDs)
+	if err = mweq.Select(messagewithenum.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -197,7 +200,7 @@ func (mweq *MessageWithEnumQuery) IDsX(ctx context.Context) []int {
 
 // Count returns the count of the given query.
 func (mweq *MessageWithEnumQuery) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, mweq.ctx, "Count")
+	ctx = setContextOp(ctx, mweq.ctx, ent.OpQueryCount)
 	if err := mweq.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
@@ -215,7 +218,7 @@ func (mweq *MessageWithEnumQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (mweq *MessageWithEnumQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, mweq.ctx, "Exist")
+	ctx = setContextOp(ctx, mweq.ctx, ent.OpQueryExist)
 	switch _, err := mweq.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -244,7 +247,7 @@ func (mweq *MessageWithEnumQuery) Clone() *MessageWithEnumQuery {
 	return &MessageWithEnumQuery{
 		config:     mweq.config,
 		ctx:        mweq.ctx.Clone(),
-		order:      append([]OrderFunc{}, mweq.order...),
+		order:      append([]messagewithenum.OrderOption{}, mweq.order...),
 		inters:     append([]Interceptor{}, mweq.inters...),
 		predicates: append([]predicate.MessageWithEnum{}, mweq.predicates...),
 		// clone intermediate query.
@@ -362,20 +365,12 @@ func (mweq *MessageWithEnumQuery) sqlCount(ctx context.Context) (int, error) {
 }
 
 func (mweq *MessageWithEnumQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := &sqlgraph.QuerySpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   messagewithenum.Table,
-			Columns: messagewithenum.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: messagewithenum.FieldID,
-			},
-		},
-		From:   mweq.sql,
-		Unique: true,
-	}
+	_spec := sqlgraph.NewQuerySpec(messagewithenum.Table, messagewithenum.Columns, sqlgraph.NewFieldSpec(messagewithenum.FieldID, field.TypeInt))
+	_spec.From = mweq.sql
 	if unique := mweq.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
+	} else if mweq.path != nil {
+		_spec.Unique = true
 	}
 	if fields := mweq.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
@@ -455,7 +450,7 @@ func (mwegb *MessageWithEnumGroupBy) Aggregate(fns ...AggregateFunc) *MessageWit
 
 // Scan applies the selector query and scans the result into the given value.
 func (mwegb *MessageWithEnumGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, mwegb.build.ctx, "GroupBy")
+	ctx = setContextOp(ctx, mwegb.build.ctx, ent.OpQueryGroupBy)
 	if err := mwegb.build.prepareQuery(ctx); err != nil {
 		return err
 	}
@@ -503,7 +498,7 @@ func (mwes *MessageWithEnumSelect) Aggregate(fns ...AggregateFunc) *MessageWithE
 
 // Scan applies the selector query and scans the result into the given value.
 func (mwes *MessageWithEnumSelect) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, mwes.ctx, "Select")
+	ctx = setContextOp(ctx, mwes.ctx, ent.OpQuerySelect)
 	if err := mwes.prepareQuery(ctx); err != nil {
 		return err
 	}

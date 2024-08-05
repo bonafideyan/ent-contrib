@@ -48,7 +48,7 @@ func (mwsu *MultiWordSchemaUpdate) Mutation() *MultiWordSchemaMutation {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (mwsu *MultiWordSchemaUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks[int, MultiWordSchemaMutation](ctx, mwsu.sqlSave, mwsu.mutation, mwsu.hooks)
+	return withHooks(ctx, mwsu.sqlSave, mwsu.mutation, mwsu.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -87,16 +87,7 @@ func (mwsu *MultiWordSchemaUpdate) sqlSave(ctx context.Context) (n int, err erro
 	if err := mwsu.check(); err != nil {
 		return n, err
 	}
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   multiwordschema.Table,
-			Columns: multiwordschema.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: multiwordschema.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(multiwordschema.Table, multiwordschema.Columns, sqlgraph.NewFieldSpec(multiwordschema.FieldID, field.TypeInt))
 	if ps := mwsu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -146,6 +137,12 @@ func (mwsuo *MultiWordSchemaUpdateOne) Mutation() *MultiWordSchemaMutation {
 	return mwsuo.mutation
 }
 
+// Where appends a list predicates to the MultiWordSchemaUpdate builder.
+func (mwsuo *MultiWordSchemaUpdateOne) Where(ps ...predicate.MultiWordSchema) *MultiWordSchemaUpdateOne {
+	mwsuo.mutation.Where(ps...)
+	return mwsuo
+}
+
 // Select allows selecting one or more fields (columns) of the returned entity.
 // The default is selecting all fields defined in the entity schema.
 func (mwsuo *MultiWordSchemaUpdateOne) Select(field string, fields ...string) *MultiWordSchemaUpdateOne {
@@ -155,7 +152,7 @@ func (mwsuo *MultiWordSchemaUpdateOne) Select(field string, fields ...string) *M
 
 // Save executes the query and returns the updated MultiWordSchema entity.
 func (mwsuo *MultiWordSchemaUpdateOne) Save(ctx context.Context) (*MultiWordSchema, error) {
-	return withHooks[*MultiWordSchema, MultiWordSchemaMutation](ctx, mwsuo.sqlSave, mwsuo.mutation, mwsuo.hooks)
+	return withHooks(ctx, mwsuo.sqlSave, mwsuo.mutation, mwsuo.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -194,16 +191,7 @@ func (mwsuo *MultiWordSchemaUpdateOne) sqlSave(ctx context.Context) (_node *Mult
 	if err := mwsuo.check(); err != nil {
 		return _node, err
 	}
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   multiwordschema.Table,
-			Columns: multiwordschema.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: multiwordschema.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(multiwordschema.Table, multiwordschema.Columns, sqlgraph.NewFieldSpec(multiwordschema.FieldID, field.TypeInt))
 	id, ok := mwsuo.mutation.ID()
 	if !ok {
 		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "MultiWordSchema.id" for update`)}

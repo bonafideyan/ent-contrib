@@ -138,11 +138,7 @@ func HasUserProfilePic() predicate.Image {
 // HasUserProfilePicWith applies the HasEdge predicate on the "user_profile_pic" edge with a given conditions (other predicates).
 func HasUserProfilePicWith(preds ...predicate.User) predicate.Image {
 	return predicate.Image(func(s *sql.Selector) {
-		step := sqlgraph.NewStep(
-			sqlgraph.From(Table, FieldID),
-			sqlgraph.To(UserProfilePicInverseTable, FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, true, UserProfilePicTable, UserProfilePicColumn),
-		)
+		step := newUserProfilePicStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)
@@ -153,32 +149,15 @@ func HasUserProfilePicWith(preds ...predicate.User) predicate.Image {
 
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Image) predicate.Image {
-	return predicate.Image(func(s *sql.Selector) {
-		s1 := s.Clone().SetP(nil)
-		for _, p := range predicates {
-			p(s1)
-		}
-		s.Where(s1.P())
-	})
+	return predicate.Image(sql.AndPredicates(predicates...))
 }
 
 // Or groups predicates with the OR operator between them.
 func Or(predicates ...predicate.Image) predicate.Image {
-	return predicate.Image(func(s *sql.Selector) {
-		s1 := s.Clone().SetP(nil)
-		for i, p := range predicates {
-			if i > 0 {
-				s1.Or()
-			}
-			p(s1)
-		}
-		s.Where(s1.P())
-	})
+	return predicate.Image(sql.OrPredicates(predicates...))
 }
 
 // Not applies the not operator on the given predicate.
 func Not(p predicate.Image) predicate.Image {
-	return predicate.Image(func(s *sql.Selector) {
-		p(s.Not())
-	})
+	return predicate.Image(sql.NotPredicates(p))
 }

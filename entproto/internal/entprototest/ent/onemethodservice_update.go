@@ -34,7 +34,7 @@ func (omsu *OneMethodServiceUpdate) Mutation() *OneMethodServiceMutation {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (omsu *OneMethodServiceUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks[int, OneMethodServiceMutation](ctx, omsu.sqlSave, omsu.mutation, omsu.hooks)
+	return withHooks(ctx, omsu.sqlSave, omsu.mutation, omsu.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -60,16 +60,7 @@ func (omsu *OneMethodServiceUpdate) ExecX(ctx context.Context) {
 }
 
 func (omsu *OneMethodServiceUpdate) sqlSave(ctx context.Context) (n int, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   onemethodservice.Table,
-			Columns: onemethodservice.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: onemethodservice.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(onemethodservice.Table, onemethodservice.Columns, sqlgraph.NewFieldSpec(onemethodservice.FieldID, field.TypeInt))
 	if ps := omsu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -102,6 +93,12 @@ func (omsuo *OneMethodServiceUpdateOne) Mutation() *OneMethodServiceMutation {
 	return omsuo.mutation
 }
 
+// Where appends a list predicates to the OneMethodServiceUpdate builder.
+func (omsuo *OneMethodServiceUpdateOne) Where(ps ...predicate.OneMethodService) *OneMethodServiceUpdateOne {
+	omsuo.mutation.Where(ps...)
+	return omsuo
+}
+
 // Select allows selecting one or more fields (columns) of the returned entity.
 // The default is selecting all fields defined in the entity schema.
 func (omsuo *OneMethodServiceUpdateOne) Select(field string, fields ...string) *OneMethodServiceUpdateOne {
@@ -111,7 +108,7 @@ func (omsuo *OneMethodServiceUpdateOne) Select(field string, fields ...string) *
 
 // Save executes the query and returns the updated OneMethodService entity.
 func (omsuo *OneMethodServiceUpdateOne) Save(ctx context.Context) (*OneMethodService, error) {
-	return withHooks[*OneMethodService, OneMethodServiceMutation](ctx, omsuo.sqlSave, omsuo.mutation, omsuo.hooks)
+	return withHooks(ctx, omsuo.sqlSave, omsuo.mutation, omsuo.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -137,16 +134,7 @@ func (omsuo *OneMethodServiceUpdateOne) ExecX(ctx context.Context) {
 }
 
 func (omsuo *OneMethodServiceUpdateOne) sqlSave(ctx context.Context) (_node *OneMethodService, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   onemethodservice.Table,
-			Columns: onemethodservice.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: onemethodservice.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(onemethodservice.Table, onemethodservice.Columns, sqlgraph.NewFieldSpec(onemethodservice.FieldID, field.TypeInt))
 	id, ok := omsuo.mutation.ID()
 	if !ok {
 		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "OneMethodService.id" for update`)}

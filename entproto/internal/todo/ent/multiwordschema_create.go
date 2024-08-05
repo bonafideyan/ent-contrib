@@ -41,7 +41,7 @@ func (mwsc *MultiWordSchemaCreate) Mutation() *MultiWordSchemaMutation {
 // Save creates the MultiWordSchema in the database.
 func (mwsc *MultiWordSchemaCreate) Save(ctx context.Context) (*MultiWordSchema, error) {
 	mwsc.defaults()
-	return withHooks[*MultiWordSchema, MultiWordSchemaMutation](ctx, mwsc.sqlSave, mwsc.mutation, mwsc.hooks)
+	return withHooks(ctx, mwsc.sqlSave, mwsc.mutation, mwsc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -108,13 +108,7 @@ func (mwsc *MultiWordSchemaCreate) sqlSave(ctx context.Context) (*MultiWordSchem
 func (mwsc *MultiWordSchemaCreate) createSpec() (*MultiWordSchema, *sqlgraph.CreateSpec) {
 	var (
 		_node = &MultiWordSchema{config: mwsc.config}
-		_spec = &sqlgraph.CreateSpec{
-			Table: multiwordschema.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: multiwordschema.FieldID,
-			},
-		}
+		_spec = sqlgraph.NewCreateSpec(multiwordschema.Table, sqlgraph.NewFieldSpec(multiwordschema.FieldID, field.TypeInt))
 	)
 	if value, ok := mwsc.mutation.Unit(); ok {
 		_spec.SetField(multiwordschema.FieldUnit, field.TypeEnum, value)
@@ -126,11 +120,15 @@ func (mwsc *MultiWordSchemaCreate) createSpec() (*MultiWordSchema, *sqlgraph.Cre
 // MultiWordSchemaCreateBulk is the builder for creating many MultiWordSchema entities in bulk.
 type MultiWordSchemaCreateBulk struct {
 	config
+	err      error
 	builders []*MultiWordSchemaCreate
 }
 
 // Save creates the MultiWordSchema entities in the database.
 func (mwscb *MultiWordSchemaCreateBulk) Save(ctx context.Context) ([]*MultiWordSchema, error) {
+	if mwscb.err != nil {
+		return nil, mwscb.err
+	}
 	specs := make([]*sqlgraph.CreateSpec, len(mwscb.builders))
 	nodes := make([]*MultiWordSchema, len(mwscb.builders))
 	mutators := make([]Mutator, len(mwscb.builders))
@@ -147,8 +145,8 @@ func (mwscb *MultiWordSchemaCreateBulk) Save(ctx context.Context) ([]*MultiWordS
 					return nil, err
 				}
 				builder.mutation = mutation
-				nodes[i], specs[i] = builder.createSpec()
 				var err error
+				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, mwscb.builders[i+1].mutation)
 				} else {

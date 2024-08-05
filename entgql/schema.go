@@ -60,6 +60,10 @@ var (
 					Name: "models",
 					Type: ast.ListType(ast.NonNullNamedType("String", nil), nil),
 				},
+				{
+					Name: "forceGenerate",
+					Type: ast.NamedType("Boolean", nil),
+				},
 			},
 			Locations: []ast.DirectiveLocation{
 				ast.LocationObject,
@@ -82,6 +86,10 @@ var (
 					Name: "name",
 					Type: ast.NamedType("String", nil),
 				},
+				{
+					Name: "omittable",
+					Type: ast.NamedType("Boolean", nil),
+				},
 			},
 			Locations: []ast.DirectiveLocation{
 				ast.LocationFieldDefinition,
@@ -89,7 +97,6 @@ var (
 			},
 		},
 	}
-
 	inputObjectFilter    = func(t string) bool { return strings.HasSuffix(t, "Input") }
 	nonInputObjectFilter = func(t string) bool { return !inputObjectFilter(t) }
 )
@@ -369,21 +376,14 @@ func (e *schemaGenerator) buildDirectives(directives []Directive) ast.DirectiveL
 }
 
 func (e *schemaGenerator) enumOrderByValues(t *gen.Type, gqlType string) (*ast.Definition, error) {
-	fields, err := orderFields(t)
+	terms, err := orderFields(t)
 	if err != nil {
 		return nil, err
 	}
-	enumValues := make(ast.EnumValueList, 0, len(fields))
-	for _, f := range fields {
-		ant, err := annotation(f.Annotations)
-		if err != nil {
-			return nil, err
-		}
-		if ant.Skip.Is(SkipOrderField) || ant.OrderField == "" {
-			continue
-		}
+	enumValues := make(ast.EnumValueList, 0, len(terms))
+	for _, f := range terms {
 		enumValues = append(enumValues, &ast.EnumValueDefinition{
-			Name: ant.OrderField,
+			Name: f.GQL,
 		})
 	}
 	if len(enumValues) == 0 {
@@ -435,7 +435,10 @@ func (e *schemaGenerator) buildEdge(node *gen.Type, edge *gen.Edge, edgeAnt *Ann
 		mappings = edgeAnt.Mapping
 	}
 	for _, name := range mappings {
-		fieldDef := &ast.FieldDefinition{Name: name}
+		fieldDef := &ast.FieldDefinition{
+			Name:        name,
+			Description: edge.Comment(),
+		}
 		switch {
 		case edge.Unique:
 			fieldDef.Type = namedType(gqlType, edge.Optional)
@@ -543,6 +546,13 @@ func (e *schemaGenerator) buildMutationInputs(t *gen.Type, ant *Annotation, gqlT
 	var defs []*ast.Definition
 
 	for _, i := range ant.MutationInputs {
+		if i.IsCreate && ant.Skip.Is(SkipMutationCreateInput) {
+			continue
+		}
+		if !i.IsCreate && ant.Skip.Is(SkipMutationUpdateInput) {
+			continue
+		}
+
 		desc := MutationDescriptor{Type: t, IsCreate: i.IsCreate}
 		name, err := desc.Input()
 		if err != nil {
@@ -620,7 +630,7 @@ func (e *schemaGenerator) buildMutationInputs(t *gen.Type, ant *Annotation, gqlT
 					Type: namedType("[ID!]", true),
 				})
 			}
-			if !i.IsCreate {
+			if !i.IsCreate && e.Optional {
 				def.Fields = append(def.Fields, &ast.FieldDefinition{
 					Name: camel(snake(e.MutationClear())),
 					Type: namedType("Boolean", true),
@@ -638,18 +648,17 @@ func (e *schemaGenerator) fieldDefinitions(gqlType string, f *gen.Field, ant *An
 	if err != nil {
 		return nil, fmt.Errorf("field(%s): %w", f.Name, err)
 	}
-
 	var (
-		fields      = []*ast.FieldDefinition{}
-		mappings    = []string{camel(f.Name)}
+		fields      []*ast.FieldDefinition
 		goFieldName = templates.ToGo(f.Name)
 		structField = f.StructField()
 	)
-	if len(ant.Mapping) > 0 {
-		mappings = ant.Mapping
+	mapping, err := fieldMapping(f)
+	if err != nil {
+		return nil, err
 	}
-	for _, name := range mappings {
-		field := &ast.FieldDefinition{
+	for _, name := range mapping {
+		def := &ast.FieldDefinition{
 			Name:        name,
 			Type:        ft,
 			Description: f.Comment(),
@@ -658,11 +667,23 @@ func (e *schemaGenerator) fieldDefinitions(gqlType string, f *gen.Field, ant *An
 		// We check the field name with gqlgen's naming convention.
 		// To avoid unnecessary @goField directives
 		if goFieldName != templates.ToGo(name) {
-			field.Directives = append(field.Directives, goField(structField))
+			def.Directives = append(def.Directives, goField(structField))
 		}
-		fields = append(fields, field)
+		fields = append(fields, def)
 	}
 	return fields, nil
+}
+
+// fieldMapping returns the GraphQL names mapping of a field.
+func fieldMapping(f *gen.Field) ([]string, error) {
+	ant, err := annotation(f.Annotations)
+	if err != nil || ant.Skip.Is(SkipType) || f.Sensitive() {
+		return nil, err
+	}
+	if len(ant.Mapping) > 0 {
+		return ant.Mapping, nil
+	}
+	return []string{camel(f.Name)}, nil
 }
 
 func (e *schemaGenerator) fieldDefinitionOp(gqlType string, f *gen.Field, ant *Annotation, op gen.Op) *ast.FieldDefinition {
@@ -698,7 +719,7 @@ func (e *schemaGenerator) typeFromField(gqlType string, f *gen.Field, ant *Annot
 
 	switch t := f.Type.Type; {
 	case t == field.TypeJSON:
-		return nil, fmt.Errorf("entgql: json type not implemented")
+		return nil, fmt.Errorf("entgql: json type not implemented without setting an entgql.Type() annotation")
 	case t == field.TypeOther:
 		return nil, fmt.Errorf("entgql: other type must have typed defined")
 	default:
@@ -758,6 +779,10 @@ func (e *schemaGenerator) mapScalar(gqlType string, f *gen.Field, ant *Annotatio
 					scalar = "[Int!]"
 				case "[]string":
 					scalar = "[String!]"
+				}
+			case reflect.Map:
+				if f.Type.RType.Ident == "map[string]interface {}" {
+					scalar = "Map"
 				}
 			}
 		}

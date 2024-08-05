@@ -74,7 +74,7 @@ func (bpc *BillProductCreate) Mutation() *BillProductMutation {
 // Save creates the BillProduct in the database.
 func (bpc *BillProductCreate) Save(ctx context.Context) (*BillProduct, error) {
 	bpc.defaults()
-	return withHooks[*BillProduct, BillProductMutation](ctx, bpc.sqlSave, bpc.mutation, bpc.hooks)
+	return withHooks(ctx, bpc.sqlSave, bpc.mutation, bpc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -147,13 +147,7 @@ func (bpc *BillProductCreate) sqlSave(ctx context.Context) (*BillProduct, error)
 func (bpc *BillProductCreate) createSpec() (*BillProduct, *sqlgraph.CreateSpec) {
 	var (
 		_node = &BillProduct{config: bpc.config}
-		_spec = &sqlgraph.CreateSpec{
-			Table: billproduct.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeString,
-				Column: billproduct.FieldID,
-			},
-		}
+		_spec = sqlgraph.NewCreateSpec(billproduct.Table, sqlgraph.NewFieldSpec(billproduct.FieldID, field.TypeString))
 	)
 	if id, ok := bpc.mutation.ID(); ok {
 		_node.ID = id
@@ -177,11 +171,15 @@ func (bpc *BillProductCreate) createSpec() (*BillProduct, *sqlgraph.CreateSpec) 
 // BillProductCreateBulk is the builder for creating many BillProduct entities in bulk.
 type BillProductCreateBulk struct {
 	config
+	err      error
 	builders []*BillProductCreate
 }
 
 // Save creates the BillProduct entities in the database.
 func (bpcb *BillProductCreateBulk) Save(ctx context.Context) ([]*BillProduct, error) {
+	if bpcb.err != nil {
+		return nil, bpcb.err
+	}
 	specs := make([]*sqlgraph.CreateSpec, len(bpcb.builders))
 	nodes := make([]*BillProduct, len(bpcb.builders))
 	mutators := make([]Mutator, len(bpcb.builders))
@@ -198,8 +196,8 @@ func (bpcb *BillProductCreateBulk) Save(ctx context.Context) ([]*BillProduct, er
 					return nil, err
 				}
 				builder.mutation = mutation
-				nodes[i], specs[i] = builder.createSpec()
 				var err error
+				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, bpcb.builders[i+1].mutation)
 				} else {

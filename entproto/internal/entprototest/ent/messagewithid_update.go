@@ -34,7 +34,7 @@ func (mwiu *MessageWithIDUpdate) Mutation() *MessageWithIDMutation {
 
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (mwiu *MessageWithIDUpdate) Save(ctx context.Context) (int, error) {
-	return withHooks[int, MessageWithIDMutation](ctx, mwiu.sqlSave, mwiu.mutation, mwiu.hooks)
+	return withHooks(ctx, mwiu.sqlSave, mwiu.mutation, mwiu.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -60,16 +60,7 @@ func (mwiu *MessageWithIDUpdate) ExecX(ctx context.Context) {
 }
 
 func (mwiu *MessageWithIDUpdate) sqlSave(ctx context.Context) (n int, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   messagewithid.Table,
-			Columns: messagewithid.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt32,
-				Column: messagewithid.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(messagewithid.Table, messagewithid.Columns, sqlgraph.NewFieldSpec(messagewithid.FieldID, field.TypeInt32))
 	if ps := mwiu.mutation.predicates; len(ps) > 0 {
 		_spec.Predicate = func(selector *sql.Selector) {
 			for i := range ps {
@@ -102,6 +93,12 @@ func (mwiuo *MessageWithIDUpdateOne) Mutation() *MessageWithIDMutation {
 	return mwiuo.mutation
 }
 
+// Where appends a list predicates to the MessageWithIDUpdate builder.
+func (mwiuo *MessageWithIDUpdateOne) Where(ps ...predicate.MessageWithID) *MessageWithIDUpdateOne {
+	mwiuo.mutation.Where(ps...)
+	return mwiuo
+}
+
 // Select allows selecting one or more fields (columns) of the returned entity.
 // The default is selecting all fields defined in the entity schema.
 func (mwiuo *MessageWithIDUpdateOne) Select(field string, fields ...string) *MessageWithIDUpdateOne {
@@ -111,7 +108,7 @@ func (mwiuo *MessageWithIDUpdateOne) Select(field string, fields ...string) *Mes
 
 // Save executes the query and returns the updated MessageWithID entity.
 func (mwiuo *MessageWithIDUpdateOne) Save(ctx context.Context) (*MessageWithID, error) {
-	return withHooks[*MessageWithID, MessageWithIDMutation](ctx, mwiuo.sqlSave, mwiuo.mutation, mwiuo.hooks)
+	return withHooks(ctx, mwiuo.sqlSave, mwiuo.mutation, mwiuo.hooks)
 }
 
 // SaveX is like Save, but panics if an error occurs.
@@ -137,16 +134,7 @@ func (mwiuo *MessageWithIDUpdateOne) ExecX(ctx context.Context) {
 }
 
 func (mwiuo *MessageWithIDUpdateOne) sqlSave(ctx context.Context) (_node *MessageWithID, err error) {
-	_spec := &sqlgraph.UpdateSpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   messagewithid.Table,
-			Columns: messagewithid.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt32,
-				Column: messagewithid.FieldID,
-			},
-		},
-	}
+	_spec := sqlgraph.NewUpdateSpec(messagewithid.Table, messagewithid.Columns, sqlgraph.NewFieldSpec(messagewithid.FieldID, field.TypeInt32))
 	id, ok := mwiuo.mutation.ID()
 	if !ok {
 		return nil, &ValidationError{Name: "id", err: errors.New(`ent: missing "MessageWithID.id" for update`)}

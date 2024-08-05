@@ -68,11 +68,7 @@ func HasUser() predicate.Attachment {
 // HasUserWith applies the HasEdge predicate on the "user" edge with a given conditions (other predicates).
 func HasUserWith(preds ...predicate.User) predicate.Attachment {
 	return predicate.Attachment(func(s *sql.Selector) {
-		step := sqlgraph.NewStep(
-			sqlgraph.From(Table, FieldID),
-			sqlgraph.To(UserInverseTable, UserFieldID),
-			sqlgraph.Edge(sqlgraph.O2O, true, UserTable, UserColumn),
-		)
+		step := newUserStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)
@@ -95,11 +91,7 @@ func HasRecipients() predicate.Attachment {
 // HasRecipientsWith applies the HasEdge predicate on the "recipients" edge with a given conditions (other predicates).
 func HasRecipientsWith(preds ...predicate.User) predicate.Attachment {
 	return predicate.Attachment(func(s *sql.Selector) {
-		step := sqlgraph.NewStep(
-			sqlgraph.From(Table, FieldID),
-			sqlgraph.To(RecipientsInverseTable, UserFieldID),
-			sqlgraph.Edge(sqlgraph.M2M, false, RecipientsTable, RecipientsPrimaryKey...),
-		)
+		step := newRecipientsStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)
@@ -110,32 +102,15 @@ func HasRecipientsWith(preds ...predicate.User) predicate.Attachment {
 
 // And groups predicates with the AND operator between them.
 func And(predicates ...predicate.Attachment) predicate.Attachment {
-	return predicate.Attachment(func(s *sql.Selector) {
-		s1 := s.Clone().SetP(nil)
-		for _, p := range predicates {
-			p(s1)
-		}
-		s.Where(s1.P())
-	})
+	return predicate.Attachment(sql.AndPredicates(predicates...))
 }
 
 // Or groups predicates with the OR operator between them.
 func Or(predicates ...predicate.Attachment) predicate.Attachment {
-	return predicate.Attachment(func(s *sql.Selector) {
-		s1 := s.Clone().SetP(nil)
-		for i, p := range predicates {
-			if i > 0 {
-				s1.Or()
-			}
-			p(s1)
-		}
-		s.Where(s1.P())
-	})
+	return predicate.Attachment(sql.OrPredicates(predicates...))
 }
 
 // Not applies the not operator on the given predicate.
 func Not(p predicate.Attachment) predicate.Attachment {
-	return predicate.Attachment(func(s *sql.Selector) {
-		p(s.Not())
-	})
+	return predicate.Attachment(sql.NotPredicates(p))
 }

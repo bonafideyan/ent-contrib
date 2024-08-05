@@ -61,7 +61,7 @@ func (vsc *VerySecretCreate) Mutation() *VerySecretMutation {
 // Save creates the VerySecret in the database.
 func (vsc *VerySecretCreate) Save(ctx context.Context) (*VerySecret, error) {
 	vsc.defaults()
-	return withHooks[*VerySecret, VerySecretMutation](ctx, vsc.sqlSave, vsc.mutation, vsc.hooks)
+	return withHooks(ctx, vsc.sqlSave, vsc.mutation, vsc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -128,13 +128,7 @@ func (vsc *VerySecretCreate) sqlSave(ctx context.Context) (*VerySecret, error) {
 func (vsc *VerySecretCreate) createSpec() (*VerySecret, *sqlgraph.CreateSpec) {
 	var (
 		_node = &VerySecret{config: vsc.config}
-		_spec = &sqlgraph.CreateSpec{
-			Table: verysecret.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeString,
-				Column: verysecret.FieldID,
-			},
-		}
+		_spec = sqlgraph.NewCreateSpec(verysecret.Table, sqlgraph.NewFieldSpec(verysecret.FieldID, field.TypeString))
 	)
 	if id, ok := vsc.mutation.ID(); ok {
 		_node.ID = id
@@ -150,11 +144,15 @@ func (vsc *VerySecretCreate) createSpec() (*VerySecret, *sqlgraph.CreateSpec) {
 // VerySecretCreateBulk is the builder for creating many VerySecret entities in bulk.
 type VerySecretCreateBulk struct {
 	config
+	err      error
 	builders []*VerySecretCreate
 }
 
 // Save creates the VerySecret entities in the database.
 func (vscb *VerySecretCreateBulk) Save(ctx context.Context) ([]*VerySecret, error) {
+	if vscb.err != nil {
+		return nil, vscb.err
+	}
 	specs := make([]*sqlgraph.CreateSpec, len(vscb.builders))
 	nodes := make([]*VerySecret, len(vscb.builders))
 	mutators := make([]Mutator, len(vscb.builders))
@@ -171,8 +169,8 @@ func (vscb *VerySecretCreateBulk) Save(ctx context.Context) ([]*VerySecret, erro
 					return nil, err
 				}
 				builder.mutation = mutation
-				nodes[i], specs[i] = builder.createSpec()
 				var err error
+				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, vscb.builders[i+1].mutation)
 				} else {

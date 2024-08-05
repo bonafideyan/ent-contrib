@@ -10,6 +10,7 @@ import (
 	"entgo.io/contrib/entproto/internal/entprototest/ent/category"
 	"entgo.io/contrib/entproto/internal/entprototest/ent/portal"
 	"entgo.io/contrib/entproto/internal/entprototest/ent/predicate"
+	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
@@ -19,7 +20,7 @@ import (
 type PortalQuery struct {
 	config
 	ctx          *QueryContext
-	order        []OrderFunc
+	order        []portal.OrderOption
 	inters       []Interceptor
 	predicates   []predicate.Portal
 	withCategory *CategoryQuery
@@ -55,7 +56,7 @@ func (pq *PortalQuery) Unique(unique bool) *PortalQuery {
 }
 
 // Order specifies how the records should be ordered.
-func (pq *PortalQuery) Order(o ...OrderFunc) *PortalQuery {
+func (pq *PortalQuery) Order(o ...portal.OrderOption) *PortalQuery {
 	pq.order = append(pq.order, o...)
 	return pq
 }
@@ -85,7 +86,7 @@ func (pq *PortalQuery) QueryCategory() *CategoryQuery {
 // First returns the first Portal entity from the query.
 // Returns a *NotFoundError when no Portal was found.
 func (pq *PortalQuery) First(ctx context.Context) (*Portal, error) {
-	nodes, err := pq.Limit(1).All(setContextOp(ctx, pq.ctx, "First"))
+	nodes, err := pq.Limit(1).All(setContextOp(ctx, pq.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +109,7 @@ func (pq *PortalQuery) FirstX(ctx context.Context) *Portal {
 // Returns a *NotFoundError when no Portal ID was found.
 func (pq *PortalQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = pq.Limit(1).IDs(setContextOp(ctx, pq.ctx, "FirstID")); err != nil {
+	if ids, err = pq.Limit(1).IDs(setContextOp(ctx, pq.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -131,7 +132,7 @@ func (pq *PortalQuery) FirstIDX(ctx context.Context) int {
 // Returns a *NotSingularError when more than one Portal entity is found.
 // Returns a *NotFoundError when no Portal entities are found.
 func (pq *PortalQuery) Only(ctx context.Context) (*Portal, error) {
-	nodes, err := pq.Limit(2).All(setContextOp(ctx, pq.ctx, "Only"))
+	nodes, err := pq.Limit(2).All(setContextOp(ctx, pq.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +160,7 @@ func (pq *PortalQuery) OnlyX(ctx context.Context) *Portal {
 // Returns a *NotFoundError when no entities are found.
 func (pq *PortalQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = pq.Limit(2).IDs(setContextOp(ctx, pq.ctx, "OnlyID")); err != nil {
+	if ids, err = pq.Limit(2).IDs(setContextOp(ctx, pq.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -184,7 +185,7 @@ func (pq *PortalQuery) OnlyIDX(ctx context.Context) int {
 
 // All executes the query and returns a list of Portals.
 func (pq *PortalQuery) All(ctx context.Context) ([]*Portal, error) {
-	ctx = setContextOp(ctx, pq.ctx, "All")
+	ctx = setContextOp(ctx, pq.ctx, ent.OpQueryAll)
 	if err := pq.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
@@ -202,10 +203,12 @@ func (pq *PortalQuery) AllX(ctx context.Context) []*Portal {
 }
 
 // IDs executes the query and returns a list of Portal IDs.
-func (pq *PortalQuery) IDs(ctx context.Context) ([]int, error) {
-	var ids []int
-	ctx = setContextOp(ctx, pq.ctx, "IDs")
-	if err := pq.Select(portal.FieldID).Scan(ctx, &ids); err != nil {
+func (pq *PortalQuery) IDs(ctx context.Context) (ids []int, err error) {
+	if pq.ctx.Unique == nil && pq.path != nil {
+		pq.Unique(true)
+	}
+	ctx = setContextOp(ctx, pq.ctx, ent.OpQueryIDs)
+	if err = pq.Select(portal.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -222,7 +225,7 @@ func (pq *PortalQuery) IDsX(ctx context.Context) []int {
 
 // Count returns the count of the given query.
 func (pq *PortalQuery) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, pq.ctx, "Count")
+	ctx = setContextOp(ctx, pq.ctx, ent.OpQueryCount)
 	if err := pq.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
@@ -240,7 +243,7 @@ func (pq *PortalQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (pq *PortalQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, pq.ctx, "Exist")
+	ctx = setContextOp(ctx, pq.ctx, ent.OpQueryExist)
 	switch _, err := pq.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -269,7 +272,7 @@ func (pq *PortalQuery) Clone() *PortalQuery {
 	return &PortalQuery{
 		config:       pq.config,
 		ctx:          pq.ctx.Clone(),
-		order:        append([]OrderFunc{}, pq.order...),
+		order:        append([]portal.OrderOption{}, pq.order...),
 		inters:       append([]Interceptor{}, pq.inters...),
 		predicates:   append([]predicate.Portal{}, pq.predicates...),
 		withCategory: pq.withCategory.Clone(),
@@ -449,20 +452,12 @@ func (pq *PortalQuery) sqlCount(ctx context.Context) (int, error) {
 }
 
 func (pq *PortalQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := &sqlgraph.QuerySpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   portal.Table,
-			Columns: portal.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: portal.FieldID,
-			},
-		},
-		From:   pq.sql,
-		Unique: true,
-	}
+	_spec := sqlgraph.NewQuerySpec(portal.Table, portal.Columns, sqlgraph.NewFieldSpec(portal.FieldID, field.TypeInt))
+	_spec.From = pq.sql
 	if unique := pq.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
+	} else if pq.path != nil {
+		_spec.Unique = true
 	}
 	if fields := pq.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
@@ -542,7 +537,7 @@ func (pgb *PortalGroupBy) Aggregate(fns ...AggregateFunc) *PortalGroupBy {
 
 // Scan applies the selector query and scans the result into the given value.
 func (pgb *PortalGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, pgb.build.ctx, "GroupBy")
+	ctx = setContextOp(ctx, pgb.build.ctx, ent.OpQueryGroupBy)
 	if err := pgb.build.prepareQuery(ctx); err != nil {
 		return err
 	}
@@ -590,7 +585,7 @@ func (ps *PortalSelect) Aggregate(fns ...AggregateFunc) *PortalSelect {
 
 // Scan applies the selector query and scans the result into the given value.
 func (ps *PortalSelect) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, ps.ctx, "Select")
+	ctx = setContextOp(ctx, ps.ctx, ent.OpQuerySelect)
 	if err := ps.prepareQuery(ctx); err != nil {
 		return err
 	}

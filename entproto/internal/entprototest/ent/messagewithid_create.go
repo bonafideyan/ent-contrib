@@ -31,7 +31,7 @@ func (mwic *MessageWithIDCreate) Mutation() *MessageWithIDMutation {
 
 // Save creates the MessageWithID in the database.
 func (mwic *MessageWithIDCreate) Save(ctx context.Context) (*MessageWithID, error) {
-	return withHooks[*MessageWithID, MessageWithIDMutation](ctx, mwic.sqlSave, mwic.mutation, mwic.hooks)
+	return withHooks(ctx, mwic.sqlSave, mwic.mutation, mwic.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -84,13 +84,7 @@ func (mwic *MessageWithIDCreate) sqlSave(ctx context.Context) (*MessageWithID, e
 func (mwic *MessageWithIDCreate) createSpec() (*MessageWithID, *sqlgraph.CreateSpec) {
 	var (
 		_node = &MessageWithID{config: mwic.config}
-		_spec = &sqlgraph.CreateSpec{
-			Table: messagewithid.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt32,
-				Column: messagewithid.FieldID,
-			},
-		}
+		_spec = sqlgraph.NewCreateSpec(messagewithid.Table, sqlgraph.NewFieldSpec(messagewithid.FieldID, field.TypeInt32))
 	)
 	if id, ok := mwic.mutation.ID(); ok {
 		_node.ID = id
@@ -102,11 +96,15 @@ func (mwic *MessageWithIDCreate) createSpec() (*MessageWithID, *sqlgraph.CreateS
 // MessageWithIDCreateBulk is the builder for creating many MessageWithID entities in bulk.
 type MessageWithIDCreateBulk struct {
 	config
+	err      error
 	builders []*MessageWithIDCreate
 }
 
 // Save creates the MessageWithID entities in the database.
 func (mwicb *MessageWithIDCreateBulk) Save(ctx context.Context) ([]*MessageWithID, error) {
+	if mwicb.err != nil {
+		return nil, mwicb.err
+	}
 	specs := make([]*sqlgraph.CreateSpec, len(mwicb.builders))
 	nodes := make([]*MessageWithID, len(mwicb.builders))
 	mutators := make([]Mutator, len(mwicb.builders))
@@ -122,8 +120,8 @@ func (mwicb *MessageWithIDCreateBulk) Save(ctx context.Context) ([]*MessageWithI
 					return nil, err
 				}
 				builder.mutation = mutation
-				nodes[i], specs[i] = builder.createSpec()
 				var err error
+				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, mwicb.builders[i+1].mutation)
 				} else {

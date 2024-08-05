@@ -32,7 +32,7 @@ func (mwfoc *MessageWithFieldOneCreate) Mutation() *MessageWithFieldOneMutation 
 
 // Save creates the MessageWithFieldOne in the database.
 func (mwfoc *MessageWithFieldOneCreate) Save(ctx context.Context) (*MessageWithFieldOne, error) {
-	return withHooks[*MessageWithFieldOne, MessageWithFieldOneMutation](ctx, mwfoc.sqlSave, mwfoc.mutation, mwfoc.hooks)
+	return withHooks(ctx, mwfoc.sqlSave, mwfoc.mutation, mwfoc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -86,13 +86,7 @@ func (mwfoc *MessageWithFieldOneCreate) sqlSave(ctx context.Context) (*MessageWi
 func (mwfoc *MessageWithFieldOneCreate) createSpec() (*MessageWithFieldOne, *sqlgraph.CreateSpec) {
 	var (
 		_node = &MessageWithFieldOne{config: mwfoc.config}
-		_spec = &sqlgraph.CreateSpec{
-			Table: messagewithfieldone.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: messagewithfieldone.FieldID,
-			},
-		}
+		_spec = sqlgraph.NewCreateSpec(messagewithfieldone.Table, sqlgraph.NewFieldSpec(messagewithfieldone.FieldID, field.TypeInt))
 	)
 	if value, ok := mwfoc.mutation.FieldOne(); ok {
 		_spec.SetField(messagewithfieldone.FieldFieldOne, field.TypeInt32, value)
@@ -104,11 +98,15 @@ func (mwfoc *MessageWithFieldOneCreate) createSpec() (*MessageWithFieldOne, *sql
 // MessageWithFieldOneCreateBulk is the builder for creating many MessageWithFieldOne entities in bulk.
 type MessageWithFieldOneCreateBulk struct {
 	config
+	err      error
 	builders []*MessageWithFieldOneCreate
 }
 
 // Save creates the MessageWithFieldOne entities in the database.
 func (mwfocb *MessageWithFieldOneCreateBulk) Save(ctx context.Context) ([]*MessageWithFieldOne, error) {
+	if mwfocb.err != nil {
+		return nil, mwfocb.err
+	}
 	specs := make([]*sqlgraph.CreateSpec, len(mwfocb.builders))
 	nodes := make([]*MessageWithFieldOne, len(mwfocb.builders))
 	mutators := make([]Mutator, len(mwfocb.builders))
@@ -124,8 +122,8 @@ func (mwfocb *MessageWithFieldOneCreateBulk) Save(ctx context.Context) ([]*Messa
 					return nil, err
 				}
 				builder.mutation = mutation
-				nodes[i], specs[i] = builder.createSpec()
 				var err error
+				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, mwfocb.builders[i+1].mutation)
 				} else {

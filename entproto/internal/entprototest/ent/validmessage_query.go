@@ -9,6 +9,7 @@ import (
 
 	"entgo.io/contrib/entproto/internal/entprototest/ent/predicate"
 	"entgo.io/contrib/entproto/internal/entprototest/ent/validmessage"
+	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
@@ -18,7 +19,7 @@ import (
 type ValidMessageQuery struct {
 	config
 	ctx        *QueryContext
-	order      []OrderFunc
+	order      []validmessage.OrderOption
 	inters     []Interceptor
 	predicates []predicate.ValidMessage
 	// intermediate query (i.e. traversal path).
@@ -52,7 +53,7 @@ func (vmq *ValidMessageQuery) Unique(unique bool) *ValidMessageQuery {
 }
 
 // Order specifies how the records should be ordered.
-func (vmq *ValidMessageQuery) Order(o ...OrderFunc) *ValidMessageQuery {
+func (vmq *ValidMessageQuery) Order(o ...validmessage.OrderOption) *ValidMessageQuery {
 	vmq.order = append(vmq.order, o...)
 	return vmq
 }
@@ -60,7 +61,7 @@ func (vmq *ValidMessageQuery) Order(o ...OrderFunc) *ValidMessageQuery {
 // First returns the first ValidMessage entity from the query.
 // Returns a *NotFoundError when no ValidMessage was found.
 func (vmq *ValidMessageQuery) First(ctx context.Context) (*ValidMessage, error) {
-	nodes, err := vmq.Limit(1).All(setContextOp(ctx, vmq.ctx, "First"))
+	nodes, err := vmq.Limit(1).All(setContextOp(ctx, vmq.ctx, ent.OpQueryFirst))
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +84,7 @@ func (vmq *ValidMessageQuery) FirstX(ctx context.Context) *ValidMessage {
 // Returns a *NotFoundError when no ValidMessage ID was found.
 func (vmq *ValidMessageQuery) FirstID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = vmq.Limit(1).IDs(setContextOp(ctx, vmq.ctx, "FirstID")); err != nil {
+	if ids, err = vmq.Limit(1).IDs(setContextOp(ctx, vmq.ctx, ent.OpQueryFirstID)); err != nil {
 		return
 	}
 	if len(ids) == 0 {
@@ -106,7 +107,7 @@ func (vmq *ValidMessageQuery) FirstIDX(ctx context.Context) int {
 // Returns a *NotSingularError when more than one ValidMessage entity is found.
 // Returns a *NotFoundError when no ValidMessage entities are found.
 func (vmq *ValidMessageQuery) Only(ctx context.Context) (*ValidMessage, error) {
-	nodes, err := vmq.Limit(2).All(setContextOp(ctx, vmq.ctx, "Only"))
+	nodes, err := vmq.Limit(2).All(setContextOp(ctx, vmq.ctx, ent.OpQueryOnly))
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +135,7 @@ func (vmq *ValidMessageQuery) OnlyX(ctx context.Context) *ValidMessage {
 // Returns a *NotFoundError when no entities are found.
 func (vmq *ValidMessageQuery) OnlyID(ctx context.Context) (id int, err error) {
 	var ids []int
-	if ids, err = vmq.Limit(2).IDs(setContextOp(ctx, vmq.ctx, "OnlyID")); err != nil {
+	if ids, err = vmq.Limit(2).IDs(setContextOp(ctx, vmq.ctx, ent.OpQueryOnlyID)); err != nil {
 		return
 	}
 	switch len(ids) {
@@ -159,7 +160,7 @@ func (vmq *ValidMessageQuery) OnlyIDX(ctx context.Context) int {
 
 // All executes the query and returns a list of ValidMessages.
 func (vmq *ValidMessageQuery) All(ctx context.Context) ([]*ValidMessage, error) {
-	ctx = setContextOp(ctx, vmq.ctx, "All")
+	ctx = setContextOp(ctx, vmq.ctx, ent.OpQueryAll)
 	if err := vmq.prepareQuery(ctx); err != nil {
 		return nil, err
 	}
@@ -177,10 +178,12 @@ func (vmq *ValidMessageQuery) AllX(ctx context.Context) []*ValidMessage {
 }
 
 // IDs executes the query and returns a list of ValidMessage IDs.
-func (vmq *ValidMessageQuery) IDs(ctx context.Context) ([]int, error) {
-	var ids []int
-	ctx = setContextOp(ctx, vmq.ctx, "IDs")
-	if err := vmq.Select(validmessage.FieldID).Scan(ctx, &ids); err != nil {
+func (vmq *ValidMessageQuery) IDs(ctx context.Context) (ids []int, err error) {
+	if vmq.ctx.Unique == nil && vmq.path != nil {
+		vmq.Unique(true)
+	}
+	ctx = setContextOp(ctx, vmq.ctx, ent.OpQueryIDs)
+	if err = vmq.Select(validmessage.FieldID).Scan(ctx, &ids); err != nil {
 		return nil, err
 	}
 	return ids, nil
@@ -197,7 +200,7 @@ func (vmq *ValidMessageQuery) IDsX(ctx context.Context) []int {
 
 // Count returns the count of the given query.
 func (vmq *ValidMessageQuery) Count(ctx context.Context) (int, error) {
-	ctx = setContextOp(ctx, vmq.ctx, "Count")
+	ctx = setContextOp(ctx, vmq.ctx, ent.OpQueryCount)
 	if err := vmq.prepareQuery(ctx); err != nil {
 		return 0, err
 	}
@@ -215,7 +218,7 @@ func (vmq *ValidMessageQuery) CountX(ctx context.Context) int {
 
 // Exist returns true if the query has elements in the graph.
 func (vmq *ValidMessageQuery) Exist(ctx context.Context) (bool, error) {
-	ctx = setContextOp(ctx, vmq.ctx, "Exist")
+	ctx = setContextOp(ctx, vmq.ctx, ent.OpQueryExist)
 	switch _, err := vmq.FirstID(ctx); {
 	case IsNotFound(err):
 		return false, nil
@@ -244,7 +247,7 @@ func (vmq *ValidMessageQuery) Clone() *ValidMessageQuery {
 	return &ValidMessageQuery{
 		config:     vmq.config,
 		ctx:        vmq.ctx.Clone(),
-		order:      append([]OrderFunc{}, vmq.order...),
+		order:      append([]validmessage.OrderOption{}, vmq.order...),
 		inters:     append([]Interceptor{}, vmq.inters...),
 		predicates: append([]predicate.ValidMessage{}, vmq.predicates...),
 		// clone intermediate query.
@@ -362,20 +365,12 @@ func (vmq *ValidMessageQuery) sqlCount(ctx context.Context) (int, error) {
 }
 
 func (vmq *ValidMessageQuery) querySpec() *sqlgraph.QuerySpec {
-	_spec := &sqlgraph.QuerySpec{
-		Node: &sqlgraph.NodeSpec{
-			Table:   validmessage.Table,
-			Columns: validmessage.Columns,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: validmessage.FieldID,
-			},
-		},
-		From:   vmq.sql,
-		Unique: true,
-	}
+	_spec := sqlgraph.NewQuerySpec(validmessage.Table, validmessage.Columns, sqlgraph.NewFieldSpec(validmessage.FieldID, field.TypeInt))
+	_spec.From = vmq.sql
 	if unique := vmq.ctx.Unique; unique != nil {
 		_spec.Unique = *unique
+	} else if vmq.path != nil {
+		_spec.Unique = true
 	}
 	if fields := vmq.ctx.Fields; len(fields) > 0 {
 		_spec.Node.Columns = make([]string, 0, len(fields))
@@ -455,7 +450,7 @@ func (vmgb *ValidMessageGroupBy) Aggregate(fns ...AggregateFunc) *ValidMessageGr
 
 // Scan applies the selector query and scans the result into the given value.
 func (vmgb *ValidMessageGroupBy) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, vmgb.build.ctx, "GroupBy")
+	ctx = setContextOp(ctx, vmgb.build.ctx, ent.OpQueryGroupBy)
 	if err := vmgb.build.prepareQuery(ctx); err != nil {
 		return err
 	}
@@ -503,7 +498,7 @@ func (vms *ValidMessageSelect) Aggregate(fns ...AggregateFunc) *ValidMessageSele
 
 // Scan applies the selector query and scans the result into the given value.
 func (vms *ValidMessageSelect) Scan(ctx context.Context, v any) error {
-	ctx = setContextOp(ctx, vms.ctx, "Select")
+	ctx = setContextOp(ctx, vms.ctx, ent.OpQuerySelect)
 	if err := vms.prepareQuery(ctx); err != nil {
 		return err
 	}

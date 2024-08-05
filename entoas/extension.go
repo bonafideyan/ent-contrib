@@ -43,6 +43,9 @@ type (
 		// By enabling she SimpleModels configuration the generator simply adds the defined schemas with all fields and edges.
 		// Serialization groups have no effects in this mode.
 		SimpleModels bool
+		// When enabled, allows the built-in "id" field as part of the POST payload for entity creation, allowing the client to supply UUIDs as primary keys and for idempotency.
+		// Defaults to false.
+		AllowClientUUIDs bool
 		// Specify the minimum amount of itemsPerPage allowed in generated pagination.
 		// Defaults to 1.
 		MinItemsPerPage int64
@@ -134,6 +137,16 @@ func SimpleModels() ExtensionOption {
 	}
 }
 
+// AllowClientUUIDs enables the client supplied IDs feature.
+//
+// Further information can be found at Config.AllowClientUUIDs.
+func AllowClientUUIDs() ExtensionOption {
+	return func(ex *Extension) error {
+		ex.config.AllowClientUUIDs = true
+		return nil
+	}
+}
+
 // WriteTo writes the current specs content to the given io.Writer.
 func WriteTo(out io.Writer) ExtensionOption {
 	return func(ex *Extension) error {
@@ -157,18 +170,25 @@ func Spec(spec *ogen.Spec) ExtensionOption {
 // generator returns a gen.Hook that creates a Spec for the given gen.Graph.
 func (ex *Extension) generate(next gen.Generator) gen.Generator {
 	return gen.GenerateFunc(func(g *gen.Graph) error {
+		var spec *ogen.Spec
 		// Let ent create all the files.
 		if err := next.Generate(g); err != nil {
 			return err
 		}
-		// Spec stub to fill.
-		spec := ogen.NewSpec().
-			SetOpenAPI("3.0.3").
-			SetInfo(ogen.NewInfo().
-				SetTitle("Ent Schema API").
-				SetDescription("This is an auto generated API description made out of an Ent schema definition").
-				SetVersion("0.1.0"),
-			)
+
+		if ex.spec != nil && len(ex.spec.OpenAPI) > 0 && len(ex.spec.Info.Title) > 0 && len(ex.spec.Info.Version) > 0 {
+			spec = ex.spec
+		} else {
+			// Spec stub to fill.
+			spec = ogen.NewSpec().
+				SetOpenAPI("3.0.3").
+				SetInfo(ogen.NewInfo().
+					SetTitle("Ent Schema API").
+					SetDescription("This is an auto generated API description made out of an Ent schema definition").
+					SetVersion("0.1.0"),
+				)
+		}
+
 		// Run the generator.
 		if err := generate(g, spec); err != nil {
 			return err

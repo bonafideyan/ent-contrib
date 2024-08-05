@@ -25,7 +25,7 @@ func (wnfc *WithNilFieldsCreate) Mutation() *WithNilFieldsMutation {
 
 // Save creates the WithNilFields in the database.
 func (wnfc *WithNilFieldsCreate) Save(ctx context.Context) (*WithNilFields, error) {
-	return withHooks[*WithNilFields, WithNilFieldsMutation](ctx, wnfc.sqlSave, wnfc.mutation, wnfc.hooks)
+	return withHooks(ctx, wnfc.sqlSave, wnfc.mutation, wnfc.hooks)
 }
 
 // SaveX calls Save and panics if Save returns an error.
@@ -76,13 +76,7 @@ func (wnfc *WithNilFieldsCreate) sqlSave(ctx context.Context) (*WithNilFields, e
 func (wnfc *WithNilFieldsCreate) createSpec() (*WithNilFields, *sqlgraph.CreateSpec) {
 	var (
 		_node = &WithNilFields{config: wnfc.config}
-		_spec = &sqlgraph.CreateSpec{
-			Table: withnilfields.Table,
-			ID: &sqlgraph.FieldSpec{
-				Type:   field.TypeInt,
-				Column: withnilfields.FieldID,
-			},
-		}
+		_spec = sqlgraph.NewCreateSpec(withnilfields.Table, sqlgraph.NewFieldSpec(withnilfields.FieldID, field.TypeInt))
 	)
 	return _node, _spec
 }
@@ -90,11 +84,15 @@ func (wnfc *WithNilFieldsCreate) createSpec() (*WithNilFields, *sqlgraph.CreateS
 // WithNilFieldsCreateBulk is the builder for creating many WithNilFields entities in bulk.
 type WithNilFieldsCreateBulk struct {
 	config
+	err      error
 	builders []*WithNilFieldsCreate
 }
 
 // Save creates the WithNilFields entities in the database.
 func (wnfcb *WithNilFieldsCreateBulk) Save(ctx context.Context) ([]*WithNilFields, error) {
+	if wnfcb.err != nil {
+		return nil, wnfcb.err
+	}
 	specs := make([]*sqlgraph.CreateSpec, len(wnfcb.builders))
 	nodes := make([]*WithNilFields, len(wnfcb.builders))
 	mutators := make([]Mutator, len(wnfcb.builders))
@@ -110,8 +108,8 @@ func (wnfcb *WithNilFieldsCreateBulk) Save(ctx context.Context) ([]*WithNilField
 					return nil, err
 				}
 				builder.mutation = mutation
-				nodes[i], specs[i] = builder.createSpec()
 				var err error
+				nodes[i], specs[i] = builder.createSpec()
 				if i < len(mutators)-1 {
 					_, err = mutators[i+1].Mutate(root, wnfcb.builders[i+1].mutation)
 				} else {
