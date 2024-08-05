@@ -25,12 +25,32 @@ func IDNEQ(id int) predicate.Pet {
 
 // IDIn applies the In predicate on the ID field.
 func IDIn(ids ...int) predicate.Pet {
+<<<<<<< HEAD
 	return predicate.Pet(sql.FieldIn(FieldID, ids...))
+=======
+	return predicate.Pet(func(s *sql.Selector) {
+		v := make([]any, len(ids))
+		for i := range v {
+			v[i] = ids[i]
+		}
+		s.Where(sql.In(s.C(FieldID), v...))
+	})
+>>>>>>> 9d90911 (changed byme)
 }
 
 // IDNotIn applies the NotIn predicate on the ID field.
 func IDNotIn(ids ...int) predicate.Pet {
+<<<<<<< HEAD
 	return predicate.Pet(sql.FieldNotIn(FieldID, ids...))
+=======
+	return predicate.Pet(func(s *sql.Selector) {
+		v := make([]any, len(ids))
+		for i := range v {
+			v[i] = ids[i]
+		}
+		s.Where(sql.NotIn(s.C(FieldID), v...))
+	})
+>>>>>>> 9d90911 (changed byme)
 }
 
 // IDGT applies the GT predicate on the ID field.
@@ -75,12 +95,32 @@ func NameNEQ(v string) predicate.Pet {
 
 // NameIn applies the In predicate on the "name" field.
 func NameIn(vs ...string) predicate.Pet {
+<<<<<<< HEAD
 	return predicate.Pet(sql.FieldIn(FieldName, vs...))
+=======
+	v := make([]any, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.Pet(func(s *sql.Selector) {
+		s.Where(sql.In(s.C(FieldName), v...))
+	})
+>>>>>>> 9d90911 (changed byme)
 }
 
 // NameNotIn applies the NotIn predicate on the "name" field.
 func NameNotIn(vs ...string) predicate.Pet {
+<<<<<<< HEAD
 	return predicate.Pet(sql.FieldNotIn(FieldName, vs...))
+=======
+	v := make([]any, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.Pet(func(s *sql.Selector) {
+		s.Where(sql.NotIn(s.C(FieldName), v...))
+	})
+>>>>>>> 9d90911 (changed byme)
 }
 
 // NameGT applies the GT predicate on the "name" field.
@@ -150,12 +190,32 @@ func AgeNEQ(v int) predicate.Pet {
 
 // AgeIn applies the In predicate on the "age" field.
 func AgeIn(vs ...int) predicate.Pet {
+<<<<<<< HEAD
 	return predicate.Pet(sql.FieldIn(FieldAge, vs...))
+=======
+	v := make([]any, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.Pet(func(s *sql.Selector) {
+		s.Where(sql.In(s.C(FieldAge), v...))
+	})
+>>>>>>> 9d90911 (changed byme)
 }
 
 // AgeNotIn applies the NotIn predicate on the "age" field.
 func AgeNotIn(vs ...int) predicate.Pet {
+<<<<<<< HEAD
 	return predicate.Pet(sql.FieldNotIn(FieldAge, vs...))
+=======
+	v := make([]any, len(vs))
+	for i := range v {
+		v[i] = vs[i]
+	}
+	return predicate.Pet(func(s *sql.Selector) {
+		s.Where(sql.NotIn(s.C(FieldAge), v...))
+	})
+>>>>>>> 9d90911 (changed byme)
 }
 
 // AgeGT applies the GT predicate on the "age" field.

@@ -66,7 +66,10 @@ func (ud *UserDelete) sqlExec(ctx context.Context) (int, error) {
 	if err != nil && sqlgraph.IsConstraintError(err) {
 		err = &ConstraintError{msg: err.Error(), wrap: err}
 	}
+<<<<<<< HEAD
 	ud.mutation.done = true
+=======
+>>>>>>> 9d90911 (changed byme)
 	return affected, err
 }
 
