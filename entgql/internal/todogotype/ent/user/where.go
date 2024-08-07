@@ -39,32 +39,12 @@ func IDNEQ(id string) predicate.User {
 
 // IDIn applies the In predicate on the ID field.
 func IDIn(ids ...string) predicate.User {
-<<<<<<< HEAD
 	return predicate.User(sql.FieldIn(FieldID, ids...))
-=======
-	return predicate.User(func(s *sql.Selector) {
-		v := make([]any, len(ids))
-		for i := range v {
-			v[i] = ids[i]
-		}
-		s.Where(sql.In(s.C(FieldID), v...))
-	})
->>>>>>> 9d90911 (changed byme)
 }
 
 // IDNotIn applies the NotIn predicate on the ID field.
 func IDNotIn(ids ...string) predicate.User {
-<<<<<<< HEAD
 	return predicate.User(sql.FieldNotIn(FieldID, ids...))
-=======
-	return predicate.User(func(s *sql.Selector) {
-		v := make([]any, len(ids))
-		for i := range v {
-			v[i] = ids[i]
-		}
-		s.Where(sql.NotIn(s.C(FieldID), v...))
-	})
->>>>>>> 9d90911 (changed byme)
 }
 
 // IDGT applies the GT predicate on the ID field.
@@ -114,32 +94,12 @@ func NameNEQ(v string) predicate.User {
 
 // NameIn applies the In predicate on the "name" field.
 func NameIn(vs ...string) predicate.User {
-<<<<<<< HEAD
 	return predicate.User(sql.FieldIn(FieldName, vs...))
-=======
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.User(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldName), v...))
-	})
->>>>>>> 9d90911 (changed byme)
 }
 
 // NameNotIn applies the NotIn predicate on the "name" field.
 func NameNotIn(vs ...string) predicate.User {
-<<<<<<< HEAD
 	return predicate.User(sql.FieldNotIn(FieldName, vs...))
-=======
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.User(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldName), v...))
-	})
->>>>>>> 9d90911 (changed byme)
 }
 
 // NameGT applies the GT predicate on the "name" field.

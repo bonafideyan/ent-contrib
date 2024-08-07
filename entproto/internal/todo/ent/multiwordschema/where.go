@@ -24,32 +24,12 @@ func IDNEQ(id int) predicate.MultiWordSchema {
 
 // IDIn applies the In predicate on the ID field.
 func IDIn(ids ...int) predicate.MultiWordSchema {
-<<<<<<< HEAD
 	return predicate.MultiWordSchema(sql.FieldIn(FieldID, ids...))
-=======
-	return predicate.MultiWordSchema(func(s *sql.Selector) {
-		v := make([]any, len(ids))
-		for i := range v {
-			v[i] = ids[i]
-		}
-		s.Where(sql.In(s.C(FieldID), v...))
-	})
->>>>>>> 9d90911 (changed byme)
 }
 
 // IDNotIn applies the NotIn predicate on the ID field.
 func IDNotIn(ids ...int) predicate.MultiWordSchema {
-<<<<<<< HEAD
 	return predicate.MultiWordSchema(sql.FieldNotIn(FieldID, ids...))
-=======
-	return predicate.MultiWordSchema(func(s *sql.Selector) {
-		v := make([]any, len(ids))
-		for i := range v {
-			v[i] = ids[i]
-		}
-		s.Where(sql.NotIn(s.C(FieldID), v...))
-	})
->>>>>>> 9d90911 (changed byme)
 }
 
 // IDGT applies the GT predicate on the ID field.
@@ -84,32 +64,12 @@ func UnitNEQ(v Unit) predicate.MultiWordSchema {
 
 // UnitIn applies the In predicate on the "unit" field.
 func UnitIn(vs ...Unit) predicate.MultiWordSchema {
-<<<<<<< HEAD
 	return predicate.MultiWordSchema(sql.FieldIn(FieldUnit, vs...))
-=======
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.MultiWordSchema(func(s *sql.Selector) {
-		s.Where(sql.In(s.C(FieldUnit), v...))
-	})
->>>>>>> 9d90911 (changed byme)
 }
 
 // UnitNotIn applies the NotIn predicate on the "unit" field.
 func UnitNotIn(vs ...Unit) predicate.MultiWordSchema {
-<<<<<<< HEAD
 	return predicate.MultiWordSchema(sql.FieldNotIn(FieldUnit, vs...))
-=======
-	v := make([]any, len(vs))
-	for i := range v {
-		v[i] = vs[i]
-	}
-	return predicate.MultiWordSchema(func(s *sql.Selector) {
-		s.Where(sql.NotIn(s.C(FieldUnit), v...))
-	})
->>>>>>> 9d90911 (changed byme)
 }
 
 // And groups predicates with the AND operator between them.
