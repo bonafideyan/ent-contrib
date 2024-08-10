@@ -547,16 +547,18 @@ func ({{ $r }} *{{ $query }}) PaginateJump(
 		}
 		conn.Current = *pageIndex
 	}
- 
+  
+
+	limit := *pageLength
 	{{ $r }} = pager.applyOrder({{ $r }})
 	{{ $r }} = {{ $r }}.Limit(*pageLength).Offset(*pageIndex * *pageLength)
 
 
-	if field := collectedField(ctx, nodesField); field != nil { 
-		if err := {{ $r }}.collectField(ctx, graphql.GetOperationContext(ctx), *field, []string{nodesField}); err != nil {
+	if field := collectedField(ctx, edgesField, nodeField); field != nil {
+		if err := {{ $r }}.collectField(ctx, limit == 1, graphql.GetOperationContext(ctx), *field, []string{edgesField, nodeField}); err != nil {
 			return nil, err
 		}
-	}
+	} 
 
 	nodes, err := {{ $r }}.All(ctx)
 	if err != nil || len(nodes) == 0 {
